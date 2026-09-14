@@ -19,6 +19,45 @@ npm run preview
 > O projeto usa `.npmrc` com `legacy-peer-deps=true`. Sem isso, o npm tenta
 > instalar os peers opcionais de React Native do `@react-three/fiber` e quebra.
 
+## Publicar no GitHub Pages
+
+Já está tudo configurado — o site se republica sozinho a cada push na `main`.
+Faltam dois cliques, uma vez só, que só o dono da conta pode dar:
+
+1. **Tornar o repositório público.** Settings › General › Danger Zone ›
+   *Change visibility*. O Pages gratuito não publica repositório privado.
+2. **Ligar o Pages pelo Actions.** Settings › Pages › *Source* → **GitHub
+   Actions** (não "Deploy from a branch").
+
+Pronto: a aba **Actions** mostra a publicação, e o site sai em
+`https://lucasfeh.github.io/portifolio-tarot/`. O primeiro build leva uns 2
+minutos.
+
+### O que sustenta isso
+
+- `vite.config.ts` põe `base: '/portifolio-tarot/'` **só no build** — em
+  desenvolvimento a base segue `/`. Sem essa base, os assets seriam buscados na
+  raiz do domínio e a página subiria em branco. **Renomeou o repositório?**
+  Troque a constante `REPO` lá.
+- Arquivos de `public/` são resolvidos por `BASE_URL` (`asset()` em
+  `src/data/site.ts`). Um caminho absoluto como `/rodrigo.png` daria 404 no
+  subpath.
+- As rotas são por **hash** (`#/tiragem`), então o Pages não precisa de nenhuma
+  regra de reescrita — é o que costuma quebrar SPA hospedada em servidor
+  estático.
+- `.github/workflows/deploy.yml` roda `npm ci` e `npm run build`.
+
+### Ligando o Firebase em produção
+
+As chaves são opcionais no workflow. Para ativar, cadastre em **Settings ›
+Secrets and variables › Actions** os mesmos nomes do `.env.example`
+(`VITE_FIREBASE_*` e `VITE_TAROLOGO_EMAILS`) e republique.
+
+Sem elas o site sobe em **modo local** — o que, num site público, significa que
+cada visitante tem o seu próprio mundo em `localStorage`: ele pode abrir a sala
+e experimentar os dois papéis, mas ninguém vê a mesa de ninguém. Para uma
+consulta de verdade entre duas pessoas, o Firebase é obrigatório.
+
 ## Tiragem digital
 
 Uma sala 3D onde o tarólogo põe cartas na mesa e o cliente vê aparecerem **ao
