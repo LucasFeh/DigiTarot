@@ -1,0 +1,294 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------
+   Paleta extraída da textura de nebulosa: preto-espaço, azul-violeta
+   profundo, roxo real, magenta e o branco-estrela dos pontos de luz.
+------------------------------------------------------------------ */
+@theme {
+  --color-void: #05010f;
+  --color-abyss: #0a0418;
+  --color-deep: #150a33;
+  --color-indigo: #241463;
+  --color-royal: #3b2a9c;
+  --color-violet: #6d3fd4;
+  --color-lilac: #a87cf0;
+  --color-magenta: #c2449d;
+  --color-rose: #e878c4;
+  --color-star: #f6f2ff;
+  --color-mist: #cbbde8;
+  --color-gold: #f2d492;
+
+  --font-display: 'Cinzel', 'Georgia', serif;
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-glow: 0 0 40px -8px var(--color-violet);
+  --shadow-card: 0 24px 60px -18px #000, 0 0 0 1px #ffffff14;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-void);
+    color: var(--color-star);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  ::selection {
+    background: var(--color-magenta);
+    color: var(--color-star);
+  }
+
+  /* Scrollbar discreta, dentro do tema */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-void);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(var(--color-royal), var(--color-magenta));
+    border-radius: 99px;
+    border: 2px solid var(--color-void);
+  }
+}
+
+@layer utilities {
+  /* Texto com o gradiente da nebulosa */
+  .text-nebula {
+    background: linear-gradient(
+      100deg,
+      var(--color-star) 0%,
+      var(--color-lilac) 35%,
+      var(--color-rose) 62%,
+      var(--color-star) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  /* Vidro fosco arroxeado usado nos painéis */
+  .glass {
+    background: linear-gradient(160deg, #ffffff10, #ffffff04 40%, #0000001a);
+    backdrop-filter: blur(14px);
+    border: 1px solid #ffffff1f;
+  }
+}
+
+/* ---------------------------- keyframes ---------------------------- */
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2.5%, -2%, 0) scale(1.06);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -180% 0;
+  }
+  100% {
+    background-position: 180% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* --------------------- círculo mágico e portal --------------------- */
+
+@keyframes spin-cw {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin-ccw {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* Feixes que sobem do círculo enquanto ele invoca as cartas. */
+@keyframes beam-rise {
+  0% {
+    transform: translateY(20%) scaleY(0.5);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-115%) scaleY(1.15);
+    opacity: 0;
+  }
+}
+
+/* Faíscas soltas subindo da borda do círculo. */
+@keyframes mote-rise {
+  0% {
+    transform: translateY(0) scale(0.4);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-150px) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Estrela distante dentro do portal: quase parada, só cintila. */
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: calc(var(--so) * 0.35);
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: var(--so);
+    transform: scale(1.15);
+  }
+}
+
+/**
+ * Estrela sendo sugada para o fundo do portal. Cai em espiral para o centro e
+ * encolhe — é o que dá a sensação de profundidade, de um poço que continua
+ * atrás da fenda.
+ */
+@keyframes star-infall {
+  0% {
+    transform: translate(var(--sx), var(--sy)) scale(1);
+    opacity: 0;
+  }
+  16% {
+    opacity: var(--so);
+  }
+  74% {
+    opacity: var(--so);
+  }
+  100% {
+    transform: translate(0, 0) scale(0.1);
+    opacity: 0;
+  }
+}
+
+/**
+ * Estria de vento sendo puxada para dentro da fenda. Nasce longe, acelera e
+ * colapsa no ponto de entrada — `--dx` é a distância inicial (com sinal, para
+ * servir aos dois lados) e a origem do transform fica na fenda, de modo que o
+ * encolhimento aponte para lá.
+ */
+@keyframes suck-streak {
+  0% {
+    transform: translateX(var(--dx)) scaleX(1);
+    opacity: 0;
+  }
+  18% {
+    opacity: var(--peak);
+  }
+  72% {
+    opacity: var(--peak);
+  }
+  100% {
+    transform: translateX(0) scaleX(0.04);
+    opacity: 0;
+  }
+}
+
+/**
+ * O palco do deck precisa conter as cartas, mas NÃO a fumaça do portal: com
+ * `overflow: hidden` ela era decepada numa linha reta. `clip` com margem deixa
+ * o efeito transbordar essa folga antes de cortar, e — ao contrário de
+ * `visible` — nunca gera barra de rolagem.
+ *
+ * Onde `overflow-clip-margin` não existir, isto degrada para um corte na borda,
+ * que é exatamente o comportamento antigo.
+ */
+.stage {
+  overflow: clip;
+  overflow-clip-margin: 260px;
+}
+
+/* Clarão do círculo no instante em que a invocação começa. */
+@keyframes summon-flash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+  22% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+}
+
+/* Partícula caindo em espiral para o centro do buraco negro. O ângulo inicial
+   e o raio vêm de variáveis por partícula. */
+@keyframes infall {
+  0% {
+    transform: rotate(var(--a)) translateX(var(--r)) scale(1);
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(calc(var(--a) + 260deg)) translateX(4px) scale(0.15);
+    opacity: 0;
+  }
+}
