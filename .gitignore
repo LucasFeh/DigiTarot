@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Fontes pesadas que não entram no site: o modelo 3D da mão (55 MB) foi
+# descartado quando a mão virou o círculo mágico, e a imagem de referência
+# nunca foi usada em código. Ficam na máquina, fora do repositório.
+cartoon toe prop 3d model.glb
+ChatGPT Image*.png
