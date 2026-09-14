@@ -1,8 +1,8 @@
 # Portfólio Tarot
 
-Landing page de consultas de tarot. Vite + React + TypeScript + Tailwind 4,
-animações em Framer Motion. Sem WebGL: o círculo mágico, o portal e a fumaça são
-SVG e CSS.
+Site de consultas de tarot: landing page + **sala de tiragem digital ao vivo**.
+Vite + React + TypeScript + Tailwind 4, animações em Framer Motion, a sala em
+Three.js e os dados no Firebase (com um modo local que funciona sem conta).
 
 Duplo clique em **`iniciar.bat`** — ele instala as dependências na primeira vez,
 sobe o servidor e abre o navegador sozinho.
@@ -19,6 +19,67 @@ npm run preview
 > O projeto usa `.npmrc` com `legacy-peer-deps=true`. Sem isso, o npm tenta
 > instalar os peers opcionais de React Native do `@react-three/fiber` e quebra.
 
+## Tiragem digital
+
+Uma sala 3D onde o tarólogo põe cartas na mesa e o cliente vê aparecerem **ao
+vivo**. Rotas: `#/tiragem` (lobby), `#/tiragem/<id>` (a sala), `#/historico`.
+
+### Rodando sem conta nenhuma
+
+Sem as chaves do Firebase o site roda inteiro em modo local — a sala, os papéis,
+o histórico e o tempo real funcionam igual. Para experimentar:
+
+1. Abra `#/tiragem`, escolha **Sou tarólogo** e clique na linha da conta de
+   demonstração para preencher (`tarologo@tarot.local` / `tarot123`).
+2. Abra a mesa e copie o endereço.
+3. **Noutra aba**, entre com Google (vira um visitante) e cole o endereço.
+4. Ponha uma carta na aba do tarólogo: ela aparece na outra na hora.
+
+O tempo real local é `BroadcastChannel`. E há uma divisão de propósito no
+armazenamento: **o usuário fica em `sessionStorage` e as sessões em
+`localStorage`**. É isso que deixa ser tarólogo numa aba e cliente na outra no
+mesmo navegador — com tudo em localStorage, as duas dividiriam o mesmo login.
+Já o *id* do visitante fica em `localStorage`, para o histórico dele sobreviver
+ao fechar a aba.
+
+### Ligando o Firebase
+
+Copie `.env.example` para `.env` e preencha. A troca é só isso: nenhuma tela
+sabe qual backend está em uso — as duas implementam a mesma interface em
+`src/lib/backend/types.ts`, e `carregarBackend()` escolhe. O SDK do Firebase
+entra por import dinâmico, então sem as chaves ele nem é baixado.
+
+`VITE_TAROLOGO_EMAILS` decide quem entra como tarólogo, mas **só na interface**.
+Quem protege os dados é `firestore.rules`, na raiz — publique-as junto. A regra
+que mais importa é a de update: sem ela, um cliente conseguiria virar cartas ou
+trocar o layout da mesa de outra pessoa.
+
+### As peças
+
+| arquivo                             | o que faz                                    |
+| ----------------------------------- | -------------------------------------------- |
+| `src/components/sala/Sala3D.tsx`    | mesa, pano, velas e as cartas nos slots       |
+| `src/components/sala/CartaMesa.tsx` | a carta: frente, verso e o virar              |
+| `src/components/sala/Vela.tsx`      | vela com chama e luz que tremem               |
+| `src/components/sala/PainelTarologo.tsx` | abas de layout, cartas e pano            |
+| `src/components/sala/PopupCarta.tsx` | o resumo do significado no hover             |
+| `src/data/cards.ts`                 | as 78 cartas e seus significados              |
+| `src/data/spreads.ts`               | os layouts de tiragem e seus slots            |
+| `src/data/panos.ts`                 | os panos da mesa, desenhados em SVG           |
+
+O pano é **dado, não código dentro da cena** (`src/data/panos.ts`): o desenho é
+um SVG que vira textura. É esse recorte que vai permitir o cliente escolher o
+próprio pano depois — hoje troca-se na aba "Pano".
+
+Três coisas na cena que custaram tentativa:
+
+- **A face que aponta para cima é a `+z`.** Com o mesh deitado em −90°, é ela
+  que leva o verso — senão a carta nasce revelada.
+- **Virar a carta 180° deixa o texto de cabeça para baixo.** A textura da frente
+  é girada para compensar.
+- **O grupo interno da carta é relativo.** Somar a posição da mesa nele de novo
+  fazia a carta levitar a altura inteira do tampo.
+
 ## O que editar
 
 | Quero mudar…                         | Arquivo                    |
@@ -27,6 +88,7 @@ npm run preview
 | títulos, textos e links de contato   | `src/data/site.ts`         |
 | cores, fontes e sombras              | `src/index.css` (`@theme`) |
 | tamanho do círculo, do portal e do leque | `src/lib/useStageMetrics.ts` |
+| cartas, significados e layouts de tiragem | `src/data/cards.ts`, `spreads.ts` |
 
 ### Topo do hero
 
@@ -97,14 +159,21 @@ Destino e rótulo saem de `site.facePage`.
 
 ## Rotas
 
-`src/lib/useHashRoute.ts` é um roteador por hash de trinta linhas, sem
-dependência. A convenção é a barra:
+`src/lib/useHashRoute.ts` é um roteador por hash sem dependência. A convenção é
+a barra:
 
-- `#/sobre` → rota, troca a página inteira e volta ao topo
-- `#planos`, `#tabela` → âncora de rolagem, continuam na home
+| rota              | página                                  |
+| ----------------- | --------------------------------------- |
+| `#/`              | landing page                            |
+| `#/sobre`         | sobre (em manutenção)                   |
+| `#/tiragem`       | lobby — ou login, se não houver sessão  |
+| `#/tiragem/<id>`  | a sala 3D daquela leitura               |
+| `#/historico`     | consultas de que você participou        |
 
-Para adicionar uma página: crie o componente em `src/pages/` e registre no
-`switch` do `App.tsx`.
+`#planos` e `#tabela`, sem barra, continuam sendo âncora de rolagem na home.
+
+Para adicionar uma página: crie o componente em `src/pages/` e registre em
+`Rotas`, no `App.tsx`.
 
 ## Como o deck funciona
 
@@ -148,10 +217,12 @@ Três camadas resolvem a fenda:
   path é alto e fino, e um radial esticado dissolveria o miolo antes dele
   aparecer). Tem um platô opaco de 38% a 62% e dissolve nas laterais — sem
   platô, o amaciamento por cima devorava a largura e sobrava um traço fino.
-- **A borda acende**, mas sempre borrada: dois `stroke` do mesmo path, um fio
-  rente ao contorno e uma aura larga, cada um com seu `feGaussianBlur`. É o blur
-  que separa "borda luminosa" de "aro desenhado". Os gradientes são verticais, então
-  a luz é forte no ventre e morre nas pontas.
+- **A borda acende** com uma aura larga e borrada: um `stroke` do mesmo path com
+  `feGaussianBlur`. É o blur que separa "borda luminosa" de "aro desenhado", e o
+  gradiente é vertical, então a luz é forte no ventre e morre nas pontas. A cor
+  importa: havia também um traço quase branco rente ao contorno e um fio no
+  eixo, e sobre o preto os dois liam como **cinza** e sujavam o buraco. Só a
+  aura colorida ficou.
 - **A fumaça em volta** usa os mesmos filtros de ruído da ilustração do hero
   (`smoke-f1`..`f6`, montados uma vez em `App.tsx`), para os dois efeitos
   falarem a mesma língua. Ela gira acumulando ângulo por quadro em

@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Regras do Firestore. A lista de tarólogos do front (VITE_TAROLOGO_EMAILS) só
+// decide o que a interface mostra — quem de fato protege os dados é isto aqui,
+// que roda no servidor e não pode ser burlado pelo cliente.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /sessoes/{sessaoId} {
+      // Qualquer pessoa autenticada pode ler: é assim que o cliente acompanha
+      // a leitura ao vivo e revê o histórico.
+      allow read: if request.auth != null;
+
+      // Só cria quem for o dono declarado da sessão.
+      allow create: if request.auth != null
+                    && request.resource.data.tarologoUid == request.auth.uid;
+
+      // O tarólogo dono edita à vontade.
+      // O cliente só pode se registrar na sessão — e apenas se ela estiver
+      // livre. Sem esta trava, um cliente poderia virar cartas ou trocar o
+      // layout da mesa de outra pessoa.
+      allow update: if request.auth != null && (
+        resource.data.tarologoUid == request.auth.uid
+        || (
+          resource.data.clienteUid == null
+          && request.resource.data.clienteUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['clienteUid', 'clienteNome'])
+        )
+      );
+
+      allow delete: if request.auth != null
+                    && resource.data.tarologoUid == request.auth.uid;
+    }
+  }
+}
