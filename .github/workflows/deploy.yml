@@ -42,6 +42,10 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_TAROLOGO_EMAILS: ${{ secrets.VITE_TAROLOGO_EMAILS }}
+          VITE_PIX_CHAVE: ${{ secrets.VITE_PIX_CHAVE }}
+          VITE_PIX_NOME: ${{ secrets.VITE_PIX_NOME }}
+          VITE_PIX_CIDADE: ${{ secrets.VITE_PIX_CIDADE }}
+          VITE_WHATSAPP: ${{ secrets.VITE_WHATSAPP }}
         run: npm run build
 
       - uses: actions/upload-pages-artifact@v3

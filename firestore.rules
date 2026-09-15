@@ -3,22 +3,107 @@ rules_version = '2';
 // Regras do Firestore. A lista de tarólogos do front (VITE_TAROLOGO_EMAILS) só
 // decide o que a interface mostra — quem de fato protege os dados é isto aqui,
 // que roda no servidor e não pode ser burlado pelo cliente.
+//
+// Publicar:  Firebase Console › Firestore Database › Regras › colar › Publicar.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /sessoes/{sessaoId} {
-      // Qualquer pessoa autenticada pode ler: é assim que o cliente acompanha
-      // a leitura ao vivo e revê o histórico.
-      allow read: if request.auth != null;
+    function logado() {
+      return request.auth != null;
+    }
 
-      // Só cria quem for o dono declarado da sessão.
-      allow create: if request.auth != null
-                    && request.resource.data.tarologoUid == request.auth.uid;
+    function uid() {
+      return request.auth.uid;
+    }
+
+    /**
+     * O único acesso de tarólogo. O e-mail está escrito à mão de propósito: é a
+     * mesma lista do `.env`, mas esta cópia roda no servidor e é a que vale.
+     * Trocar o e-mail do Rodrigo exige mexer nos dois lugares — e é bom que
+     * exija, porque é uma decisão de segurança, não de interface.
+     *
+     * `token.get('email', '')`, e NUNCA `token.email`: quem entra por SMS tem um
+     * token sem a chave `email`, e nas regras do Firestore ler um campo ausente
+     * não devolve null — derruba a avaliação INTEIRA com erro, que o servidor
+     * conta como negada. Como esta função é chamada em quase toda regra, a forma
+     * direta trancaria o cliente de telefone para fora até do que é dele.
+     */
+    function ehTarologo() {
+      return logado() && request.auth.token.get('email', '').lower() == 'rodrigo@tarot.com';
+    }
+
+    /** Só os campos listados mudaram nesta escrita. */
+    function mexeuSoEm(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // ------------------------------- perfis -------------------------------
+    // O registro de cada pessoa. É dela, e só dela — o tarólogo lê porque
+    // precisa saber com quem vai falar.
+    match /perfis/{usuarioId} {
+      allow read: if logado() && (uid() == usuarioId || ehTarologo());
+      allow write: if logado() && uid() == usuarioId;
+    }
+
+    // ------------------------------ horários ------------------------------
+    // A trava contra reserva dupla. O id do documento É o encaixe
+    // (`2026-09-20T16:00`), e a coleção só aceita CREATE: quando o documento já
+    // existe, a mesma escrita passa a contar como update e o servidor recusa.
+    // Dois clientes clicando no mesmo minuto — o caso que uma conferência na
+    // tela não resolve — terminam com um reservado e outro avisado.
+    //
+    // A leitura é aberta a quem está logado porque o calendário precisa saber
+    // quais minutos caíram. E por isso o documento guarda só o uid de quem
+    // reservou: nome, contato e valor ficam em `agendamentos`, que é fechado.
+    match /horarios/{slot} {
+      allow read: if logado();
+      allow create: if logado() && request.resource.data.uid == uid();
+      allow update: if false;
+      allow delete: if ehTarologo() || (logado() && resource.data.uid == uid());
+    }
+
+    // ---------------------------- agendamentos ----------------------------
+    match /agendamentos/{agendamentoId} {
+      allow read: if logado() && (resource.data.clienteUid == uid() || ehTarologo());
+
+      allow create: if logado()
+                    && request.resource.data.clienteUid == uid()
+                    // Ninguém nasce pago: quem confirma pagamento é o tarólogo.
+                    && request.resource.data.status == 'aguardando'
+                    // Nem já com mesa aberta.
+                    && !('sessaoId' in request.resource.data)
+                    && request.resource.data.preco is number
+                    && request.resource.data.preco > 0;
+
+      // O tarólogo manda em tudo. O cliente só pode avisar que pagou ou
+      // desistir — não pode mudar o preço, o horário nem se dar por confirmado.
+      allow update: if ehTarologo()
+                    || (
+                      logado()
+                      && resource.data.clienteUid == uid()
+                      && mexeuSoEm(['status'])
+                      && request.resource.data.status in ['pago', 'cancelado']
+                    );
+
+      allow delete: if ehTarologo();
+    }
+
+    // -------------------------------- mesas --------------------------------
+    // Cada mesa é de uma consulta só. Quem não participa dela não lê nada —
+    // nem com o link, que é o que torna a sala exclusiva de quem agendou.
+    match /sessoes/{sessaoId} {
+      allow read: if logado()
+                  && (resource.data.tarologoUid == uid()
+                      || resource.data.get('clienteUid', null) == uid());
+
+      // Só o tarólogo abre mesa, e sempre em nome próprio.
+      allow create: if ehTarologo() && request.resource.data.tarologoUid == uid();
 
       // O tarólogo dono edita à vontade.
       //
       // O cliente tem exatamente duas janelas, e nada além:
-      //   1. registrar-se na sessão, se ela ainda estiver livre;
+      //   1. registrar-se na sessão, se ela ainda estiver livre (só as mesas
+      //      antigas, de antes do agendamento, nascem sem cliente);
       //   2. gravar o PRÓPRIO tema (`visualCliente`), depois de já ser o
       //      cliente dela.
       // Sem a segunda, escolher um tema como cliente falharia calado no
@@ -28,23 +113,20 @@ service cloud.firestore {
       // `get(campo, null)` em vez de `resource.data.campo`: sessão gravada
       // antes deste campo existir não tem a chave, e o acesso direto a um
       // campo ausente faz a regra INTEIRA falhar, não devolver null.
-      allow update: if request.auth != null && (
-        resource.data.tarologoUid == request.auth.uid
+      allow update: if logado() && (
+        resource.data.tarologoUid == uid()
         || (
           resource.data.get('clienteUid', null) == null
-          && request.resource.data.clienteUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['clienteUid', 'clienteNome'])
+          && request.resource.data.clienteUid == uid()
+          && mexeuSoEm(['clienteUid', 'clienteNome'])
         )
         || (
-          resource.data.get('clienteUid', null) == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['visualCliente'])
+          resource.data.get('clienteUid', null) == uid()
+          && mexeuSoEm(['visualCliente'])
         )
       );
 
-      allow delete: if request.auth != null
-                    && resource.data.tarologoUid == request.auth.uid;
+      allow delete: if logado() && resource.data.tarologoUid == uid();
     }
   }
 }

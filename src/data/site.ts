@@ -28,6 +28,12 @@ export const site = {
     whatsapp: '#',
     email: '#',
   },
+  /**
+   * WhatsApp do tarólogo, só dígitos com DDI: `5511999999999`. É por onde o
+   * cliente manda o comprovante do Pix — sem isso a tela de pagamento apenas
+   * pede que ele avise pelo contato de sempre.
+   */
+  whatsapp: (import.meta.env.VITE_WHATSAPP ?? '').replace(/\D/g, ''),
   footerNote: 'O tarot é uma ferramenta de autoconhecimento e não substitui acompanhamento médico, psicológico ou jurídico.',
 }
 

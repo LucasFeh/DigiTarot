@@ -1,11 +1,22 @@
 export type Papel = 'cliente' | 'tarologo'
 
+/** Como a pessoa entra. Uma conta pode ter mais de um ao mesmo tempo. */
+export type Provedor = 'google' | 'senha' | 'telefone'
+
 export type Usuario = {
   uid: string
   nome: string
   email: string
   foto?: string
+  /** Em E.164 (`+5531982676254`), quando a conta tem telefone verificado. */
+  telefone?: string
   papel: Papel
+  /**
+   * Quais formas de login estão ligadas a esta conta. A tela de perfil precisa
+   * disso para não deixar alguém desvincular o Google sendo ele a ÚNICA porta —
+   * seria trancar a pessoa do lado de fora da própria conta.
+   */
+  provedores: Provedor[]
 }
 
 /** Uma carta posta pelo tarólogo num slot do layout. */
@@ -38,6 +49,90 @@ export type EscolhaVisual = {
   panoId: string | null
 }
 
+/**
+ * O registro da pessoa: o que ela edita sobre si, mais o baralho e o pano com
+ * que ela entra em toda sala.
+ *
+ * É um documento por usuário, separado da conta de autenticação e separado da
+ * sessão: a conta guarda e-mail e senha, a sessão é de uma leitura só, e isto
+ * aqui é o que atravessa as duas — o nome pelo qual a pessoa quer ser chamada,
+ * o contato por onde ela recebe a leitura, o tema com que entra na mesa.
+ */
+export type Perfil = {
+  nome: string
+  /** Telefone, WhatsApp, o que a pessoa quiser deixar. Livre de propósito. */
+  contato: string
+  /** @ do Instagram, sem o arroba. */
+  instagram: string
+  /** URL (ou data URL) da foto. O avatar sabe cair na inicial do nome. */
+  foto: string
+  /**
+   * O tema com que a pessoa entra em toda sala. A escolha feita DENTRO de uma
+   * sala vale só para aquela leitura e não mexe aqui — é o que separa
+   * "experimentar um baralho" de "mudar o meu padrão".
+   */
+  padrao: EscolhaVisual
+}
+
+export const PERFIL_VAZIO: Perfil = {
+  nome: '',
+  contato: '',
+  instagram: '',
+  foto: '',
+  padrao: { baralhoId: null, panoId: null },
+}
+
+/**
+ * Onde um agendamento está na vida:
+ *   aguardando  — reservado, Pix ainda não pago;
+ *   pago        — o cliente avisou que pagou, falta o tarólogo conferir;
+ *   confirmado  — dinheiro visto, consulta de pé;
+ *   cancelado   — desistiu, não pagou a tempo ou o tarólogo desmarcou.
+ */
+export type StatusAgendamento = 'aguardando' | 'pago' | 'confirmado' | 'cancelado'
+
+/** Como a leitura acontece. */
+export type FormatoConsulta = 'chamada' | 'audio' | 'escrito'
+
+export type Agendamento = {
+  id: string
+  clienteUid: string
+  clienteNome: string
+  clienteEmail: string
+  /** WhatsApp ou telefone — é por onde a consulta acontece de fato. */
+  contato: string
+
+  planoId: string
+  planoTitulo: string
+  categoriaTitulo: string
+  duracao: string
+  preco: number
+
+  /** `YYYY-MM-DD`, no fuso de quem reservou. */
+  data: string
+  /** `HH:MM`. */
+  hora: string
+
+  formato: FormatoConsulta
+  /** O que a pessoa quer perguntar. Opcional, mas quase sempre preenchido. */
+  observacao: string
+
+  status: StatusAgendamento
+  /** ISO. String, para o mesmo formato servir aos dois backends. */
+  criadoEm: string
+  /**
+   * Código curto que vai no txid do Pix e que o cliente cita ao mandar o
+   * comprovante. É o que liga o dinheiro recebido a esta reserva.
+   */
+  codigo: string
+  /**
+   * A mesa desta consulta, depois que o tarólogo a abre. Enquanto for
+   * `undefined`, não existe sala — e é isso que o cliente vê: "no horário
+   * marcado, a mesa abre aqui". Uma consulta, uma mesa, um cliente.
+   */
+  sessaoId?: string
+}
+
 export type Sessao = {
   id: string
   tarologoUid: string
@@ -60,12 +155,32 @@ export type Sessao = {
   encerrada: boolean
   /** Título que o cliente vê no histórico. */
   titulo: string
+  /** Agendamento que deu origem a esta mesa, quando houve um. */
+  agendamentoId?: string
 
   /** Escolha do tarólogo. Replicada porque é o fallback do cliente. */
   visualTarologo?: EscolhaVisual
   /** Escolha do cliente. Replicada só para o tarólogo poder espelhar. */
   visualCliente?: EscolhaVisual
 }
+
+/**
+ * Uma verificação por SMS em andamento. O envio e a confirmação são dois
+ * momentos separados — entre eles a pessoa sai do site, abre a mensagem e
+ * volta —, então o backend devolve isto em vez de um booleano: o que sustenta
+ * a segunda metade da conversa com o servidor.
+ */
+export type ConfirmacaoSms = {
+  /** O número para o qual o código foi enviado, já em E.164. */
+  telefone: string
+  /** Conclui com os 6 dígitos que chegaram por SMS. */
+  confirmar: (codigo: string) => Promise<void>
+  /** Desiste: descarta o desafio e limpa o reCAPTCHA da tela. */
+  cancelar: () => void
+}
+
+/** Entrar de vez, ou apenas somar o telefone a uma conta que já existe. */
+export type ModoSms = 'entrar' | 'vincular'
 
 export type Unsubscribe = () => void
 
@@ -78,10 +193,67 @@ export interface Backend {
   /** Nome curto para a interface mostrar em que modo está rodando. */
   readonly modo: 'local' | 'firebase'
 
+  // ------------------------------- conta -------------------------------
+
   observarUsuario(cb: (u: Usuario | null) => void): Unsubscribe
   entrarComGoogle(): Promise<void>
   entrarComEmail(email: string, senha: string): Promise<void>
+  /** Cria a conta do visitante e já o deixa logado. */
+  cadastrarComEmail(nome: string, email: string, senha: string): Promise<void>
+  /** Dispara o e-mail de redefinição. Nunca revela se a conta existe. */
+  recuperarSenha(email: string): Promise<void>
   sair(): Promise<void>
+
+  /**
+   * Troca o e-mail de login. A senha atual é pedida porque o Firebase exige
+   * autenticação recente para uma operação dessas — e quem entrou só pelo
+   * Google não tem senha, daí o parâmetro ser opcional.
+   */
+  trocarEmail(novoEmail: string, senhaAtual?: string): Promise<void>
+  /** Define ou troca a senha. É o que permite largar o Google sem se trancar. */
+  definirSenha(novaSenha: string, senhaAtual?: string): Promise<void>
+  vincularGoogle(): Promise<void>
+  desvincularGoogle(): Promise<void>
+
+  /**
+   * Dispara o SMS com o código de verificação.
+   *
+   * `containerId` é o id de um elemento vazio na página onde o reCAPTCHA
+   * invisível é montado — o Firebase exige um, e é a única razão de um detalhe
+   * de DOM aparecer nesta interface. O backend local o ignora.
+   */
+  enviarCodigoSms(
+    telefone: string,
+    containerId: string,
+    modo: ModoSms,
+  ): Promise<ConfirmacaoSms>
+  desvincularTelefone(): Promise<void>
+
+  // ------------------------------- perfil -------------------------------
+
+  observarPerfil(uid: string, cb: (p: Perfil) => void): Unsubscribe
+  salvarPerfil(uid: string, patch: Partial<Perfil>): Promise<void>
+
+  // ---------------------------- agendamentos ----------------------------
+
+  /**
+   * Reserva o horário e cria o agendamento. Lança se o encaixe já tiver sido
+   * tomado — a corrida entre dois clientes é resolvida no servidor, não aqui.
+   */
+  criarAgendamento(dados: Omit<Agendamento, 'id' | 'criadoEm'>): Promise<string>
+  observarAgendamento(id: string, cb: (a: Agendamento | null) => void): Unsubscribe
+  observarMeusAgendamentos(uid: string, cb: (a: Agendamento[]) => void): Unsubscribe
+  /** Todos os agendamentos — só o tarólogo consegue ler. */
+  observarTodosAgendamentos(cb: (a: Agendamento[]) => void): Unsubscribe
+  atualizarAgendamento(id: string, patch: Partial<Agendamento>): Promise<void>
+  /**
+   * Os encaixes já tomados, no formato `YYYY-MM-DDTHH:MM`. É público para quem
+   * está logado, e de propósito não carrega nome nem contato de ninguém: o
+   * calendário precisa saber que as 17h de sábado caíram, não de quem são.
+   */
+  observarHorariosOcupados(cb: (slots: string[]) => void): Unsubscribe
+
+  // ------------------------------- sessões -------------------------------
 
   criarSessao(dados: Omit<Sessao, 'id' | 'criadaEm'>): Promise<string>
   observarSessao(id: string, cb: (s: Sessao | null) => void): Unsubscribe

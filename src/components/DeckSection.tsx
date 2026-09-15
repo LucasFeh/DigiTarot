@@ -5,7 +5,7 @@ import TarotCard from './TarotCard'
 import { CARD_H as CARD_HEIGHT } from './CardVisual'
 import CardVisual, { CARD_H, CARD_W } from './CardVisual'
 import Sparkles from './Sparkles'
-import MaintenanceView from './MaintenanceView'
+import EscolhaPlano from './EscolhaPlano'
 import { categories, type Plan } from '../data/plans'
 import { fanSlot } from '../lib/fan'
 import { useStageMetrics } from '../lib/useStageMetrics'
@@ -151,7 +151,7 @@ export default function DeckSection() {
   }, [clearTimers])
 
   // A tela de manutenção só entra quando a carta já se dissolveu.
-  const showMaintenance = chosen !== null && flightStage === 'dissolve'
+  const mostrarEscolha = chosen !== null && flightStage === 'dissolve'
 
   // Setas do teclado navegam entre as categorias; Esc fecha a área de destino.
   useEffect(() => {
@@ -411,8 +411,8 @@ export default function DeckSection() {
 
       {/* ----------------------- área "em manutenção" ----------------------- */}
       <AnimatePresence>
-        {showMaintenance && chosen && (
-          <MaintenanceView plan={chosen.plan} accent={chosen.accent} onBack={reset} />
+        {mostrarEscolha && chosen && (
+          <EscolhaPlano plan={chosen.plan} accent={chosen.accent} onBack={reset} />
         )}
       </AnimatePresence>
     </section>

@@ -52,10 +52,13 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     return backend.observarSessao(sessaoId, setSessao)
   }, [backend, usuario, sessaoId])
 
-  // Cliente que entra é registrado na sessão, para ela aparecer no histórico dele.
+  // Cliente que entra é registrado na sessão, para ela aparecer no histórico
+  // dele. Só vale para mesa ainda SEM dono: as mesas nascidas de um
+  // agendamento já vêm com o cliente escrito, e sobrescrever aquele campo
+  // entregaria a consulta de alguém a quem tivesse o link.
   useEffect(() => {
     if (!backend || !usuario || !sessao) return
-    if (usuario.uid === sessao.tarologoUid || sessao.clienteUid === usuario.uid) return
+    if (usuario.uid === sessao.tarologoUid || sessao.clienteUid) return
     void backend.atualizarSessao(sessao.id, { clienteUid: usuario.uid, clienteNome: usuario.nome })
   }, [backend, usuario, sessao])
 
@@ -200,6 +203,33 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
             className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60"
           >
             Voltar
+          </a>
+        </div>
+      </main>
+    )
+  }
+
+  // A mesa é de uma consulta só. No Firestore as regras já barram a leitura de
+  // quem não participa; esta tela existe para o modo local — e para dizer o que
+  // aconteceu, em vez de mostrar uma sala vazia e sem explicação.
+  if (
+    sessao.clienteUid &&
+    sessao.clienteUid !== usuario.uid &&
+    sessao.tarologoUid !== usuario.uid
+  ) {
+    return (
+      <main className="grid min-h-[calc(100vh-4rem)] place-items-center px-5">
+        <div className="glass rounded-2xl px-8 py-10 text-center">
+          <p className="font-display text-xl text-star">Esta mesa é de outra consulta</p>
+          <p className="mt-2 max-w-sm text-[15px] leading-relaxed text-mist">
+            Cada leitura abre uma sala exclusiva para quem a agendou. A sua aparece na sua conta
+            quando o Rodrigo abrir a mesa, no horário marcado.
+          </p>
+          <a
+            href="#/tiragem"
+            className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60"
+          >
+            Ver minhas consultas
           </a>
         </div>
       </main>

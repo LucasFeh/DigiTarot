@@ -42,22 +42,24 @@ export default function PriceTable() {
                 <p className="mt-1.5 text-[15px] text-mist/80">{c.tagline}</p>
               </header>
 
-              <ul className="relative flex flex-col">
+              <ul className="relative flex flex-col divide-y divide-white/[0.07]">
                 {c.plans.map((p) => (
                   <li
                     key={p.id}
-                    className="group flex items-center justify-between gap-4 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/5"
+                    className="group flex items-start justify-between gap-4 rounded-lg px-2 py-3 transition-colors hover:bg-white/5"
                   >
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <span aria-hidden className="text-base">
-                        {p.icon}
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                        <span className="text-[16px] text-star/90">{p.title}</span>
+                        {p.duration && (
+                          <span className="shrink-0 rounded-full border border-white/15 px-2 py-[1px] text-[12px] uppercase tracking-[0.12em] text-mist/80">
+                            {p.duration}
+                          </span>
+                        )}
                       </span>
-                      <span className="truncate text-[16px] text-star/90">{p.title}</span>
-                      {p.duration && (
-                        <span className="shrink-0 rounded-full border border-white/15 px-2 py-[1px] text-[12px] uppercase tracking-[0.12em] text-mist/80">
-                          {p.duration}
-                        </span>
-                      )}
+                      <span className="mt-0.5 block text-[13px] leading-relaxed text-mist/60">
+                        {p.resumo}
+                      </span>
                     </span>
                     <span className="shrink-0 font-display text-[17px] font-semibold text-gold">
                       {formatPrice(p.price)}

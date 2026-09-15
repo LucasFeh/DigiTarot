@@ -31,8 +31,8 @@ export default function HistoricoLista() {
   if (sessoes.length === 0) {
     return (
       <div className="glass rounded-2xl px-6 py-12 text-center">
-        <span className="block text-4xl" aria-hidden>
-          🔮
+        <span className="block text-4xl text-gold/70" aria-hidden>
+          ◈
         </span>
         <p className="mt-4 text-[16px] text-mist">Nenhuma consulta por aqui ainda.</p>
         <a

@@ -7,16 +7,26 @@ import { PREFIXO_TEMA, panoEmbutidoDe } from '../lib/temas/visibilidade'
 import AcervoTemas from '../components/temas/AcervoTemas'
 import MiniBaralho from '../components/temas/MiniBaralho'
 import AvatarEditavel from '../components/temas/AvatarEditavel'
+import SecaoConta from '../components/perfil/SecaoConta'
+import MinhasConsultas from '../components/agenda/MinhasConsultas'
+import AgendaTarologo from '../components/agenda/AgendaTarologo'
 import HistoricoLista from '../components/HistoricoLista'
 import LoginPage from './LoginPage'
 import type { Aba, Tema, TemaBaralho, TemaPano, TipoTema } from '../lib/temas/tipos'
 
-type Secao = 'geral' | 'temas' | 'historico'
+type Secao = 'geral' | 'conta' | 'agenda' | 'temas' | 'historico'
 
-const SECOES: { id: Secao; rotulo: string; icone: string }[] = [
+/**
+ * O menu muda com o papel: o cliente vê as consultas que marcou, o tarólogo vê
+ * a agenda inteira. É a mesma seção, com dois conteúdos — e é aqui que o Rodrigo
+ * abre a mesa de cada consulta paga.
+ */
+const secoesDe = (ehTarologo: boolean): { id: Secao; rotulo: string; icone: string }[] => [
   { id: 'geral', rotulo: 'Geral', icone: '☾' },
+  { id: 'conta', rotulo: 'Conta e acesso', icone: '✧' },
+  { id: 'agenda', rotulo: ehTarologo ? 'Agenda' : 'Minhas consultas', icone: '❖' },
   { id: 'temas', rotulo: 'Temas', icone: '✦' },
-  { id: 'historico', rotulo: 'Histórico de tiragem', icone: '🔮' },
+  { id: 'historico', rotulo: 'Histórico de tiragem', icone: '◈' },
 ]
 
 function Campo({
@@ -70,6 +80,9 @@ export default function PerfilPage() {
   }
   if (!usuario) return <LoginPage />
 
+  const ehTarologo = usuario.papel === 'tarologo'
+  const secoes = secoesDe(ehTarologo)
+
   const atual = tipo === 'baralho' ? perfil.padrao.baralhoId : perfil.padrao.panoId
   const refDe = (t: Tema) => (t.tipo === 'pano' ? `${PREFIXO_TEMA}${t.id}` : t.id)
   const jaEhPadrao = selecao ? refDe(selecao) === atual : false
@@ -97,13 +110,13 @@ export default function PerfilPage() {
           <span className="min-w-0">
             <span className="block truncate text-[16px] text-star">{nomeExibido}</span>
             <span className="block truncate text-[12px] uppercase tracking-[0.14em] text-mist/55">
-              {usuario.papel === 'tarologo' ? 'tarólogo' : 'cliente'}
+              {ehTarologo ? 'tarólogo' : 'cliente'}
             </span>
           </span>
         </div>
 
         <div className="flex gap-1 p-2 md:flex-col">
-          {SECOES.map((s) => (
+          {secoes.map((s) => (
             <button
               key={s.id}
               type="button"
@@ -166,8 +179,25 @@ export default function PerfilPage() {
             </div>
 
             <p className="mt-7 border-t border-white/10 pt-5 text-[13px] leading-relaxed text-mist/55">
-              Salva sozinho, neste navegador. A conta em si ({usuario.email}) continua vindo do login.
+              Salva sozinho, e fica guardado na sua conta. Quem entra ({usuario.email}) você muda em
+              "Conta e acesso".
             </p>
+          </div>
+        )}
+
+        {secao === 'conta' && <SecaoConta />}
+
+        {secao === 'agenda' && (
+          <div className="max-w-3xl">
+            <h2 className="mb-1 font-display text-xl text-star">
+              {ehTarologo ? 'Agenda' : 'Minhas consultas'}
+            </h2>
+            <p className="mb-6 max-w-lg text-[14px] leading-relaxed text-mist/70">
+              {ehTarologo
+                ? 'Tudo que foi marcado. Cada consulta paga abre a própria mesa, exclusiva daquele cliente, quando você clicar em "Abrir mesa" — o botão acende 15 minutos antes do horário.'
+                : 'O que você marcou, o pagamento de cada uma e a porta da sua mesa no horário combinado.'}
+            </p>
+            {ehTarologo ? <AgendaTarologo /> : <MinhasConsultas />}
           </div>
         )}
 

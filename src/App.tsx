@@ -22,6 +22,8 @@ const TemasPage = lazy(() => import('./pages/TemasPage'))
 const CriarTemaPage = lazy(() => import('./pages/CriarTemaPage'))
 const PreviaTemaPage = lazy(() => import('./pages/PreviaTemaPage'))
 const PerfilPage = lazy(() => import('./pages/PerfilPage'))
+const AgendarPage = lazy(() => import('./pages/AgendarPage'))
+const PagamentoPage = lazy(() => import('./pages/PagamentoPage'))
 
 /** `#/temas/pessoais` e `#/temas/favoritos` abrem o acervo já na aba certa. */
 const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favoritos' }
@@ -35,6 +37,10 @@ function Rotas() {
       <SalaPage sessaoId={partes[1]} />
     ) : partes[0] === 'tiragem' ? (
       <TiragemPage />
+    ) : partes[0] === 'agendar' && partes[1] ? (
+      <AgendarPage planoId={partes[1]} />
+    ) : partes[0] === 'pagamento' && partes[1] ? (
+      <PagamentoPage agendamentoId={partes[1]} />
     ) : partes[0] === 'temas' && partes[1] === 'novo' ? (
       <CriarTemaPage />
     ) : partes[0] === 'temas' && partes[1] === 'ver' && partes[2] ? (

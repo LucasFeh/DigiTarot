@@ -9,6 +9,15 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID?: string
   /** E-mails com acesso de tarólogo, separados por vírgula. */
   readonly VITE_TAROLOGO_EMAILS?: string
+
+  /** Chave Pix do recebedor: CPF, CNPJ, telefone, e-mail ou chave aleatória. */
+  readonly VITE_PIX_CHAVE?: string
+  /** Nome do recebedor como aparece no app do pagador. Até 25 caracteres. */
+  readonly VITE_PIX_NOME?: string
+  /** Cidade do recebedor. Até 15 caracteres. */
+  readonly VITE_PIX_CIDADE?: string
+  /** WhatsApp para o envio do comprovante, só dígitos com DDI. */
+  readonly VITE_WHATSAPP?: string
 }
 
 interface ImportMeta {

@@ -51,47 +51,165 @@ minutos.
 
 As chaves são opcionais no workflow. Para ativar, cadastre em **Settings ›
 Secrets and variables › Actions** os mesmos nomes do `.env.example`
-(`VITE_FIREBASE_*` e `VITE_TAROLOGO_EMAILS`) e republique.
+(`VITE_FIREBASE_*`, `VITE_TAROLOGO_EMAILS`, `VITE_PIX_*` e `VITE_WHATSAPP`) e
+republique. O passo a passo do console está em
+[Ligando o Firebase](#ligando-o-firebase).
 
 Sem elas o site sobe em **modo local** — o que, num site público, significa que
-cada visitante tem o seu próprio mundo em `localStorage`: ele pode abrir a sala
-e experimentar os dois papéis, mas ninguém vê a mesa de ninguém. Para uma
-consulta de verdade entre duas pessoas, o Firebase é obrigatório.
+cada visitante tem o seu próprio mundo em `localStorage`: ele pode percorrer o
+catálogo, a agenda e a mesa sozinho, mas ninguém vê a reserva de ninguém e nada
+chega ao Rodrigo. **Para atender cliente de verdade, o Firebase é obrigatório.**
 
 ## Tiragem digital
 
-Uma sala 3D onde o tarólogo põe cartas na mesa e o cliente vê aparecerem **ao
-vivo**. Rotas: `#/tiragem` (lobby), `#/tiragem/<id>` (a sala), `#/historico`.
+O caminho inteiro do visitante, de ponta a ponta: **catálogo → agenda → Pix →
+mesa exclusiva**.
+
+1. A pessoa entra em `#/tiragem` (Google, e-mail e senha, ou SMS) e vê o catálogo.
+2. Escolhe um serviço e vai para `#/agendar/<plano>`.
+3. Marca **dia e horário** — todos os dias, das 16h às 21h, de hora em hora.
+4. Reserva e cai em `#/pagamento/<id>`, com o **QR Code do Pix** e o copia e cola.
+5. Paga, manda o comprovante e avisa pelo botão *Já fiz o pagamento*.
+6. O Rodrigo confere a entrada e **confirma** na agenda dele.
+7. **No horário marcado**, o botão *Abrir mesa* acende no painel do Rodrigo. Ele
+   clica, e nasce uma sala **daquele cliente** — ninguém mais entra nela, nem
+   com o link.
+
+A trava contra reserva dupla não está na tela: o horário é um documento cujo
+**id é o próprio encaixe** (`2026-09-20T16:00`), numa coleção que só aceita
+`create`. Duas pessoas clicando no mesmo minuto terminam com uma reservada e a
+outra avisada — decidido pelo servidor, não pelo navegador.
+
+### Contas
+
+| quem      | acesso                                                        |
+| --------- | ------------------------------------------------------------- |
+| tarólogo  | `rodrigo@tarot.com` — o único do site; a senha vive no console |
+| visitante | Google, e-mail e senha, ou telefone com código por SMS        |
+| teste     | `visitante@teste.com` / `tarot123` — **só no modo local**      |
+| tarólogo (local) | `rodrigo@tarot.com` / `tarot-local` — **só no modo local** |
+
+> **A senha real do tarólogo não está neste repositório, e não deve entrar.**
+> Ele é público — é o que a hospedagem gratuita do GitHub Pages exige — e uma
+> senha escrita no código fica publicada no push, além de continuar legível no
+> histórico do git depois de "corrigida". A senha de produção existe só no
+> console do Firebase; `tarot-local` é uma credencial de demonstração que só
+> funciona no modo sem backend.
+
+São três portas de entrada, e uma conta pode ter as três ao mesmo tempo. Quem
+entra por SMS e nunca tinha vindo aqui ganha uma conta na hora — sem nome, sem
+e-mail, identificada pelo número até preencher o perfil.
+
+A conta de teste é semeada por `src/lib/backend/local.ts` e serve para percorrer
+o caminho do cliente sem cadastrar nada. Assim que as chaves do Firebase entram
+no `.env`, aquele arquivo não roda mais e a conta simplesmente deixa de existir
+— ela não tem como vazar para o site publicado com contas de verdade.
+
+Em **Perfil › Conta e acesso** a pessoa troca o e-mail, cria ou muda a senha e
+vincula ou desvincula o **Google** e o **telefone**. Há uma regra que atravessa a
+tela toda: ninguém pode ficar sem porta. Cada vínculo só sai enquanto sobrar
+outro — o botão que fecharia a última saída nasce desligado e diz por quê, em vez
+de falhar depois do clique.
+
+### Entrar por telefone
+
+O código de 6 dígitos é o do Firebase Phone Auth, com **reCAPTCHA invisível** —
+obrigatório, e não decorativo: sem ele o projeto vira uma máquina de mandar SMS
+por conta dos outros, e cada mensagem é cobrada de quem é dono do Firebase. Por
+isso também existe o contador de 45 s no botão de reenviar.
+
+O número trafega em **E.164** (`+5531982676254`), que é o único formato que o
+Firebase aceita — mas ninguém digita assim. A tela recebe `(31) 98267-6254`, e
+`src/lib/telefone.ts` converte; quando não dá para ter certeza do número, ele
+devolve `null` em vez de chutar, porque um palpite quase certo consome o SMS,
+cobra do projeto e não chega a ninguém.
+
+No modo local nenhuma mensagem sai: o "SMS" aceita o código fixo
+`123456` (`CODIGO_SMS_LOCAL`), e a própria tela diz isso. O formato da conversa —
+enviar, esperar, confirmar — é o mesmo dos dois lados, que é o que permite
+escrever a tela uma vez só.
 
 ### Rodando sem conta nenhuma
 
-Sem as chaves do Firebase o site roda inteiro em modo local — a sala, os papéis,
-o histórico e o tempo real funcionam igual. Para experimentar:
+Sem as chaves do Firebase o site roda inteiro em modo local — catálogo, agenda,
+Pix, mesa e tempo real funcionam igual. Para experimentar os dois lados:
 
-1. Abra `#/tiragem`, escolha **Sou tarólogo** e clique na linha da conta de
-   demonstração para preencher (`tarologo@tarot.local` / `tarot123`).
-2. Abra a mesa e copie o endereço.
-3. **Noutra aba**, entre com Google (vira um visitante) e cole o endereço.
-4. Ponha uma carta na aba do tarólogo: ela aparece na outra na hora.
+1. Abra `#/tiragem` e entre com `visitante@teste.com` / `tarot123`.
+2. Escolha uma consulta, marque dia e horário e conclua a reserva.
+3. **Noutra aba**, entre com `rodrigo@tarot.com` / `tarot-local`.
+4. Na agenda, confirme o pagamento. Se o horário marcado for agora, *Abrir mesa*
+   acende; clique e ponha uma carta.
+5. Volte à aba do cliente: a carta aparece lá na hora.
 
 O tempo real local é `BroadcastChannel`. E há uma divisão de propósito no
-armazenamento: **o usuário fica em `sessionStorage` e as sessões em
+armazenamento: **o usuário fica em `sessionStorage` e o resto em
 `localStorage`**. É isso que deixa ser tarólogo numa aba e cliente na outra no
 mesmo navegador — com tudo em localStorage, as duas dividiriam o mesmo login.
-Já o *id* do visitante fica em `localStorage`, para o histórico dele sobreviver
-ao fechar a aba.
+
+### Pagamento por Pix
+
+O Pix é **estático**: o BR Code é montado no navegador (`src/lib/pix.ts`) a
+partir da chave do recebedor, no padrão EMV do Banco Central, com o valor já
+embutido para o cliente não digitar outro por engano. Não há gateway, o que
+também significa que **nenhum sistema avisa que o dinheiro caiu** — quem dá
+baixa é o Rodrigo, no painel, depois de ver o valor na conta. Cada reserva ganha
+um código (`TAROT…`) que vai no txid e é citado no comprovante: é o fio que liga
+a entrada à consulta.
+
+Enquanto `VITE_PIX_CHAVE` estiver vazia, a tela de pagamento diz que o Pix não
+está configurado, em vez de gerar um QR Code que não leva a lugar nenhum.
 
 ### Ligando o Firebase
 
-Copie `.env.example` para `.env` e preencha. A troca é só isso: nenhuma tela
-sabe qual backend está em uso — as duas implementam a mesma interface em
-`src/lib/backend/types.ts`, e `carregarBackend()` escolhe. O SDK do Firebase
-entra por import dinâmico, então sem as chaves ele nem é baixado.
+É o que torna o acesso real: a conta, o agendamento e o perfil passam a viver no
+servidor e a seguir a pessoa para qualquer aparelho. Nenhuma tela sabe qual
+backend está em uso — as duas implementações cumprem a mesma interface em
+`src/lib/backend/types.ts`, e `carregarBackend()` escolhe. O SDK entra por
+import dinâmico, então sem as chaves ele nem é baixado.
+
+No [console do Firebase](https://console.firebase.google.com):
+
+1. **Criar um projeto.** Pode desligar o Google Analytics.
+2. **Adicionar um app Web** (o ícone `</>`), dar um apelido e copiar o objeto
+   `firebaseConfig` que aparece ao final.
+3. **Authentication › Get started** e habilitar três provedores:
+   - **E-mail/senha** (só o primeiro item; "link por e-mail" não é usado);
+   - **Google** — escolha um e-mail de suporte;
+   - **Telefone** — veja a cota de SMS antes de publicar; o plano gratuito cobre
+     poucas mensagens por dia e o restante é cobrado.
+4. **Authentication › Users › Add user**: crie `rodrigo@tarot.com` com a senha
+   combinada com ele. É esta conta que vira o tarólogo — e a senha fica só aqui,
+   nunca no código.
+5. **Firestore Database › Create database**, modo de produção, região
+   `southamerica-east1` (São Paulo).
+6. **Firestore › Regras**: apague o que estiver lá, cole o conteúdo de
+   `firestore.rules` (na raiz deste repositório) e **Publicar**.
+7. Copie `.env.example` para `.env` e preencha as seis chaves do passo 2, mais a
+   chave Pix e o WhatsApp.
+8. **Authentication › Settings › Authorized domains**: acrescente o domínio onde
+   o site é publicado (`<usuario>.github.io`), senão o login com Google é
+   recusado em produção.
 
 `VITE_TAROLOGO_EMAILS` decide quem entra como tarólogo, mas **só na interface**.
-Quem protege os dados é `firestore.rules`, na raiz — publique-as junto. A regra
-que mais importa é a de update: sem ela, um cliente conseguiria virar cartas ou
-trocar o layout da mesa de outra pessoa.
+Quem protege os dados é `firestore.rules`, que traz o mesmo e-mail escrito à mão
+e roda no servidor. Trocar o e-mail do Rodrigo exige mexer nos dois lugares — e
+é bom que exija, porque é decisão de segurança, não de interface.
+
+Uma sutileza das regras que o telefone trouxe: elas leem o e-mail com
+`request.auth.token.get('email', '')`, e nunca `request.auth.token.email`. Quem
+entra por SMS tem um token **sem** a chave `email`, e nas regras do Firestore ler
+um campo ausente não devolve null — derruba a avaliação inteira com erro, que o
+servidor conta como negada. Como essa função é chamada em quase toda regra, a
+forma direta trancaria o cliente de telefone para fora até do que é dele.
+
+O que cada coleção guarda:
+
+| coleção        | o que é                                                     |
+| -------------- | ----------------------------------------------------------- |
+| `perfis`       | o registro de cada pessoa: nome, contato, foto, tema padrão |
+| `horarios`     | os encaixes tomados. Id = `<data>T<hora>`; é a trava        |
+| `agendamentos` | a consulta: plano, valor, horário, status, código do Pix    |
+| `sessoes`      | a mesa de cada consulta, com dono e convidado definidos     |
 
 ### As peças
 
@@ -123,7 +241,10 @@ Três coisas na cena que custaram tentativa:
 
 | Quero mudar…                         | Arquivo                    |
 | ------------------------------------ | -------------------------- |
-| preços, nomes e ícones das consultas | `src/data/plans.ts`        |
+| preços, nomes e descrições das consultas | `src/data/plans.ts`    |
+| horários da agenda e janela da mesa  | `src/data/agenda.ts`       |
+| formato e validação de telefone      | `src/lib/telefone.ts`      |
+| dados do recebedor do Pix            | `.env`                     |
 | títulos, textos e links de contato   | `src/data/site.ts`         |
 | cores, fontes e sombras              | `src/index.css` (`@theme`) |
 | tamanho do círculo, do portal e do leque | `src/lib/useStageMetrics.ts` |
@@ -205,9 +326,12 @@ a barra:
 | ----------------- | --------------------------------------- |
 | `#/`              | landing page                            |
 | `#/sobre`         | sobre (em manutenção)                   |
-| `#/tiragem`       | lobby — ou login, se não houver sessão  |
-| `#/tiragem/<id>`  | a sala 3D daquela leitura               |
-| `#/historico`     | consultas de que você participou        |
+| `#/tiragem`         | catálogo e suas consultas — ou login  |
+| `#/agendar/<plano>` | escolher dia e horário                |
+| `#/pagamento/<id>`  | o Pix daquela reserva                 |
+| `#/tiragem/<id>`    | a sala 3D daquela leitura             |
+| `#/perfil`          | dados, conta e acesso, agenda, temas  |
+| `#/historico`       | consultas de que você participou      |
 
 `#planos` e `#tabela`, sem barra, continuam sendo âncora de rolagem na home.
 
@@ -405,5 +529,9 @@ Dois detalhes que custaram tentativa:
 
 ## Pendente
 
-A área de destino após escolher uma carta mostra apenas "Em manutenção"
-(`src/components/MaintenanceView.tsx`) — é onde entra o fluxo de contratação.
+- **Baixa automática do Pix.** Hoje o Rodrigo confirma cada pagamento à mão, que
+  é o preço de não ter gateway nem servidor. Um Mercado Pago (ou o Pix dinâmico
+  de um banco) com webhook resolveria — exige Cloud Functions no plano Blaze.
+- **Aviso ao cliente.** Quando o pagamento é confirmado ou a mesa abre, ele só
+  descobre se estiver com a página aberta. Falta e-mail ou WhatsApp.
+- **Sobre** (`#/sobre`) ainda é uma página de manutenção.

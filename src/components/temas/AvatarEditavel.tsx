@@ -2,7 +2,10 @@ import { useRef, useState } from 'react'
 import { ALVO, prepararArquivo } from '../../lib/temas/imagens'
 
 /** Lado da foto de perfil guardada. Quadrada, e pequena de propósito: ela vive
- *  como data URL dentro do perfil, que mora em localStorage. */
+ *  como data URL DENTRO do documento do perfil. No modo local isso é a cota do
+ *  localStorage; no Firebase é o teto de 1 MiB por documento do Firestore, que
+ *  uma foto de celular estouraria sozinha. A 192px com qualidade 0,82 ela sai
+ *  na casa das dezenas de KB, e cabe nos dois com folga. */
 const LADO = { l: 192, a: 192 }
 
 /**
