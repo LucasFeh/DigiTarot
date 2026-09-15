@@ -3,6 +3,7 @@ import type { Backend } from './types'
 
 export * from './types'
 export { CODIGO_SMS_LOCAL, CONTA_TAROLOGO, CONTA_TESTE } from './local'
+export { EMAIL_TAROLOGO, ehEmailDeTarologo } from './tarologo'
 
 /**
  * Escolhe o backend pelas variáveis de ambiente. Sem as chaves do Firebase o

@@ -35,6 +35,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
+import { ehEmailDeTarologo } from './tarologo'
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
@@ -49,18 +50,12 @@ import type {
 } from './types'
 
 /**
- * Quem é tarólogo. As chaves do Firebase são públicas por natureza, mas isto
- * NÃO é uma barreira de segurança — só decide o que a interface mostra. A regra
- * que vale é a do Firestore, no servidor, que traz o mesmo e-mail escrito à
- * mão. Veja `firestore.rules` na raiz.
+ * Quem é tarólogo. Isto NÃO é uma barreira de segurança — só decide o que a
+ * interface mostra. A regra que vale é a do Firestore, no servidor, que traz o
+ * mesmo e-mail e ainda exige que ele venha verificado. Veja `firestore.rules`.
  */
-function papelDe(email: string | null): Usuario['papel'] {
-  const lista = (import.meta.env.VITE_TAROLOGO_EMAILS ?? '')
-    .split(',')
-    .map((e: string) => e.trim().toLowerCase())
-    .filter(Boolean)
-  return email && lista.includes(email.toLowerCase()) ? 'tarologo' : 'cliente'
-}
+const papelDe = (email: string | null): Usuario['papel'] =>
+  ehEmailDeTarologo(email) ? 'tarologo' : 'cliente'
 
 const PROVEDORES: Record<string, Provedor> = {
   'google.com': 'google',

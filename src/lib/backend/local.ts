@@ -1,3 +1,4 @@
+import { EMAIL_TAROLOGO, ehEmailDeTarologo } from './tarologo'
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
@@ -30,7 +31,7 @@ const CANAL = 'tarot.sync'
  * repositório público, e não há como alguém se cadastrar com o endereço dele
  * para herdar o papel.
  */
-export const CONTA_TAROLOGO = { email: 'rodriv.l680@gmail.com', senha: 'tarot-local' }
+export const CONTA_TAROLOGO = { email: EMAIL_TAROLOGO, senha: 'tarot-local' }
 
 /**
  * Um visitante de teste, para percorrer o caminho do cliente — catálogo,
@@ -125,15 +126,13 @@ function novoId(prefixo: string): string {
   return `${prefixo}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-const EMAIL_TAROLOGO = CONTA_TAROLOGO.email.toLowerCase()
-
 const semSenha = (c: Conta): Usuario => ({
   uid: c.uid,
   nome: c.nome,
   email: c.email,
   foto: c.foto,
   telefone: c.telefone,
-  papel: c.email.toLowerCase() === EMAIL_TAROLOGO ? 'tarologo' : 'cliente',
+  papel: ehEmailDeTarologo(c.email) ? 'tarologo' : 'cliente',
   provedores: c.provedores,
 })
 

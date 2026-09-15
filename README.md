@@ -51,7 +51,7 @@ minutos.
 
 As chaves são opcionais no workflow. Para ativar, cadastre em **Settings ›
 Secrets and variables › Actions** os mesmos nomes do `.env.example`
-(`VITE_FIREBASE_*`, `VITE_TAROLOGO_EMAILS`, `VITE_PIX_*` e `VITE_WHATSAPP`) e
+(`VITE_FIREBASE_*`, `VITE_PIX_*` e `VITE_WHATSAPP`) e
 republique. O passo a passo do console está em
 [Ligando o Firebase](#ligando-o-firebase).
 
@@ -197,10 +197,16 @@ No [console do Firebase](https://console.firebase.google.com):
    o site é publicado (`<usuario>.github.io`), senão o login com Google é
    recusado em produção.
 
-`VITE_TAROLOGO_EMAILS` decide quem entra como tarólogo, mas **só na interface**.
-Quem protege os dados é `firestore.rules`, que traz o mesmo e-mail escrito à mão
-e roda no servidor. Trocar o e-mail do Rodrigo exige mexer nos dois lugares — e
-é bom que exija, porque é decisão de segurança, não de interface.
+Quem é o tarólogo está em **dois arquivos versionados**, lado a lado:
+`src/lib/backend/tarologo.ts` (o que a interface mostra) e `firestore.rules` (o
+que o servidor permite). Trocar exige editar os dois, no mesmo commit — e é bom
+que exija, porque é decisão de segurança, não de interface.
+
+Isto já foi uma variável de ambiente guardada como secret do GitHub, e a escolha
+estava errada: o mesmo e-mail já é público em `firestore.rules`, então não havia
+segredo a proteger — só uma cópia fora do repositório, que saiu de sincronia sem
+avisar. O tarólogo entrou com a conta certa, as regras o reconheceram no
+servidor, e a tela mostrou a ele a visão de cliente. Nenhum erro em lugar nenhum.
 
 Uma sutileza das regras que o telefone trouxe: elas leem o e-mail com
 `request.auth.token.get('email', '')`, e nunca `request.auth.token.email`. Quem
