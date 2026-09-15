@@ -1,11 +1,19 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { irPara } from '../lib/useHashRoute'
+import { CARD_BY_ID } from '../data/cards'
 import { SPREAD_BY_ID } from '../data/spreads'
-import type { CartaNaMesa, Sessao } from '../lib/backend'
+import { panoEmbutidoDe } from '../lib/temas/visibilidade'
+import { useVisual } from '../lib/temas/useVisual'
+import { useTema } from '../lib/temas/useTema'
+import BarraFerramentas from '../components/sala/BarraFerramentas'
+import CartaFlutuante from '../components/sala/CartaFlutuante'
 import PainelTarologo from '../components/sala/PainelTarologo'
 import PopupCarta from '../components/sala/PopupCarta'
+import SeletorTema from '../components/temas/SeletorTema'
 import LoginPage from './LoginPage'
+import type { CartaNaMesa, Sessao } from '../lib/backend'
+import type { TemaBaralho, TemaPano } from '../lib/temas/tipos'
 
 // O Three.js só entra no bundle de quem abre a sala.
 const Sala3D = lazy(() => import('../components/sala/Sala3D'))
@@ -19,8 +27,24 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const [hoverSlot, setHoverSlot] = useState<number | null>(null)
   /** Posição do popup. Em state, e não em ref, porque é lida na renderização. */
   const [ponteiro, setPonteiro] = useState({ x: 0, y: 0 })
+  const [luzAcesa, setLuzAcesa] = useState(false)
+  /** Carta que o cliente escolheu olhar de perto. */
+  const [focoSlot, setFocoSlot] = useState<number | null>(null)
+  const [acervo, setAcervo] = useState(false)
+  const [menuAberto, setMenuAberto] = useState(true)
+  /** Carta viajando na ponta do ponteiro, em coordenadas de cliente. */
+  const [arraste, setArraste] = useState<{ cardId: string; x: number; y: number } | null>(null)
+  const [slotAlvo, setSlotAlvo] = useState<number | null>(null)
+  /** Onde cada slot está na tela. A cena preenche enquanto se arrasta. */
+  const projecao = useRef<{ slot: number; x: number; y: number }[]>([])
+  const arrastando = useRef(false)
 
-  const ehTarologo = Boolean(usuario && sessao && usuario.uid === sessao.tarologoUid)
+  // Os hooks vêm todos ANTES dos early returns — é a regra dos hooks, e o
+  // `useVisual` já trata sessão nula.
+  const visual = useVisual(sessao, usuario)
+  const baralho = useTema<TemaBaralho>(visual.visivel.baralhoId, 'baralho')
+  const pano = useTema<TemaPano>(visual.visivel.panoId, 'pano')
+  const ehTarologo = visual.ehTarologo
 
   // ------------------------------ tempo real ------------------------------
   useEffect(() => {
@@ -35,6 +59,22 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     void backend.atualizarSessao(sessao.id, { clienteUid: usuario.uid, clienteNome: usuario.nome })
   }, [backend, usuario, sessao])
 
+  // Esc sai do foco da carta antes de sair da sala.
+  useEffect(() => {
+    if (focoSlot === null) return
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setFocoSlot(null)
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [focoSlot])
+
+  // O tarólogo pode tirar da mesa a carta que o cliente está olhando de perto.
+  // Sem isto a câmera fica parada sobre um lugar vazio e o painel mente,
+  // dizendo que a carta "ainda está coberta".
+  useEffect(() => {
+    if (focoSlot === null) return
+    if (!sessao?.cartas.some((c) => c.slot === focoSlot)) setFocoSlot(null)
+  }, [focoSlot, sessao])
+
   const patch = useCallback(
     (p: Partial<Sessao>) => {
       if (!backend || !sessao) return
@@ -45,37 +85,119 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
 
   const cartas = sessao?.cartas ?? []
   const spread = SPREAD_BY_ID.get(sessao?.spreadId ?? 'tres')
+  const panoEmbutidoId = panoEmbutidoDe(visual.visivel.panoId)
 
   // --------------------------- ações do tarólogo ---------------------------
-  const porCarta = (cardId: string) => {
-    if (slotAtivo === null) return
-    const nova: CartaNaMesa = { slot: slotAtivo, cardId, invertida: false, revelada: false }
-    patch({ cartas: [...cartas.filter((c) => c.slot !== slotAtivo), nova] })
+  const porCartaEm = (slot: number, cardId: string) => {
+    const nova: CartaNaMesa = { slot, cardId, invertida: false, revelada: false }
+    patch({ cartas: [...cartas.filter((c) => c.slot !== slot), nova] })
+    setSlotAtivo(null)
+  }
+
+  /** O slot mais perto do ponteiro, dentro de um raio de captura generoso —
+   *  mirar num alvo pequeno em 3D é difícil, e errar custa uma carta no lugar
+   *  errado. */
+  const alvoEm = (x: number, y: number) => {
+    let melhor: number | null = null
+    let menor = 110 * 110
+    for (const p of projecao.current) {
+      const d = (p.x - x) ** 2 + (p.y - y) ** 2
+      if (d < menor) {
+        menor = d
+        melhor = p.slot
+      }
+    }
+    return melhor
+  }
+
+  /**
+   * Puxar uma carta da lista. O mesmo gesto serve para as duas formas de pôr
+   * carta na mesa: se o ponteiro andar mais que o limiar, vira arrasto; se não
+   * andar, é clique e vale o lugar que estiver selecionado.
+   *
+   * Por isso a lista não tem `onClick` — ele dispararia TAMBÉM no fim de um
+   * arrasto, e a carta entraria duas vezes.
+   */
+  const pegarCarta = (cardId: string, e: React.PointerEvent) => {
+    const inicio = { x: e.clientX, y: e.clientY }
+    const slotNoInicio = slotAtivo
+    arrastando.current = false
+
+    const mover = (ev: PointerEvent) => {
+      if (!arrastando.current && Math.hypot(ev.clientX - inicio.x, ev.clientY - inicio.y) < 6) return
+      arrastando.current = true
+      setArraste({ cardId, x: ev.clientX, y: ev.clientY })
+      setSlotAlvo(alvoEm(ev.clientX, ev.clientY))
+    }
+    const soltar = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', mover)
+      window.removeEventListener('pointerup', soltar)
+      window.removeEventListener('pointercancel', soltar)
+      if (arrastando.current) {
+        const alvo = alvoEm(ev.clientX, ev.clientY)
+        if (alvo !== null) porCartaEm(alvo, cardId)
+      } else if (slotNoInicio !== null) {
+        porCartaEm(slotNoInicio, cardId)
+      }
+      arrastando.current = false
+      setArraste(null)
+      setSlotAlvo(null)
+    }
+    window.addEventListener('pointermove', mover)
+    window.addEventListener('pointerup', soltar)
+    // Sem isto, um arrasto interrompido pelo sistema deixa a carta grudada no
+    // ponteiro e os ouvintes vivos para sempre.
+    window.addEventListener('pointercancel', soltar)
   }
   const mexer = (slot: number, f: (c: CartaNaMesa) => CartaNaMesa) =>
     patch({ cartas: cartas.map((c) => (c.slot === slot ? f(c) : c)) })
 
-  const carta = hoverSlot === null ? null : (cartas.find((c) => c.slot === hoverSlot) ?? null)
+  /**
+   * Revira a mesa inteira de uma vez. Enquanto sobrar uma carta coberta, o
+   * gesto é REVELAR todas; só quando todas já estão abertas é que ele cobre.
+   * Alternar carta a carta deixaria a mesa em xadrez, que não é o que "revirar
+   * todas" quer dizer.
+   */
+  const revirarTodas = () => {
+    if (!cartas.length) return
+    const revelar = cartas.some((c) => !c.revelada)
+    patch({ cartas: cartas.map((c) => ({ ...c, revelada: revelar })) })
+  }
 
-  if (carregando || sessao === undefined) {
+  const carta = hoverSlot === null ? null : (cartas.find((c) => c.slot === hoverSlot) ?? null)
+  /** Carta no lugar selecionado. É sobre ela que agem os botões da barra. */
+  const cartaAtiva = slotAtivo === null ? undefined : cartas.find((c) => c.slot === slotAtivo)
+
+  if (carregando) {
     return (
       <main className="grid min-h-[calc(100vh-4rem)] place-items-center">
-        <p className="text-[13px] text-mist/70">Preparando a mesa…</p>
+        <p className="text-[15px] text-mist/70">Preparando a mesa…</p>
       </main>
     )
   }
 
+  // ANTES da espera pela sessão: o efeito de tempo real desiste sem usuário,
+  // então `sessao` nunca sai de `undefined` e a tela ficava presa em
+  // "Preparando a mesa…" para sempre — com o login virando código morto.
   if (!usuario) return <LoginPage />
+
+  if (sessao === undefined) {
+    return (
+      <main className="grid min-h-[calc(100vh-4rem)] place-items-center">
+        <p className="text-[15px] text-mist/70">Preparando a mesa…</p>
+      </main>
+    )
+  }
 
   if (!sessao) {
     return (
       <main className="grid min-h-[calc(100vh-4rem)] place-items-center px-5">
         <div className="glass rounded-2xl px-8 py-10 text-center">
           <p className="font-display text-xl text-star">Sala não encontrada</p>
-          <p className="mt-2 text-[13px] text-mist">Ela pode ter sido encerrada.</p>
+          <p className="mt-2 text-[15px] text-mist">Ela pode ter sido encerrada.</p>
           <a
             href="#/tiragem"
-            className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[13px] text-star transition hover:border-gold/60"
+            className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60"
           >
             Voltar
           </a>
@@ -84,6 +206,165 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     )
   }
 
+  const cena = (
+    <Suspense
+      fallback={
+        <div className="grid h-full place-items-center bg-abyss">
+          <p className="text-[15px] text-mist/70">Acendendo as velas…</p>
+        </div>
+      }
+    >
+      <Sala3D
+        spreadId={sessao.spreadId}
+        panoEmbutidoId={panoEmbutidoId}
+        temaPano={pano.tema}
+        temaBaralho={baralho.tema}
+        cartas={cartas}
+        editavel={ehTarologo}
+        slotAtivo={arraste ? slotAlvo : slotAtivo}
+        luzAcesa={luzAcesa}
+        focoSlot={focoSlot}
+        arrastando={Boolean(arraste)}
+        onProjetar={(p) => {
+          projecao.current = p
+        }}
+        onSlot={setSlotAtivo}
+        onCarta={(slot) => {
+          if (ehTarologo) setSlotAtivo(slot)
+          // O cliente não move a câmera: clicar numa carta é como ele se
+          // aproxima, e clicar no vazio é como ele volta.
+          else setFocoSlot((s) => (s === slot ? null : slot))
+        }}
+        onHoverCarta={setHoverSlot}
+        onPonteiro={setPonteiro}
+        onFundo={() => setFocoSlot(null)}
+      />
+    </Suspense>
+  )
+
+  const botaoLuz = (
+    <button
+      type="button"
+      onClick={() => setLuzAcesa((v) => !v)}
+      className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star"
+      title={luzAcesa ? 'Apagar a luz' : 'Acender a luz'}
+    >
+      {luzAcesa ? '☾ Apagar a luz' : '☀ Acender a luz'}
+    </button>
+  )
+
+  const avisoTemaAusente =
+    baralho.estado === 'ausente' || pano.estado === 'ausente' ? (
+      <p className="glass rounded-full px-3 py-1.5 text-[13px] text-gold/90">
+        Tema indisponível neste dispositivo
+      </p>
+    ) : null
+
+  // ═══════════════════════ visão do cliente: imersiva ═══════════════════════
+  // `fixed inset-0` acima do header (z-70): a sala ocupa a tela inteira, sem
+  // painel lateral e sem navegação, que é o pedido — e não depende de o App
+  // saber o papel de quem está na sala.
+  if (!ehTarologo) {
+    const cartaFoco = focoSlot === null ? null : (cartas.find((c) => c.slot === focoSlot) ?? null)
+    const dados = cartaFoco?.revelada ? CARD_BY_ID.get(cartaFoco.cardId) : null
+
+    return (
+      <div className="fixed inset-0 z-[80] bg-void">
+        {cena}
+
+        {/* faixa de cima */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+          <span className="glass pointer-events-auto rounded-full px-3 py-1.5 text-[13px] text-mist">
+            {sessao.titulo} · com {sessao.tarologoNome}
+            {sessao.encerrada && ' · encerrada'}
+          </span>
+          <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2">
+            {avisoTemaAusente}
+            {botaoLuz}
+            <button
+              type="button"
+              onClick={() => setAcervo(true)}
+              className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star"
+            >
+              ✦ Tema
+            </button>
+            <a
+              href="#/tiragem"
+              className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star"
+            >
+              Sair
+            </a>
+          </div>
+        </div>
+
+        {/* resumo da carta em foco, no canto direito */}
+        {focoSlot !== null && (
+          <aside
+            className="absolute right-3 top-1/2 w-[min(88vw,320px)] -translate-y-1/2 rounded-2xl p-5"
+            style={{
+              // Vidro mais transparente que o `.glass` padrão: o pedido é um
+              // pop sobre o fundo, não um painel sólido tapando a mesa.
+              background: 'linear-gradient(160deg, #ffffff14, #05010f66)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid #ffffff22',
+              boxShadow: '0 24px 60px -18px #000, 0 0 40px -12px var(--color-violet)',
+            }}
+          >
+            <p className="text-[12px] uppercase tracking-[0.18em] text-gold/80">
+              {spread?.slots[focoSlot]?.rotulo}
+            </p>
+            {dados ? (
+              <>
+                <h2 className="mt-1 font-display text-xl text-nebula">{dados.nome}</h2>
+                {cartaFoco?.invertida && (
+                  <p className="mt-0.5 text-[13px] text-rose/90">invertida</p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {dados.chaves.map((k) => (
+                    <span
+                      key={k}
+                      className="rounded-full border border-white/15 px-2 py-0.5 text-[12px] text-mist/85"
+                    >
+                      {k}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-3 text-[15px] leading-relaxed text-mist">
+                  {cartaFoco?.invertida ? dados.invertida : dados.normal}
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-[15px] leading-relaxed text-mist/80">
+                Esta carta ainda está coberta. Espere {sessao.tarologoNome} virá-la.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setFocoSlot(null)}
+              className="mt-4 w-full rounded-full border border-white/20 px-4 py-2 text-[14px] text-mist transition hover:text-star"
+            >
+              Voltar para a mesa
+            </button>
+          </aside>
+        )}
+
+        {focoSlot === null && (
+          <p className="glass pointer-events-none absolute inset-x-3 bottom-3 mx-auto w-fit rounded-full px-4 py-2 text-center text-[13px] text-mist/85">
+            Clique numa carta para vê-la de perto.
+          </p>
+        )}
+
+        {acervo && (
+          <SeletorTema
+            visual={visual}
+            aoFechar={() => setAcervo(false)}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // ═════════════════════════ visão do tarólogo ═════════════════════════
   return (
     <main
       className="relative"
@@ -93,110 +374,86 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
         if (hoverSlot !== null) setPonteiro({ x: e.clientX, y: e.clientY })
       }}
     >
-      <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-4 lg:h-[calc(100vh-4rem)] lg:flex-row">
-        {/* ------------------------------ a sala ------------------------------ */}
-        <div
-          data-sala
-          className="relative min-h-[54vh] flex-1 overflow-hidden rounded-2xl border border-white/10 lg:min-h-0"
-        >
-          <Suspense
-            fallback={
-              <div className="grid h-full place-items-center bg-abyss">
-                <p className="text-[13px] text-mist/70">Acendendo as velas…</p>
-              </div>
-            }
-          >
-            <Sala3D
-              spreadId={sessao.spreadId}
-              panoId={sessao.panoId}
-              cartas={cartas}
-              editavel={ehTarologo}
-              slotAtivo={slotAtivo}
-              onSlot={setSlotAtivo}
-              onCarta={(slot) => {
-                if (ehTarologo) setSlotAtivo(slot)
-                else mexer(slot, (c) => c)
-              }}
-              onHoverCarta={setHoverSlot}
-              onPonteiro={setPonteiro}
-            />
-          </Suspense>
+      {/* A mesa toma a tela inteira abaixo do cabeçalho. A barra e o painel
+          flutuam sobre ela em vidro: nenhuma faixa opaca rouba altura da mesa,
+          que é o que a pessoa realmente precisa ver. */}
+      <div data-sala className="relative h-[calc(100vh-4rem)] w-full overflow-hidden">
+        {cena}
 
-          {/* Faixa de status sobre o canvas */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3">
-            <span className="glass rounded-full px-3 py-1.5 text-[11px] text-mist">
-              {sessao.titulo}
-            </span>
-            <span className="glass rounded-full px-3 py-1.5 text-[11px] text-mist">
-              {ehTarologo ? 'Você conduz' : `com ${sessao.tarologoNome}`}
-              {sessao.encerrada && ' · encerrada'}
-            </span>
-          </div>
+        <BarraFerramentas
+          cartas={cartas}
+          luzAcesa={luzAcesa}
+          menuAberto={menuAberto}
+          cartaAtiva={cartaAtiva}
+          nomeCartaAtiva={cartaAtiva ? CARD_BY_ID.get(cartaAtiva.cardId)?.nome : undefined}
+          rotuloSlot={slotAtivo !== null ? spread?.slots[slotAtivo]?.rotulo : undefined}
+          onRevirarTodas={revirarTodas}
+          onLuz={() => setLuzAcesa((v) => !v)}
+          onLimpar={() => {
+            patch({ cartas: [] })
+            setSlotAtivo(null)
+          }}
+          onMenu={() => setMenuAberto((v) => !v)}
+          onVirar={(slot) => mexer(slot, (c) => ({ ...c, revelada: !c.revelada }))}
+          onInverter={(slot) => mexer(slot, (c) => ({ ...c, invertida: !c.invertida }))}
+          onTirar={(slot) => {
+            patch({ cartas: cartas.filter((c) => c.slot !== slot) })
+            setSlotAtivo(null)
+          }}
+          onEncerrar={() => {
+            patch({ encerrada: true })
+            irPara('/tiragem')
+          }}
+        />
 
-          {!ehTarologo && (
-            <p className="glass pointer-events-none absolute inset-x-3 bottom-3 rounded-full px-4 py-2 text-center text-[11px] text-mist/85">
-              Passe o mouse sobre uma carta revelada para ver o significado. Arraste para girar a mesa.
-            </p>
-          )}
+        {/* Rodapé de estado, do lado oposto ao menu. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-end gap-2 p-3">
+          <span className="glass rounded-full px-3 py-1.5 text-[13px] text-mist">
+            {sessao.titulo} · Você conduz{sessao.encerrada && ' · encerrada'}
+          </span>
+          {avisoTemaAusente}
         </div>
 
-        {/* ---------------------------- painel lateral ---------------------------- */}
-        {ehTarologo ? (
-          <div className="h-[46vh] w-full shrink-0 lg:h-auto lg:w-[310px]">
-            <PainelTarologo
-              spreadId={sessao.spreadId}
-              panoId={sessao.panoId}
-              cartas={cartas}
-              slotAtivo={slotAtivo}
-              onSpread={(id) => {
-                // Trocar de layout descarta as cartas que não cabem no novo.
-                const n = SPREAD_BY_ID.get(id)?.slots.length ?? 0
-                patch({ spreadId: id, cartas: cartas.filter((c) => c.slot < n) })
-                setSlotAtivo(null)
-              }}
-              onPano={(id) => patch({ panoId: id })}
-              onSlot={setSlotAtivo}
-              onPorCarta={porCarta}
-              onTirarCarta={(slot) => {
-                patch({ cartas: cartas.filter((c) => c.slot !== slot) })
-                setSlotAtivo(null)
-              }}
-              onVirar={(slot) => mexer(slot, (c) => ({ ...c, revelada: !c.revelada }))}
-              onInverter={(slot) => mexer(slot, (c) => ({ ...c, invertida: !c.invertida }))}
-              onLimpar={() => patch({ cartas: [] })}
-              onEncerrar={() => {
-                patch({ encerrada: true })
-                irPara('/tiragem')
-              }}
-            />
-          </div>
-        ) : (
-          <div className="glass h-auto w-full shrink-0 overflow-y-auto rounded-2xl p-4 lg:w-[280px]">
-            <p className="font-display text-[15px] text-star">{spread?.nome}</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-mist/80">{spread?.descricao}</p>
-
-            <ul className="mt-4 flex flex-col gap-1.5">
-              {spread?.slots.map((s, i) => {
-                const c = cartas.find((x) => x.slot === i)
-                return (
-                  <li
-                    key={i}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-[12px]"
-                    style={{ background: hoverSlot === i ? '#ffffff12' : 'transparent' }}
-                  >
-                    <span className="text-mist/80">{s.rotulo}</span>
-                    <span className="text-star">{c ? (c.revelada ? '✦' : '•') : '—'}</span>
-                  </li>
-                )
-              })}
-            </ul>
-
-            <p className="mt-4 text-[11px] leading-relaxed text-mist/60">
-              ✦ revelada · • ainda coberta · — vazia
-            </p>
-          </div>
-        )}
+        {/* O menu no cantinho: some quando não é preciso, e volta num clique.
+            `inert` e não `aria-hidden`: opacidade zero e `pointer-events: none`
+            barram o MOUSE, mas deixam tudo lá dentro no Tab — dava para chegar
+            no "Encerrar" às cegas e apertar Enter. E `aria-hidden` sobre
+            elementos focáveis é a violação que o próprio Chrome acusa. `inert`
+            tira do foco, do ponteiro e do leitor de tela de uma vez. */}
+        <div
+          className="absolute bottom-3 right-3 top-28 z-30 w-[min(94vw,400px)] transition-[opacity,transform] duration-200 sm:top-16"
+          style={{
+            opacity: menuAberto ? 1 : 0,
+            transform: menuAberto ? 'translateX(0)' : 'translateX(12px)',
+          }}
+          inert={!menuAberto}
+        >
+          <PainelTarologo
+            spreadId={sessao.spreadId}
+            visual={visual}
+            temaBaralho={baralho.tema}
+            cartas={cartas}
+            slotAtivo={slotAtivo}
+            onSpread={(id) => {
+              // Trocar de layout descarta as cartas que não cabem no novo.
+              const n = SPREAD_BY_ID.get(id)?.slots.length ?? 0
+              patch({ spreadId: id, cartas: cartas.filter((c) => c.slot < n) })
+              setSlotAtivo(null)
+            }}
+            onPegarCarta={pegarCarta}
+          />
+        </div>
       </div>
+
+      {arraste && (
+        <CartaFlutuante
+          cardId={arraste.cardId}
+          tema={baralho.tema}
+          x={arraste.x}
+          y={arraste.y}
+          sobreAlvo={slotAlvo !== null}
+        />
+      )}
 
       <PopupCarta
         carta={carta}

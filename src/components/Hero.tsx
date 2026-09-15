@@ -129,7 +129,7 @@ export default function Hero() {
                 }}
                 className="group/face absolute inset-0 z-30 block cursor-pointer rounded-2xl outline-none ring-gold/60 focus-visible:ring-2"
               >
-                <span className="pointer-events-none absolute left-[42%] top-[50%] -translate-x-1/2 whitespace-nowrap rounded-full border border-gold/40 bg-void/80 px-3 py-1 text-[11px] tracking-wide text-gold opacity-0 backdrop-blur transition duration-300 group-hover/face:opacity-100 group-focus-visible/face:opacity-100">
+                <span className="pointer-events-none absolute left-[42%] top-[50%] -translate-x-1/2 whitespace-nowrap rounded-full border border-gold/40 bg-void/80 px-3 py-1 text-[13px] tracking-wide text-gold opacity-0 backdrop-blur transition duration-300 group-hover/face:opacity-100 group-focus-visible/face:opacity-100">
                   {site.facePage.label} →
                 </span>
               </a>
@@ -145,7 +145,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-[11px] uppercase tracking-[0.46em] text-lilac/85"
+            className="text-[13px] uppercase tracking-[0.46em] text-lilac/85"
           >
             {site.eyebrow}
           </motion.p>
@@ -163,7 +163,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, delay: 0.34 }}
-            className="mt-6 max-w-xl text-[15px] leading-relaxed text-mist"
+            className="mt-6 max-w-xl text-[17px] leading-relaxed text-mist"
           >
             {site.subline}
           </motion.p>
@@ -176,7 +176,7 @@ export default function Hero() {
           >
             <a
               href="#planos"
-              className="group relative overflow-hidden rounded-full px-8 py-3.5 text-sm font-medium tracking-wide text-star transition"
+              className="group relative overflow-hidden rounded-full px-8 py-3.5 text-base font-medium tracking-wide text-star transition"
               style={{
                 background: 'linear-gradient(100deg, #6d3fd4, #c2449d)',
                 boxShadow: '0 12px 40px -12px #c2449d, inset 0 1px 0 #ffffff40',
@@ -192,7 +192,7 @@ export default function Hero() {
 
             <a
               href="#tabela"
-              className="rounded-full border border-white/20 px-7 py-3.5 text-sm tracking-wide text-mist transition hover:border-gold/50 hover:text-star"
+              className="rounded-full border border-white/20 px-7 py-3.5 text-base tracking-wide text-mist transition hover:border-gold/50 hover:text-star"
             >
               Tabela de preços
             </a>

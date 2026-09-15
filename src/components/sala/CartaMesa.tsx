@@ -1,72 +1,20 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { CARD_BY_ID } from '../../data/cards'
+import { useTexturaCarta } from '../../lib/temas/useTema'
+import type { TemaBaralho } from '../../lib/temas/tipos'
 
 export const CARTA_W = 0.4
 export const CARTA_H = 0.68
 
-/** Verso das cartas: desenhado uma vez e compartilhado por todas. */
-function texturaVerso(): THREE.Texture {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="840" viewBox="0 0 256 420">
-    <rect width="256" height="420" rx="14" fill="#1b0d42"/>
-    <rect x="9" y="9" width="238" height="402" rx="9" fill="none" stroke="#d9b979" stroke-width="2" opacity="0.55"/>
-    <g stroke="#d9b979" fill="none" opacity="0.7">
-      <circle cx="128" cy="210" r="62" stroke-width="1.6"/>
-      <circle cx="128" cy="210" r="44" stroke-width="1"/>
-    </g>
-    <path d="M128 148 L136 202 L190 210 L136 218 L128 272 L120 218 L66 210 L120 202 Z" fill="#d9b979" opacity="0.85"/>
-    <path d="M128 96a15 15 0 1 0 .1 0 11 11 0 1 1-.1 0" fill="#d9b979" opacity="0.6"/>
-    <path d="M128 324a15 15 0 1 0 .1 0 11 11 0 1 1-.1 0" fill="#d9b979" opacity="0.6"/>
-  </svg>`
-  const tex = new THREE.TextureLoader().load(`data:image/svg+xml,${encodeURIComponent(svg)}`)
-  tex.colorSpace = THREE.SRGBColorSpace
-  tex.anisotropy = 8
-  return tex
-}
-
-/**
- * Frente da carta, desenhada a partir dos dados dela. Não há arte por carta —
- * o que identifica é o nome, o número e o símbolo do naipe, num layout de
- * baralho clássico.
- */
-function texturaFrente(cardId: string): THREE.Texture {
-  const c = CARD_BY_ID.get(cardId)
-  const nome = c?.nome ?? '—'
-  const simbolo = { maior: '✦', paus: '♣', copas: '♥', espadas: '♠', ouros: '♦' }[c?.naipe ?? 'maior']
-  const romano = c?.naipe === 'maior' ? ['0','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI'][c.numero] ?? '' : `${c?.numero ?? ''}`
-  // Quebra o nome em duas linhas quando não cabe.
-  const palavras = nome.split(' ')
-  const meio = Math.ceil(palavras.length / 2)
-  const linhas = nome.length > 14 ? [palavras.slice(0, meio).join(' '), palavras.slice(meio).join(' ')] : [nome]
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="840" viewBox="0 0 256 420">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fdf6e6"/><stop offset="100%" stop-color="#efe0c4"/>
-    </linearGradient></defs>
-    <rect width="256" height="420" rx="14" fill="url(#g)"/>
-    <rect x="9" y="9" width="238" height="402" rx="9" fill="none" stroke="#7a5a25" stroke-width="2"/>
-    <text x="128" y="52" text-anchor="middle" font-family="Georgia,serif" font-size="26" fill="#7a5a25">${romano}</text>
-    <text x="128" y="212" text-anchor="middle" font-size="96" fill="#6d3fd4" opacity="0.72">${simbolo}</text>
-    ${linhas
-      .map(
-        (l, i) =>
-          `<text x="128" y="${330 + i * 30}" text-anchor="middle" font-family="Georgia,serif" font-size="23" fill="#3b2a12">${l}</text>`,
-      )
-      .join('')}
-  </svg>`
-  const tex = new THREE.TextureLoader().load(`data:image/svg+xml,${encodeURIComponent(svg)}`)
-  tex.colorSpace = THREE.SRGBColorSpace
-  tex.anisotropy = 8
-  // Revelar é virar a carta 180° sobre o eixo horizontal, o que deixaria o
-  // texto de cabeça para baixo. Girar a própria textura devolve a leitura certa.
-  tex.center.set(0.5, 0.5)
-  tex.rotation = Math.PI
-  return tex
-}
+/** Creme do papel: é o que aparece enquanto a textura não subiu. Nunca branco
+ *  puro — branco puro numa mesa escura lê como erro de carregamento. */
+const PAPEL = '#e8dcc0'
 
 export default function CartaMesa({
   cardId,
+  tema,
+  verso,
   posicao,
   giro = 0,
   invertida = false,
@@ -77,6 +25,10 @@ export default function CartaMesa({
   onClick,
 }: {
   cardId: string
+  /** Tema já carregado, ou null para a arte desenhada. */
+  tema: TemaBaralho | null
+  /** Verso compartilhado, emprestado uma vez pela cena — não por carta. */
+  verso: THREE.Texture | null
   posicao: [number, number, number]
   giro?: number
   invertida?: boolean
@@ -88,9 +40,30 @@ export default function CartaMesa({
 }) {
   const grupo = useRef<THREE.Group>(null)
   const [hover, setHover] = useState(false)
+  const matFrente = useRef<THREE.MeshStandardMaterial>(null)
+  const matVerso = useRef<THREE.MeshStandardMaterial>(null)
 
-  const verso = useMemo(() => texturaVerso(), [])
-  const frente = useMemo(() => texturaFrente(cardId), [cardId])
+  // A frente é por carta; o verso vem de cima, porque é o MESMO para todas —
+  // era aqui que dez cartas na Cruz Celta criavam dez texturas idênticas.
+  const frente = useTexturaCarta(cardId, tema)
+
+  /**
+   * As texturas chegam DEPOIS do primeiro render, então `map` vai de `null`
+   * para textura — e isso, sozinho, não faz nada aparecer.
+   *
+   * `USE_MAP` é um #define do programa GLSL. O three só recompila quando
+   * `material.version` muda (no WebGLRenderer, `needsProgramChange` só vira
+   * true no ramo `material.version !== materialProperties.__version`), e
+   * `version` só sobe pelo setter `needsUpdate`. O react-three-fiber não o
+   * marca sozinho — o único `needsUpdate = true` dele é para o shadowMap.
+   * Sem estas duas linhas, TODA carta com arte fica no creme do papel.
+   */
+  useEffect(() => {
+    if (matFrente.current) matFrente.current.needsUpdate = true
+  }, [frente])
+  useEffect(() => {
+    if (matVerso.current) matVerso.current.needsUpdate = true
+  }, [verso])
 
   useFrame((_, delta) => {
     if (!grupo.current) return
@@ -131,22 +104,38 @@ export default function CartaMesa({
             -90°, é a face +z que aponta para cima — então ela leva o VERSO, e a
             carta nasce coberta. O flip de 180° traz a frente.
           */}
-          <meshStandardMaterial attach="material-0" color="#e8dcc0" roughness={0.8} />
-          <meshStandardMaterial attach="material-1" color="#e8dcc0" roughness={0.8} />
-          <meshStandardMaterial attach="material-2" color="#e8dcc0" roughness={0.8} />
-          <meshStandardMaterial attach="material-3" color="#e8dcc0" roughness={0.8} />
-          <meshStandardMaterial attach="material-4" map={verso} roughness={0.62} />
-          <meshStandardMaterial attach="material-5" map={frente} roughness={0.62} />
+          <meshStandardMaterial attach="material-0" color={PAPEL} roughness={0.8} />
+          <meshStandardMaterial attach="material-1" color={PAPEL} roughness={0.8} />
+          <meshStandardMaterial attach="material-2" color={PAPEL} roughness={0.8} />
+          <meshStandardMaterial attach="material-3" color={PAPEL} roughness={0.8} />
+          <meshStandardMaterial
+            ref={matVerso}
+            attach="material-4"
+            map={verso}
+            color={verso ? '#ffffff' : PAPEL}
+            roughness={0.62}
+          />
+          <meshStandardMaterial
+            ref={matFrente}
+            attach="material-5"
+            map={frente}
+            color={frente ? '#ffffff' : PAPEL}
+            roughness={0.62}
+          />
         </mesh>
 
-        {/* Realce de seleção do tarólogo */}
-        {selecionada && (
-          <mesh position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[CARTA_W + 0.07, CARTA_H + 0.07]} />
-            <meshBasicMaterial color="#f2d492" transparent opacity={0.28} />
-          </mesh>
-        )}
       </group>
+
+      {/* Realce de seleção do tarólogo. FORA do grupo que vira: lá dentro ele
+          girava junto com a carta, a normal do plano passava a apontar para
+          baixo e o `meshBasicMaterial` (FrontSide por padrão) sumia de vista
+          assim que a carta era revelada. */}
+      {selecionada && (
+        <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+          <planeGeometry args={[CARTA_W + 0.07, CARTA_H + 0.07]} />
+          <meshBasicMaterial color="#f2d492" transparent opacity={0.28} depthWrite={false} />
+        </mesh>
+      )}
     </group>
   )
 }

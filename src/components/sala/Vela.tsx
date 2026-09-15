@@ -10,10 +10,18 @@ export default function Vela({
   posicao,
   altura = 0.26,
   semente = 0,
+  sombra = false,
 }: {
   posicao: [number, number, number]
   altura?: number
   semente?: number
+  /**
+   * Luz de ponto com sombra é um mapa CÚBICO: seis passes de renderização por
+   * vela, por quadro. Com várias velas em cena isso domina o custo, então só
+   * um par delas projeta sombra — o resto ilumina sem projetar, e a diferença
+   * é quase invisível num ambiente já escuro.
+   */
+  sombra?: boolean
 }) {
   const chama = useRef<THREE.Mesh>(null)
   const luz = useRef<THREE.PointLight>(null)
@@ -68,7 +76,7 @@ export default function Vela({
         intensity={1.25}
         distance={3.6}
         decay={2}
-        castShadow
+        castShadow={sombra}
         shadow-mapSize={[512, 512]}
       />
     </group>

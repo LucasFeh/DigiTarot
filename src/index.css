@@ -146,6 +146,27 @@
   }
 }
 
+/* -------------------------- cursor estrela -------------------------- */
+
+/**
+ * A classe só é aplicada pelo <StarCursor> quando ele realmente assume o
+ * ponteiro (mouse de verdade e sem `prefers-reduced-motion`) — no toque, ou
+ * se o canvas não montar, o cursor do sistema continua intacto.
+ */
+html.star-cursor,
+html.star-cursor * {
+  cursor: none;
+}
+
+/* Em campo de texto o cursor nativo diz mais que a estrela (posição do
+   caret, seleção), então ele volta — e o canvas esconde a estrela. */
+html.star-cursor input,
+html.star-cursor textarea,
+html.star-cursor select,
+html.star-cursor [contenteditable='true'] {
+  cursor: auto;
+}
+
 /* --------------------- círculo mágico e portal --------------------- */
 
 @keyframes spin-cw {

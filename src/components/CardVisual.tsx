@@ -72,11 +72,11 @@ export default function CardVisual({
         />
 
         <div className="relative flex h-full flex-col items-center justify-between text-center">
-          <span className="mt-1 text-[26px] leading-none drop-shadow-[0_0_10px_rgba(255,255,255,.35)]">
+          <span className="mt-1 text-[28px] leading-none drop-shadow-[0_0_10px_rgba(255,255,255,.35)]">
             {plan.icon}
           </span>
 
-          <p className="font-display px-1 text-[13px] font-semibold leading-snug text-star/95">
+          <p className="font-display px-1 text-[15px] font-semibold leading-snug text-star/95">
             {plan.title}
           </p>
 
@@ -84,16 +84,16 @@ export default function CardVisual({
             {/* Filete ornamental separando o valor */}
             <span aria-hidden className="mb-1 flex w-full items-center gap-2 px-2">
               <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, transparent, ${accent})` }} />
-              <span className="text-[9px] text-gold/70">✦</span>
+              <span className="text-[11px] text-gold/70">✦</span>
               <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }} />
             </span>
 
             {plan.duration && (
-              <span className="rounded-full border border-white/20 bg-white/5 px-2.5 py-[3px] text-[10px] uppercase tracking-[0.14em] text-mist">
+              <span className="rounded-full border border-white/20 bg-white/5 px-2.5 py-[3px] text-[12px] uppercase tracking-[0.14em] text-mist">
                 {plan.duration}
               </span>
             )}
-            <span className="font-display text-[22px] font-bold text-gold drop-shadow-[0_0_14px_rgba(242,212,146,.45)]">
+            <span className="font-display text-[24px] font-bold text-gold drop-shadow-[0_0_14px_rgba(242,212,146,.45)]">
               {formatPrice(plan.price)}
             </span>
           </div>

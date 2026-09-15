@@ -16,16 +16,30 @@ service cloud.firestore {
                     && request.resource.data.tarologoUid == request.auth.uid;
 
       // O tarólogo dono edita à vontade.
-      // O cliente só pode se registrar na sessão — e apenas se ela estiver
-      // livre. Sem esta trava, um cliente poderia virar cartas ou trocar o
-      // layout da mesa de outra pessoa.
+      //
+      // O cliente tem exatamente duas janelas, e nada além:
+      //   1. registrar-se na sessão, se ela ainda estiver livre;
+      //   2. gravar o PRÓPRIO tema (`visualCliente`), depois de já ser o
+      //      cliente dela.
+      // Sem a segunda, escolher um tema como cliente falharia calado no
+      // Firestore — o modelo de "cada um vê o seu" não sobreviveria ao backend
+      // real. E ela não deixa tocar em carta, layout nem no tema do tarólogo.
+      //
+      // `get(campo, null)` em vez de `resource.data.campo`: sessão gravada
+      // antes deste campo existir não tem a chave, e o acesso direto a um
+      // campo ausente faz a regra INTEIRA falhar, não devolver null.
       allow update: if request.auth != null && (
         resource.data.tarologoUid == request.auth.uid
         || (
-          resource.data.clienteUid == null
+          resource.data.get('clienteUid', null) == null
           && request.resource.data.clienteUid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['clienteUid', 'clienteNome'])
+        )
+        || (
+          resource.data.get('clienteUid', null) == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['visualCliente'])
         )
       );
 

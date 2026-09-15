@@ -45,18 +45,18 @@ export default function PopupCarta({
             }}
           >
             {!carta.revelada ? (
-              <p className="text-[12px] italic text-mist/80">
+              <p className="text-[14px] italic text-mist/80">
                 A carta ainda está virada para baixo.
               </p>
             ) : (
               <>
                 {rotulo && (
-                  <p className="mb-1 text-[10px] uppercase tracking-[0.18em] text-lilac/80">{rotulo}</p>
+                  <p className="mb-1 text-[12px] uppercase tracking-[0.18em] text-lilac/80">{rotulo}</p>
                 )}
-                <p className="font-display text-[17px] leading-tight text-star">
+                <p className="font-display text-[19px] leading-tight text-star">
                   {c.nome}
                   {carta.invertida && (
-                    <span className="ml-2 align-middle text-[10px] uppercase tracking-[0.14em] text-rose">
+                    <span className="ml-2 align-middle text-[12px] uppercase tracking-[0.14em] text-rose">
                       invertida
                     </span>
                   )}
@@ -64,7 +64,7 @@ export default function PopupCarta({
 
                 <div className="my-2.5 flex items-center gap-2">
                   <span className="h-px flex-1 bg-gradient-to-r from-transparent to-gold/60" />
-                  <span className="text-[9px] text-gold/70">✦</span>
+                  <span className="text-[11px] text-gold/70">✦</span>
                   <span className="h-px flex-1 bg-gradient-to-l from-transparent to-gold/60" />
                 </div>
 
@@ -76,7 +76,7 @@ export default function PopupCarta({
                   {c.chaves.map((k) => (
                     <span
                       key={k}
-                      className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] text-mist/85"
+                      className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[12px] text-mist/85"
                     >
                       {k}
                     </span>

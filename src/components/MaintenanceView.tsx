@@ -51,7 +51,7 @@ export default function MaintenanceView({
 
           <h2 className="text-nebula text-3xl sm:text-4xl">Em manutenção</h2>
 
-          <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-mist">
+          <p className="mx-auto mt-4 max-w-sm text-base leading-relaxed text-mist">
             Esta área ainda está sendo preparada. Em breve você vai poder concluir a reserva da sua
             consulta por aqui.
           </p>
@@ -65,9 +65,9 @@ export default function MaintenanceView({
                 {plan.icon}
               </span>
               <div>
-                <p className="font-display text-sm text-star">{plan.title}</p>
+                <p className="font-display text-base text-star">{plan.title}</p>
                 {plan.duration && (
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-mist/80">{plan.duration}</p>
+                  <p className="text-[13px] uppercase tracking-[0.16em] text-mist/80">{plan.duration}</p>
                 )}
               </div>
             </div>
@@ -77,7 +77,7 @@ export default function MaintenanceView({
           <button
             type="button"
             onClick={onBack}
-            className="mt-8 rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm tracking-wide text-star transition hover:border-gold/60 hover:bg-white/10"
+            className="mt-8 rounded-full border border-white/25 bg-white/5 px-7 py-3 text-base tracking-wide text-star transition hover:border-gold/60 hover:bg-white/10"
           >
             Escolher outra carta
           </button>

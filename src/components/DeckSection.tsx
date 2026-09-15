@@ -170,9 +170,9 @@ export default function DeckSection() {
   return (
     <section id="planos" className="relative py-20 [overflow-x:clip] sm:py-28">
       <div className="mx-auto max-w-6xl px-5 text-center">
-        <p className="mb-3 text-[11px] uppercase tracking-[0.42em] text-lilac/80">Escolha sua carta</p>
+        <p className="mb-3 text-[13px] uppercase tracking-[0.42em] text-lilac/80">Escolha sua carta</p>
         <h2 className="text-nebula text-4xl sm:text-5xl">Tabela de Consultas</h2>
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-mist/90">
+        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-mist/90">
           <span className="hidden sm:inline">
             Passe o mouse sobre uma carta para revelá-la. Troque de categoria e um portal suga o
             baralho — o círculo invoca o próximo.
@@ -194,7 +194,7 @@ export default function DeckSection() {
                 disabled={locked}
                 onClick={() => change(i - index)}
                 aria-current={on}
-                className="rounded-full border px-4 py-2 text-[12px] tracking-wide transition disabled:cursor-default sm:text-[13px]"
+                className="rounded-full border px-4 py-2 text-[14px] tracking-wide transition disabled:cursor-default sm:text-[15px]"
                 style={{
                   borderColor: on ? `${c.accent}aa` : '#ffffff1f',
                   background: on ? `${c.accent}22` : '#ffffff08',

@@ -18,20 +18,42 @@ export const TAROLOGO_DEMO = { email: 'tarologo@tarot.local', senha: 'tarot123' 
  * seu login (tarólogo numa, cliente noutra) enquanto as duas enxergam a mesma
  * mesa. Com tudo em localStorage, as abas dividiriam o mesmo login.
  */
-function ler<T>(chave: string, padrao: T, store: Storage = localStorage): T {
+type Onde = 'local' | 'sessao'
+
+/**
+ * O armazenamento é resolvido DENTRO do try, e nunca recebido como parâmetro.
+ * Em navegador com dados de site bloqueados, ou num iframe sem
+ * `allow-same-origin`, só tocar em `localStorage` já lança `SecurityError` — e
+ * um valor padrão de parâmetro (`store: Storage = localStorage`) é avaliado na
+ * chamada, antes de o corpo entrar no try. O throw escapava por fora, a
+ * promessa do AuthProvider rejeitava e a tela ficava presa em "Carregando…".
+ */
+function store(onde: Onde): Storage {
+  return onde === 'local' ? localStorage : sessionStorage
+}
+
+function ler<T>(chave: string, padrao: T, onde: Onde = 'local'): T {
   try {
-    const raw = store.getItem(chave)
+    const raw = store(onde).getItem(chave)
     return raw ? (JSON.parse(raw) as T) : padrao
   } catch {
     return padrao
   }
 }
 
-function gravar(chave: string, valor: unknown, store: Storage = localStorage) {
+function gravar(chave: string, valor: unknown, onde: Onde = 'local') {
   try {
-    store.setItem(chave, JSON.stringify(valor))
+    store(onde).setItem(chave, JSON.stringify(valor))
   } catch {
-    /* modo privado ou cota cheia: o app segue, só não persiste */
+    /* modo privado, cota cheia ou storage bloqueado: o app segue sem persistir */
+  }
+}
+
+function apagar(chave: string, onde: Onde = 'local') {
+  try {
+    store(onde).removeItem(chave)
+  } catch {
+    /* idem */
   }
 }
 
@@ -44,7 +66,14 @@ function gravar(chave: string, valor: unknown, store: Storage = localStorage) {
 export class LocalBackend implements Backend {
   readonly modo = 'local' as const
 
-  private canal = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CANAL) : null
+  /** Pode lançar em origem opaca; sem ele o app segue, só sem tempo real. */
+  private canal = (() => {
+    try {
+      return typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CANAL) : null
+    } catch {
+      return null
+    }
+  })()
   private ouvintesUsuario = new Set<(u: Usuario | null) => void>()
   private ouvintesSessoes = new Set<() => void>()
 
@@ -73,13 +102,13 @@ export class LocalBackend implements Backend {
 
   observarUsuario(cb: (u: Usuario | null) => void): Unsubscribe {
     this.ouvintesUsuario.add(cb)
-    cb(ler<Usuario | null>(CHAVE_USER, null, sessionStorage))
+    cb(ler<Usuario | null>(CHAVE_USER, null, 'sessao'))
     return () => this.ouvintesUsuario.delete(cb)
   }
 
   private definirUsuario(u: Usuario | null) {
-    if (u) gravar(CHAVE_USER, u, sessionStorage)
-    else sessionStorage.removeItem(CHAVE_USER)
+    if (u) gravar(CHAVE_USER, u, 'sessao')
+    else apagar(CHAVE_USER, 'sessao')
     this.ouvintesUsuario.forEach((f) => f(u))
   }
 

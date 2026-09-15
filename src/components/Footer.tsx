@@ -32,7 +32,7 @@ export default function Footer() {
                 onClick={pending ? (e) => e.preventDefault() : undefined}
                 aria-disabled={pending || undefined}
                 title={pending ? `${l.label} — em breve` : l.label}
-                className="text-[13px] tracking-wide text-mist transition hover:text-gold"
+                className="text-[15px] tracking-wide text-mist transition hover:text-gold"
               >
                 {l.label}
               </a>
@@ -40,7 +40,7 @@ export default function Footer() {
           })}
         </nav>
 
-        <p className="max-w-md text-[11px] leading-relaxed text-mist/55">{site.footerNote}</p>
+        <p className="max-w-md text-[13px] leading-relaxed text-mist/55">{site.footerNote}</p>
       </div>
     </footer>
   )

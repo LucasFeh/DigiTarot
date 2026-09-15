@@ -11,14 +11,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let vivo = true
     let parar: (() => void) | undefined
 
-    carregarBackend().then((b) => {
-      if (!vivo) return
-      setBackend(b)
-      parar = b.observarUsuario((u) => {
-        setUsuario(u)
-        setCarregando(false)
+    carregarBackend()
+      .then((b) => {
+        if (!vivo) return
+        setBackend(b)
+        parar = b.observarUsuario((u) => {
+          setUsuario(u)
+          setCarregando(false)
+        })
       })
-    })
+      // Sem este catch, qualquer falha ao montar o backend deixaria a tela
+      // presa em "Carregando…" para sempre. Melhor degradar para "não logado".
+      .catch(() => {
+        if (vivo) setCarregando(false)
+      })
 
     return () => {
       vivo = false

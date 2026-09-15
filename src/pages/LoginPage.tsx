@@ -49,9 +49,9 @@ export default function LoginPage() {
         />
 
         <div className="relative">
-          <p className="text-[11px] uppercase tracking-[0.42em] text-lilac/80">Tiragem digital</p>
+          <p className="text-[13px] uppercase tracking-[0.42em] text-lilac/80">Tiragem digital</p>
           <h1 className="text-nebula mt-3 text-3xl">Entre na sala</h1>
-          <p className="mt-3 text-[13px] leading-relaxed text-mist">
+          <p className="mt-3 text-[15px] leading-relaxed text-mist">
             Com uma conta você acompanha a leitura ao vivo e guarda o histórico das suas consultas.
           </p>
 
@@ -70,7 +70,7 @@ export default function LoginPage() {
                   setModo(id)
                   setErro(null)
                 }}
-                className="flex-1 rounded-full px-3 py-2 text-[12px] tracking-wide transition"
+                className="flex-1 rounded-full px-3 py-2 text-[14px] tracking-wide transition"
                 style={{
                   color: modo === id ? '#fff' : '#cbbde8',
                   background: modo === id ? 'linear-gradient(100deg, #6d3fd4, #c2449d)' : 'transparent',
@@ -87,13 +87,13 @@ export default function LoginPage() {
                 type="button"
                 disabled={ocupado}
                 onClick={() => tentar(entrarComGoogle)}
-                className="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3.5 text-[14px] font-medium text-[#1f1f1f] transition hover:bg-white/90 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3.5 text-[16px] font-medium text-[#1f1f1f] transition hover:bg-white/90 disabled:opacity-60"
               >
                 <GoogleIcon />
                 Continuar com Google
               </button>
               {backend?.modo === 'local' && (
-                <p className="mt-3 text-[11px] leading-relaxed text-mist/60">
+                <p className="mt-3 text-[13px] leading-relaxed text-mist/60">
                   Sem as chaves do Firebase, este botão cria um visitante local — serve para testar a
                   sala inteira sem conta nenhuma.
                 </p>
@@ -114,7 +114,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="E-mail"
                 autoComplete="username"
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[14px] text-star outline-none placeholder:text-mist/50 focus:border-gold/50"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] text-star outline-none placeholder:text-mist/50 focus:border-gold/50"
               />
               <input
                 type="password"
@@ -123,12 +123,12 @@ export default function LoginPage() {
                 onChange={(e) => setSenha(e.target.value)}
                 placeholder="Senha"
                 autoComplete="current-password"
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[14px] text-star outline-none placeholder:text-mist/50 focus:border-gold/50"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] text-star outline-none placeholder:text-mist/50 focus:border-gold/50"
               />
               <button
                 type="submit"
                 disabled={ocupado}
-                className="rounded-xl px-4 py-3.5 text-[14px] font-medium text-star transition disabled:opacity-60"
+                className="rounded-xl px-4 py-3.5 text-[16px] font-medium text-star transition disabled:opacity-60"
                 style={{
                   background: 'linear-gradient(100deg, #6d3fd4, #c2449d)',
                   boxShadow: '0 12px 34px -14px #c2449d',
@@ -144,7 +144,7 @@ export default function LoginPage() {
                     setEmail(TAROLOGO_DEMO.email)
                     setSenha(TAROLOGO_DEMO.senha)
                   }}
-                  className="rounded-lg border border-white/12 px-3 py-2 text-left text-[11px] leading-relaxed text-mist/70 transition hover:text-mist"
+                  className="rounded-lg border border-white/12 px-3 py-2 text-left text-[13px] leading-relaxed text-mist/70 transition hover:text-mist"
                 >
                   Conta de demonstração: <span className="text-gold">{TAROLOGO_DEMO.email}</span> /{' '}
                   <span className="text-gold">{TAROLOGO_DEMO.senha}</span> — clique para preencher.
@@ -154,14 +154,14 @@ export default function LoginPage() {
           )}
 
           {erro && (
-            <p className="mt-4 rounded-lg border border-rose/40 bg-rose/10 px-3 py-2 text-[12px] text-rose">
+            <p className="mt-4 rounded-lg border border-rose/40 bg-rose/10 px-3 py-2 text-[14px] text-rose">
               {erro}
             </p>
           )}
 
           <a
             href="#/"
-            className="mt-6 block text-center text-[12px] text-mist/70 transition hover:text-star"
+            className="mt-6 block text-center text-[14px] text-mist/70 transition hover:text-star"
           >
             ← Voltar para a home
           </a>

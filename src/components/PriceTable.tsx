@@ -10,9 +10,9 @@ export default function PriceTable() {
     <section id="tabela" className="relative px-5 py-20 sm:py-28">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
-          <p className="mb-3 text-[11px] uppercase tracking-[0.42em] text-lilac/80">Tudo em um lugar</p>
+          <p className="mb-3 text-[13px] uppercase tracking-[0.42em] text-lilac/80">Tudo em um lugar</p>
           <h2 className="text-nebula text-4xl sm:text-5xl">Valores</h2>
-          <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-mist/90">
+          <p className="mx-auto mt-4 max-w-lg text-base leading-relaxed text-mist/90">
             Todas as modalidades e seus valores. Qualquer uma delas pode ser feita por escrito,
             áudio ou chamada.
           </p>
@@ -39,7 +39,7 @@ export default function PriceTable() {
                   <span aria-hidden>{c.icon}</span>
                   {c.title}
                 </h3>
-                <p className="mt-1.5 text-[13px] text-mist/80">{c.tagline}</p>
+                <p className="mt-1.5 text-[15px] text-mist/80">{c.tagline}</p>
               </header>
 
               <ul className="relative flex flex-col">
@@ -52,14 +52,14 @@ export default function PriceTable() {
                       <span aria-hidden className="text-base">
                         {p.icon}
                       </span>
-                      <span className="truncate text-[14px] text-star/90">{p.title}</span>
+                      <span className="truncate text-[16px] text-star/90">{p.title}</span>
                       {p.duration && (
-                        <span className="shrink-0 rounded-full border border-white/15 px-2 py-[1px] text-[10px] uppercase tracking-[0.12em] text-mist/80">
+                        <span className="shrink-0 rounded-full border border-white/15 px-2 py-[1px] text-[12px] uppercase tracking-[0.12em] text-mist/80">
                           {p.duration}
                         </span>
                       )}
                     </span>
-                    <span className="shrink-0 font-display text-[15px] font-semibold text-gold">
+                    <span className="shrink-0 font-display text-[17px] font-semibold text-gold">
                       {formatPrice(p.price)}
                     </span>
                   </li>

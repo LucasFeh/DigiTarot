@@ -41,7 +41,7 @@ export default function HowItWorks() {
               {s.icon}
             </span>
             <h3 className="mt-3 font-display text-lg text-star">{s.title}</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-mist/85">{s.text}</p>
+            <p className="mt-2 text-[15px] leading-relaxed text-mist/85">{s.text}</p>
           </motion.div>
         ))}
       </div>

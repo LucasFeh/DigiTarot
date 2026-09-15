@@ -16,7 +16,7 @@ export default function SobrePage() {
         <div className="flex w-full items-center justify-between gap-4 px-5 pt-5 sm:px-8 sm:pt-7">
           <a
             href="#/"
-            className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] tracking-wide text-mist transition hover:border-gold/50 hover:text-star"
+            className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-[15px] tracking-wide text-mist transition hover:border-gold/50 hover:text-star"
           >
             <span aria-hidden>←</span> Voltar
           </a>
@@ -53,7 +53,7 @@ export default function SobrePage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.15 }}
-            className="text-[11px] uppercase tracking-[0.46em] text-lilac/85"
+            className="text-[13px] uppercase tracking-[0.46em] text-lilac/85"
           >
             {site.brand}
           </motion.p>
@@ -83,13 +83,13 @@ export default function SobrePage() {
                 🛠️
               </span>
               <h2 className="font-display text-2xl text-star">Em manutenção</h2>
-              <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-mist">
+              <p className="mx-auto mt-4 max-w-sm text-base leading-relaxed text-mist">
                 Esta página ainda está sendo escrita. Em breve ela conta quem lê as cartas, como a
                 leitura funciona e o que esperar de uma consulta.
               </p>
               <a
                 href="#/"
-                className="mt-8 inline-block rounded-full border border-white/25 bg-white/5 px-7 py-3 text-sm tracking-wide text-star transition hover:border-gold/60 hover:bg-white/10"
+                className="mt-8 inline-block rounded-full border border-white/25 bg-white/5 px-7 py-3 text-base tracking-wide text-star transition hover:border-gold/60 hover:bg-white/10"
               >
                 Voltar para as consultas
               </a>

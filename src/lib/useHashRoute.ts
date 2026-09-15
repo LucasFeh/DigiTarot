@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export type Rota = {
   /** Caminho sem a hash, ex.: `/tiragem/sala`. */
@@ -24,23 +24,27 @@ export function irPara(caminho: string) {
 
 export function useHashRoute(): Rota {
   const [rota, setRota] = useState(readRoute)
-  const primeira = useRef(true)
 
   useEffect(() => {
-    const onChange = () => setRota(readRoute())
+    /**
+     * O scroll é decidido pelo hash BRUTO, não pelo caminho derivado. Tanto
+     * `#planos` quanto `#/` resolvem para o caminho '/', então um efeito que
+     * dependesse de `rota.caminho` não dispararia ao voltar da âncora para a
+     * home — e o navegador também não rola sozinho, porque o fragmento '/' não
+     * casa com nenhum elemento. O link "Home" parecia morto.
+     *
+     * Só rola em navegação de rota (`#/algo`); uma âncora como `#planos` fica
+     * a cargo do próprio navegador. E só no `hashchange`, nunca na primeira
+     * renderização, para não estragar um link direto para `#planos`.
+     */
+    const onChange = () => {
+      const h = window.location.hash
+      setRota(readRoute())
+      if (h === '' || h === '#' || h.startsWith('#/')) window.scrollTo({ top: 0, behavior: 'auto' })
+    }
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)
   }, [])
-
-  // Troca de rota volta ao topo — mas não na primeira renderização, senão um
-  // link direto para #planos perderia a âncora.
-  useEffect(() => {
-    if (primeira.current) {
-      primeira.current = false
-      return
-    }
-    window.scrollTo({ top: 0, behavior: 'auto' })
-  }, [rota.caminho])
 
   return rota
 }
