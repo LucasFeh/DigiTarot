@@ -84,17 +84,23 @@ outra avisada — decidido pelo servidor, não pelo navegador.
 
 | quem      | acesso                                                        |
 | --------- | ------------------------------------------------------------- |
-| tarólogo  | `rodrigo@tarot.com` — o único do site; a senha vive no console |
+| tarólogo  | `rodriv.l680@gmail.com` — o único do site, entra pelo Google   |
 | visitante | Google, e-mail e senha, ou telefone com código por SMS        |
 | teste     | `visitante@teste.com` / `tarot123` — **só no modo local**      |
-| tarólogo (local) | `rodrigo@tarot.com` / `tarot-local` — **só no modo local** |
+| tarólogo (local) | `rodriv.l680@gmail.com` / `tarot-local` — **só no modo local** |
 
-> **A senha real do tarólogo não está neste repositório, e não deve entrar.**
-> Ele é público — é o que a hospedagem gratuita do GitHub Pages exige — e uma
-> senha escrita no código fica publicada no push, além de continuar legível no
-> histórico do git depois de "corrigida". A senha de produção existe só no
-> console do Firebase; `tarot-local` é uma credencial de demonstração que só
-> funciona no modo sem backend.
+> **O tarólogo entra pelo Google, e não há senha de produção em lugar nenhum.**
+> Foi a forma de resolver dois problemas de uma vez: o endereço antigo
+> (`rodrigo@tarot.com`) não era uma caixa de entrada real, então recuperação de
+> senha nunca funcionaria; e este repositório é público, então qualquer senha
+> escrita aqui estaria publicada. `tarot-local` é credencial de demonstração e
+> só existe no modo sem backend.
+>
+> As regras exigem `email_verified`, e isso não é zelo extra: o endereço do
+> tarólogo está à vista em `firestore.rules`, e o Firebase deixa qualquer um se
+> cadastrar por e-mail e senha com QUALQUER endereço, sem provar posse. Sem essa
+> exigência, bastaria alguém se cadastrar com o e-mail daqui para virar
+> tarólogo. O login pelo Google prova a posse sozinho.
 
 São três portas de entrada, e uma conta pode ter as três ao mesmo tempo. Quem
 entra por SMS e nunca tinha vindo aqui ganha uma conta na hora — sem nome, sem
@@ -136,7 +142,7 @@ Pix, mesa e tempo real funcionam igual. Para experimentar os dois lados:
 
 1. Abra `#/tiragem` e entre com `visitante@teste.com` / `tarot123`.
 2. Escolha uma consulta, marque dia e horário e conclua a reserva.
-3. **Noutra aba**, entre com `rodrigo@tarot.com` / `tarot-local`.
+3. **Noutra aba**, entre com `rodriv.l680@gmail.com` / `tarot-local`.
 4. Na agenda, confirme o pagamento. Se o horário marcado for agora, *Abrir mesa*
    acende; clique e ponha uma carta.
 5. Volte à aba do cliente: a carta aparece lá na hora.
@@ -177,9 +183,10 @@ No [console do Firebase](https://console.firebase.google.com):
    - **Google** — escolha um e-mail de suporte;
    - **Telefone** — veja a cota de SMS antes de publicar; o plano gratuito cobre
      poucas mensagens por dia e o restante é cobrado.
-4. **Authentication › Users › Add user**: crie `rodrigo@tarot.com` com a senha
-   combinada com ele. É esta conta que vira o tarólogo — e a senha fica só aqui,
-   nunca no código.
+4. **Nada a fazer.** O tarólogo é `rodriv.l680@gmail.com`, e a conta nasce
+   sozinha na primeira vez que ele entrar pelo Google. Não crie usuário à mão:
+   uma conta de e-mail e senha nasce com o e-mail NÃO verificado, e as regras
+   exigem verificação para conceder o papel.
 5. **Firestore Database › Create database**, modo de produção, região
    `southamerica-east1` (São Paulo).
 6. **Firestore › Regras**: apague o que estiver lá, cole o conteúdo de

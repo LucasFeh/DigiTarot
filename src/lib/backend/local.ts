@@ -21,19 +21,16 @@ const CHAVE_HORARIOS = 'tarot.horarios'
 const CANAL = 'tarot.sync'
 
 /**
- * A conta do tarólogo no modo local. A senha daqui é de DEMONSTRAÇÃO, e é
- * deliberadamente diferente da real.
+ * A conta do tarólogo no modo local. A senha daqui é de DEMONSTRAÇÃO e existe
+ * só para abrir a mesa sem montar backend nenhum.
  *
- * Seria mais cômodo repetir a senha de produção — ninguém decoraria a errada.
- * Mas este arquivo mora num repositório PÚBLICO (é o que a hospedagem gratuita
- * do GitHub Pages exige), e uma senha de produção escrita no código-fonte está
- * publicada no segundo em que alguém dá push. Pior: continua legível no
- * histórico do git depois de "corrigida", e trocá-la exige reescrever commits.
- *
- * A senha verdadeira do Rodrigo existe em um lugar só — o console do Firebase —
- * e não tem por que passar por aqui: no modo Firebase nada deste arquivo roda.
+ * Em produção não há senha alguma: o Rodrigo entra pelo Google, com este mesmo
+ * e-mail, e as regras do Firestore exigem que o endereço venha verificado. Duas
+ * consequências boas de uma escolha só — não há credencial para vazar num
+ * repositório público, e não há como alguém se cadastrar com o endereço dele
+ * para herdar o papel.
  */
-export const CONTA_TAROLOGO = { email: 'rodrigo@tarot.com', senha: 'tarot-local' }
+export const CONTA_TAROLOGO = { email: 'rodriv.l680@gmail.com', senha: 'tarot-local' }
 
 /**
  * Um visitante de teste, para percorrer o caminho do cliente — catálogo,

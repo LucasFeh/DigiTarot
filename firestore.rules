@@ -27,9 +27,20 @@ service cloud.firestore {
      * não devolve null — derruba a avaliação INTEIRA com erro, que o servidor
      * conta como negada. Como esta função é chamada em quase toda regra, a forma
      * direta trancaria o cliente de telefone para fora até do que é dele.
+     *
+     * `email_verified` NÃO é zelo extra, é o que fecha a porta. Este arquivo é
+     * público, então o endereço do tarólogo é conhecido — e o Firebase deixa
+     * qualquer um criar conta por e-mail e senha com QUALQUER endereço, sem
+     * provar que o possui. Sem esta linha, bastaria alguém se cadastrar com o
+     * e-mail daqui para virar tarólogo: ler a agenda inteira, confirmar
+     * pagamento e abrir mesa. Com ela, é preciso provar posse da caixa de
+     * entrada — o que o login pelo Google faz sozinho, e o cadastro por senha
+     * só consegue clicando num link que chega ao Rodrigo.
      */
     function ehTarologo() {
-      return logado() && request.auth.token.get('email', '').lower() == 'rodrigo@tarot.com';
+      return logado()
+             && request.auth.token.get('email_verified', false) == true
+             && request.auth.token.get('email', '').lower() == 'rodriv.l680@gmail.com';
     }
 
     /** Só os campos listados mudaram nesta escrita. */
