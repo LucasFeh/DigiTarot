@@ -240,6 +240,13 @@ export type Mensagem = {
   autor: 'tarologo' | 'cliente'
   nome: string
   texto: string
+  /**
+   * Foto enviada junto, como data URL. Mora dentro da própria mensagem porque
+   * não há Storage neste projeto — e o convidado de sessão particular não tem
+   * conta, então dar a ele escrita num bucket seria abrir um depósito público.
+   * `lib/imagemChat.ts` reduz até caber com folga no teto de 1 MiB do documento.
+   */
+  imagem?: string
   /** ISO. */
   em: string
 }

@@ -212,10 +212,26 @@ service cloud.firestore {
 
         allow read: if participa();
 
+        // Uma mensagem tem texto, imagem, ou os dois — mas nunca nada. O teto
+        // da imagem é o que impede alguém de empurrar um documento perto do
+        // limite de 1 MiB do Firestore e derrubar a conversa inteira: acima
+        // disso a gravação falharia no servidor, e do lado de cá pareceria que
+        // o chat parou de funcionar sem motivo.
         allow create: if participa()
                       && request.resource.data.texto is string
-                      && request.resource.data.texto.size() > 0
-                      && request.resource.data.texto.size() <= 2000;
+                      && request.resource.data.texto.size() <= 2000
+                      && (
+                        request.resource.data.texto.size() > 0
+                        || 'imagem' in request.resource.data
+                      )
+                      && (
+                        !('imagem' in request.resource.data)
+                        || (
+                          request.resource.data.imagem is string
+                          && request.resource.data.imagem.size() > 0
+                          && request.resource.data.imagem.size() <= 700000
+                        )
+                      );
 
         // Mensagem dita não se desdiz: sem edição e sem apagar, a conversa que
         // as duas pessoas leram continua sendo a mesma para as duas.

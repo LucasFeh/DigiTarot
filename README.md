@@ -143,6 +143,15 @@ sobrescreveriam — a última gravação venceria e a fala da outra sumiria. Men
 não se edita nem se apaga: a conversa que as duas leram continua a mesma para as
 duas.
 
+Dá para mandar **foto** na conversa, e clicar nela abre uma ampliação sobre a
+tela inteira. A imagem viaja como data URL dentro da própria mensagem: não há
+Firebase Storage aqui, e o convidado de sessão particular não tem conta — dar a
+ele escrita num bucket seria abrir um depósito público. Em troca, o documento
+do Firestore para em 1 MiB, então `src/lib/imagemChat.ts` reduz a foto até caber
+com folga (1280px, WebP, e tentativas sucessivas se ainda ficar grande). O
+servidor confere o teto de novo: acima dele a gravação falharia e, do lado de
+cá, pareceria que o chat parou sem motivo.
+
 No celular em pé, a mesa mostra um convite para girar o aparelho. É dica, não
 barreira — travar até o aparelho girar puniria quem está num tablet preso a um
 suporte, com a rotação bloqueada, ou deitado na cama.
