@@ -157,11 +157,55 @@ export type Sessao = {
   titulo: string
   /** Agendamento que deu origem a esta mesa, quando houve um. */
   agendamentoId?: string
+  /**
+   * Mesa de sessão particular: entra quem tiver o link, sem conta nenhuma.
+   *
+   * O id da sessão é gerado pelo Firestore com ~120 bits de aleatoriedade, e é
+   * ELE que faz as vezes de senha — é o que se chama de URL-capacidade: quem
+   * conhece o endereço entra, quem não conhece não tem como adivinhar. As
+   * regras liberam `get` nestas mesas e proíbem `list`, que é a metade que
+   * costuma ser esquecida: sem isso, alguém pediria a coleção inteira e
+   * receberia todos os links de uma vez.
+   */
+  publica?: boolean
+  /** Convite que deu origem a esta mesa particular. */
+  conviteToken?: string
 
   /** Escolha do tarólogo. Replicada porque é o fallback do cliente. */
   visualTarologo?: EscolhaVisual
   /** Escolha do cliente. Replicada só para o tarólogo poder espelhar. */
   visualCliente?: EscolhaVisual
+}
+
+/**
+ * Uma sessão particular: o tarólogo abre, define o valor, e manda o link para
+ * quem quiser. Do outro lado não há cadastro — a pessoa abre, diz o nome, paga
+ * e espera ser liberada.
+ *
+ * Vive numa coleção própria, e não em `agendamentos`, porque as regras são
+ * opostas: agendamento é privado e exige login, convite é legível por qualquer
+ * um que tenha o endereço. Misturar os dois na mesma coleção obrigaria uma
+ * regra a valer para os dois casos, e a mais frouxa ganharia.
+ */
+export type Convite = {
+  /** É o próprio id do documento, e funciona como senha do link. */
+  token: string
+  tarologoUid: string
+  tarologoNome: string
+
+  /** O que foi combinado. Texto livre: não vem do catálogo. */
+  titulo: string
+  descricao: string
+  preco: number
+
+  /** Quem recebeu o link se apresenta aqui. Sem conta, sem e-mail. */
+  convidadoNome: string
+  status: StatusAgendamento
+  /** Código curto que vai no txid do Pix. */
+  codigo: string
+  criadoEm: string
+  /** A mesa, depois que o tarólogo a abre. */
+  sessaoId?: string
 }
 
 /**
@@ -252,6 +296,16 @@ export interface Backend {
    * calendário precisa saber que as 17h de sábado caíram, não de quem são.
    */
   observarHorariosOcupados(cb: (slots: string[]) => void): Unsubscribe
+
+  // -------------------------- sessões particulares --------------------------
+
+  /** Cria o convite e devolve o token, que é o que vai na URL. */
+  criarConvite(dados: Omit<Convite, 'token' | 'criadoEm'>): Promise<string>
+  /** Aberto a quem tem o link — inclusive sem nenhuma conta. */
+  observarConvite(token: string, cb: (c: Convite | null) => void): Unsubscribe
+  /** Os convites deste tarólogo. */
+  observarMeusConvites(uid: string, cb: (c: Convite[]) => void): Unsubscribe
+  atualizarConvite(token: string, patch: Partial<Convite>): Promise<void>
 
   // ------------------------------- sessões -------------------------------
 

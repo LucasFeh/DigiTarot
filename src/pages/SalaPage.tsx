@@ -47,10 +47,13 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const ehTarologo = visual.ehTarologo
 
   // ------------------------------ tempo real ------------------------------
+  // Sem exigir usuário: a mesa de sessão particular é lida por quem tem o link,
+  // e essa pessoa não tem conta. Para as outras mesas o Firestore continua
+  // negando a leitura, e a tela cai em "sala não encontrada".
   useEffect(() => {
-    if (!backend || !usuario) return
+    if (!backend) return
     return backend.observarSessao(sessaoId, setSessao)
-  }, [backend, usuario, sessaoId])
+  }, [backend, sessaoId])
 
   // Cliente que entra é registrado na sessão, para ela aparecer no histórico
   // dele. Só vale para mesa ainda SEM dono: as mesas nascidas de um
@@ -58,7 +61,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   // entregaria a consulta de alguém a quem tivesse o link.
   useEffect(() => {
     if (!backend || !usuario || !sessao) return
-    if (usuario.uid === sessao.tarologoUid || sessao.clienteUid) return
+    if (usuario.uid === sessao.tarologoUid || sessao.clienteUid || sessao.publica) return
     void backend.atualizarSessao(sessao.id, { clienteUid: usuario.uid, clienteNome: usuario.nome })
   }, [backend, usuario, sessao])
 
@@ -179,11 +182,6 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     )
   }
 
-  // ANTES da espera pela sessão: o efeito de tempo real desiste sem usuário,
-  // então `sessao` nunca sai de `undefined` e a tela ficava presa em
-  // "Preparando a mesa…" para sempre — com o login virando código morto.
-  if (!usuario) return <LoginPage />
-
   if (sessao === undefined) {
     return (
       <main className="grid min-h-[calc(100vh-4rem)] place-items-center">
@@ -209,13 +207,25 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     )
   }
 
+  // A mesa particular dispensa conta: quem tem o link entra, que foi o combinado
+  // ao criá-la. As demais continuam exigindo login — e a verificação vem DEPOIS
+  // de a sessão chegar, porque só o documento diz de que tipo ela é.
+  if (!sessao.publica && !usuario) {
+    return (
+      <LoginPage
+        titulo="Entre para ver sua mesa"
+        descricao="Esta leitura é de uma consulta agendada, e só quem a marcou pode abri-la."
+      />
+    )
+  }
+
   // A mesa é de uma consulta só. No Firestore as regras já barram a leitura de
   // quem não participa; esta tela existe para o modo local — e para dizer o que
   // aconteceu, em vez de mostrar uma sala vazia e sem explicação.
   if (
     sessao.clienteUid &&
-    sessao.clienteUid !== usuario.uid &&
-    sessao.tarologoUid !== usuario.uid
+    sessao.clienteUid !== usuario?.uid &&
+    sessao.tarologoUid !== usuario?.uid
   ) {
     return (
       <main className="grid min-h-[calc(100vh-4rem)] place-items-center px-5">

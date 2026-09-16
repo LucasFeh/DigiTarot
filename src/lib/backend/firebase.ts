@@ -35,12 +35,14 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
+import { novoToken } from './local'
 import { ehEmailDeTarologo } from './tarologo'
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
   Backend,
   ConfirmacaoSms,
+  Convite,
   ModoSms,
   Perfil,
   Provedor,
@@ -437,6 +439,46 @@ export class FirebaseBackend implements Backend {
     return onSnapshot(collection(this.db, 'horarios'), (s) => cb(s.docs.map((d) => d.id)))
   }
 
+  // ------------------------ sessões particulares ------------------------
+
+  async criarConvite(dados: Omit<Convite, 'token' | 'criadoEm'>) {
+    const token = novoToken()
+    // O token é o ID do documento, e não um campo: é isso que permite a regra
+    // liberar `get` sem `list`. Quem tem o endereço lê aquele documento; quem
+    // não tem não consegue nem descobrir que ele existe.
+    await setDoc(
+      doc(this.db, 'convites', token),
+      semVazios({ ...dados, token, criadoEm: new Date().toISOString() }),
+    )
+    return token
+  }
+
+  observarConvite(token: string, cb: (c: Convite | null) => void): Unsubscribe {
+    return onSnapshot(
+      doc(this.db, 'convites', token),
+      (d) => cb(d.exists() ? ({ ...(d.data() as Convite), token: d.id }) : null),
+      // Sem este tratamento, o convidado deslogado que abrisse um link inválido
+      // ficaria com a tela girando para sempre em vez de ver "convite não
+      // encontrado".
+      () => cb(null),
+    )
+  }
+
+  observarMeusConvites(uid: string, cb: (c: Convite[]) => void): Unsubscribe {
+    const q = query(collection(this.db, 'convites'), where('tarologoUid', '==', uid))
+    return onSnapshot(q, (s) =>
+      cb(
+        s.docs
+          .map((d) => ({ ...(d.data() as Convite), token: d.id }))
+          .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm)),
+      ),
+    )
+  }
+
+  async atualizarConvite(token: string, patch: Partial<Convite>) {
+    await updateDoc(doc(this.db, 'convites', token), semVazios(patch))
+  }
+
   // ------------------------------ sessões ------------------------------
 
   async criarSessao(dados: Omit<Sessao, 'id' | 'criadaEm'>) {
@@ -446,8 +488,12 @@ export class FirebaseBackend implements Backend {
   }
 
   observarSessao(id: string, cb: (s: Sessao | null) => void): Unsubscribe {
-    return onSnapshot(doc(this.db, 'sessoes', id), (d) =>
-      cb(d.exists() ? { ...(d.data() as Omit<Sessao, 'id'>), id: d.id } : null),
+    return onSnapshot(
+      doc(this.db, 'sessoes', id),
+      (d) => cb(d.exists() ? { ...(d.data() as Omit<Sessao, 'id'>), id: d.id } : null),
+      // Mesa de outra pessoa devolve permissão negada, e isso não é um erro a
+      // registrar: é a resposta certa. A tela trata como "não encontrada".
+      () => cb(null),
     )
   }
 

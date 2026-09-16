@@ -114,12 +114,12 @@ export default function Header({ caminho }: { caminho: string }) {
                     Perfil
                   </a>
                   <a
-                    href="#/historico"
+                    href="#/tiragem"
                     role="menuitem"
                     onClick={() => setMenu(false)}
                     className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star"
                   >
-                    Histórico de consultas
+                    Tiragem digital
                   </a>
                   <button
                     type="button"

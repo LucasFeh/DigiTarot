@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { PERFIL_VAZIO, type Perfil, type Usuario } from './backend'
 import { useAuth } from './useAuth'
 
@@ -36,6 +36,26 @@ export function usePerfil(usuario: Usuario | null) {
     },
     [backend, uid],
   )
+
+  /**
+   * Quem entra pelo Google começa com a foto do Google.
+   *
+   * Ela é COPIADA para o perfil, e não apenas exibida a partir da conta: o
+   * tarólogo precisa ver o rosto de quem agendou, e o que ele lê é o documento
+   * `perfis/{uid}` — a foto da conta alheia não está ao alcance dele. Sem esta
+   * cópia, a agenda mostraria iniciais para todo mundo enquanto a própria
+   * pessoa via o próprio rosto no menu, o que não faz sentido nenhum.
+   *
+   * Acontece uma vez só. Depois que existe `perfil.foto`, a condição não é mais
+   * verdadeira, e trocar a foto aqui nunca mais é desfeito pelo Google.
+   */
+  const semeada = useRef<string | null>(null)
+  useEffect(() => {
+    if (!backend || !uid || !usuario?.foto) return
+    if (perfil.foto || semeada.current === uid) return
+    semeada.current = uid
+    void backend.salvarPerfil(uid, { foto: usuario.foto })
+  }, [backend, uid, usuario?.foto, perfil.foto])
 
   // O nome do perfil tem prioridade sobre o da conta: é o que a pessoa escolheu
   // ser chamada aqui.

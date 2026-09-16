@@ -99,11 +99,54 @@ service cloud.firestore {
       allow delete: if ehTarologo();
     }
 
+    // --------------------------- sessões particulares ---------------------------
+    // O tarólogo abre uma mesa avulsa e manda o link para quem quiser. Do outro
+    // lado NÃO há conta: quem tem o endereço entra.
+    //
+    // A separação entre `get` e `list` é o coração desta regra, e é a metade que
+    // costuma ser esquecida. `allow read` concede as duas de uma vez — e com
+    // `list` liberado, qualquer pessoa pediria a coleção inteira e receberia
+    // todos os convites, com todos os tokens, de uma vez só. Aí o endereço
+    // imprevisível não protegeria mais nada. Liberar `get` e proibir `list` é o
+    // que faz "só quem tem o link" significar alguma coisa.
+    match /convites/{token} {
+      allow get: if true;
+      allow list: if false;
+
+      allow create: if ehTarologo() && request.resource.data.tarologoUid == uid();
+
+      // O tarólogo dono manda no convite. O convidado, sem conta nenhuma, pode
+      // exatamente duas coisas: dizer como se chama e avisar que pagou. Não
+      // pode mexer no valor, não pode se dar por confirmado, não pode abrir a
+      // mesa — nem que reescreva a requisição à mão.
+      allow update: if (ehTarologo() && resource.data.tarologoUid == uid())
+                    || mexeuSoEm(['convidadoNome'])
+                    || (
+                      mexeuSoEm(['status'])
+                      && resource.data.status == 'aguardando'
+                      && request.resource.data.status == 'pago'
+                    );
+
+      allow delete: if ehTarologo() && resource.data.tarologoUid == uid();
+    }
+
     // -------------------------------- mesas --------------------------------
     // Cada mesa é de uma consulta só. Quem não participa dela não lê nada —
     // nem com o link, que é o que torna a sala exclusiva de quem agendou.
+    //
+    // A exceção é a mesa de sessão particular (`publica`), onde o id da sessão
+    // faz as vezes de senha. Vale a mesma divisão dos convites: `get` liberado,
+    // `list` proibido — a listagem continua restrita a quem participa, senão o
+    // "só quem tem o link" cairia por terra na primeira consulta à coleção.
     match /sessoes/{sessaoId} {
-      allow read: if logado()
+      allow get: if resource.data.get('publica', false) == true
+                 || (
+                   logado()
+                   && (resource.data.tarologoUid == uid()
+                       || resource.data.get('clienteUid', null) == uid())
+                 );
+
+      allow list: if logado()
                   && (resource.data.tarologoUid == uid()
                       || resource.data.get('clienteUid', null) == uid());
 

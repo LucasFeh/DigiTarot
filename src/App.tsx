@@ -17,13 +17,13 @@ import type { Aba } from './lib/temas/tipos'
 const SobrePage = lazy(() => import('./pages/SobrePage'))
 const TiragemPage = lazy(() => import('./pages/TiragemPage'))
 const SalaPage = lazy(() => import('./pages/SalaPage'))
-const HistoricoPage = lazy(() => import('./pages/HistoricoPage'))
 const TemasPage = lazy(() => import('./pages/TemasPage'))
 const CriarTemaPage = lazy(() => import('./pages/CriarTemaPage'))
 const PreviaTemaPage = lazy(() => import('./pages/PreviaTemaPage'))
 const PerfilPage = lazy(() => import('./pages/PerfilPage'))
 const AgendarPage = lazy(() => import('./pages/AgendarPage'))
 const PagamentoPage = lazy(() => import('./pages/PagamentoPage'))
+const ConvitePage = lazy(() => import('./pages/ConvitePage'))
 
 /** `#/temas/pessoais` e `#/temas/favoritos` abrem o acervo já na aba certa. */
 const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favoritos' }
@@ -39,6 +39,8 @@ function Rotas() {
       <TiragemPage />
     ) : partes[0] === 'agendar' && partes[1] ? (
       <AgendarPage planoId={partes[1]} />
+    ) : partes[0] === 'convite' && partes[1] ? (
+      <ConvitePage token={partes[1]} />
     ) : partes[0] === 'pagamento' && partes[1] ? (
       <PagamentoPage agendamentoId={partes[1]} />
     ) : partes[0] === 'temas' && partes[1] === 'novo' ? (
@@ -50,7 +52,10 @@ function Rotas() {
     ) : partes[0] === 'perfil' ? (
       <PerfilPage />
     ) : partes[0] === 'historico' ? (
-      <HistoricoPage />
+      // O histórico virou a aba "Conferir agendamento" da tiragem. A rota
+      // antiga continua existindo porque ela foi divulgada em links e no menu
+      // por semanas — mas agora só encaminha para onde o conteúdo mora.
+      <TiragemPage />
     ) : partes[0] === 'sobre' ? (
       <SobrePage />
     ) : (

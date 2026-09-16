@@ -4,6 +4,7 @@ import type {
   Agendamento,
   Backend,
   ConfirmacaoSms,
+  Convite,
   ModoSms,
   Perfil,
   Provedor,
@@ -19,6 +20,7 @@ const CHAVE_PERFIS = 'tarot.perfis'
 const CHAVE_SESSOES = 'tarot.sessoes'
 const CHAVE_AGENDA = 'tarot.agendamentos'
 const CHAVE_HORARIOS = 'tarot.horarios'
+const CHAVE_CONVITES = 'tarot.convites'
 const CANAL = 'tarot.sync'
 
 /**
@@ -122,6 +124,17 @@ type Conta = {
  * passariam a dividir uma conta só. Acontece em teste automatizado, e acontece
  * de verdade quando alguém clica duas vezes rápido.
  */
+/**
+ * O token do convite. 128 bits vindos do gerador criptográfico do navegador —
+ * não de `Math.random()`, que é previsível e aqui faria as vezes de senha.
+ * Quem tem o token entra na mesa; adivinhar um precisa ser impossível.
+ */
+export function novoToken(): string {
+  const b = new Uint8Array(16)
+  crypto.getRandomValues(b)
+  return [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
+}
+
 function novoId(prefixo: string): string {
   return `${prefixo}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
@@ -526,6 +539,42 @@ export class LocalBackend implements Backend {
     this.ouvintesAgenda.add(emitir)
     emitir()
     return () => this.ouvintesAgenda.delete(emitir)
+  }
+
+  // ------------------------ sessões particulares ------------------------
+
+  private convites(): Convite[] {
+    return ler<Convite[]>(CHAVE_CONVITES, [])
+  }
+
+  async criarConvite(dados: Omit<Convite, 'token' | 'criadoEm'>) {
+    const token = novoToken()
+    const novo: Convite = { ...dados, token, criadoEm: new Date().toISOString() }
+    gravar(CHAVE_CONVITES, [novo, ...this.convites()])
+    this.avisar('agenda')
+    return token
+  }
+
+  observarConvite(token: string, cb: (c: Convite | null) => void): Unsubscribe {
+    const emitir = () => cb(this.convites().find((c) => c.token === token) ?? null)
+    this.ouvintesAgenda.add(emitir)
+    emitir()
+    return () => this.ouvintesAgenda.delete(emitir)
+  }
+
+  observarMeusConvites(uid: string, cb: (c: Convite[]) => void): Unsubscribe {
+    const emitir = () => cb(this.convites().filter((c) => c.tarologoUid === uid))
+    this.ouvintesAgenda.add(emitir)
+    emitir()
+    return () => this.ouvintesAgenda.delete(emitir)
+  }
+
+  async atualizarConvite(token: string, patch: Partial<Convite>) {
+    gravar(
+      CHAVE_CONVITES,
+      this.convites().map((c) => (c.token === token ? { ...c, ...patch } : c)),
+    )
+    this.avisar('agenda')
   }
 
   // ------------------------------ sessões ------------------------------

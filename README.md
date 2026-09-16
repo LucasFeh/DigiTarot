@@ -80,6 +80,47 @@ A trava contra reserva dupla não está na tela: o horário é um documento cujo
 `create`. Duas pessoas clicando no mesmo minuto terminam com uma reservada e a
 outra avisada — decidido pelo servidor, não pelo navegador.
 
+### Onde cada coisa mora
+
+A **Tiragem digital** virou um painel com menu à esquerda, e o papel decide o
+que ele mostra:
+
+| tarólogo (“sua mesa digital”) | cliente                               |
+| ----------------------------- | ------------------------------------- |
+| **Agendas** — quem marcou, em lista, ícones ou por dia | **Agendamentos** — *Agendar* e *Conferir agendamento* |
+| **Sessão particular** — mesa avulsa por link | **Temas**                     |
+| **Temas**                     |                                       |
+
+O **perfil** ficou com *Geral* e *Conta e acessos*. Temas e consultas saíram de
+lá: pertencem ao momento de usar a mesa, não ao de configurar a conta — e
+mantê-los no perfil obrigava a pessoa a sair da tiragem para escolher o baralho
+que ela ia usar na tiragem. O histórico sumiu como área própria; ele é a aba
+*Conferir agendamento*, que já mostrava a mesma coisa.
+
+A tabela comparativa de valores saiu da home e passou a viver dentro da tiragem:
+a home convence, e a comparação item a item é coisa de quem já decidiu entrar.
+
+### Sessão particular
+
+Uma mesa fora do catálogo e fora da agenda: o tarólogo combina o valor, gera um
+link e manda para quem quiser. Do outro lado **não há cadastro** — a pessoa
+abre, diz o nome, paga pelo Pix e espera ser liberada.
+
+O que protege essa mesa é o endereço: o token do convite tem 128 bits do gerador
+criptográfico do navegador, e o id da sessão vem do Firestore com outros tantos.
+É o padrão de *URL-capacidade* — quem conhece o endereço entra, quem não conhece
+não tem como adivinhar.
+
+A regra que sustenta isso tem uma metade fácil de esquecer: `allow get` liberado
+e **`allow list` proibido**. `allow read` concede as duas de uma vez, e com
+`list` aberto qualquer pessoa pediria a coleção inteira e receberia todos os
+convites, com todos os tokens, de uma vez só — aí o endereço imprevisível não
+protegeria mais nada.
+
+O convidado pode exatamente duas coisas no convite: dizer como se chama e avisar
+que pagou. Valor, confirmação e abertura da mesa continuam sendo do tarólogo,
+mesmo que alguém reescreva a requisição à mão.
+
 ### Contas
 
 | quem      | acesso                                                        |
@@ -223,6 +264,7 @@ O que cada coleção guarda:
 | `horarios`     | os encaixes tomados. Id = `<data>T<hora>`; é a trava        |
 | `agendamentos` | a consulta: plano, valor, horário, status, código do Pix    |
 | `sessoes`      | a mesa de cada consulta, com dono e convidado definidos     |
+| `convites`     | sessões particulares. `get` liberado, `list` proibido       |
 
 ### As peças
 
@@ -342,9 +384,10 @@ a barra:
 | `#/tiragem`         | catálogo e suas consultas — ou login  |
 | `#/agendar/<plano>` | escolher dia e horário                |
 | `#/pagamento/<id>`  | o Pix daquela reserva                 |
+| `#/convite/<token>` | sessão particular — **funciona sem login** |
 | `#/tiragem/<id>`    | a sala 3D daquela leitura             |
-| `#/perfil`          | dados, conta e acesso, agenda, temas  |
-| `#/historico`       | consultas de que você participou      |
+| `#/perfil`          | dados e conta                         |
+| `#/historico`       | encaminha para a tiragem (rota antiga) |
 
 `#planos` e `#tabela`, sem barra, continuam sendo âncora de rolagem na home.
 
