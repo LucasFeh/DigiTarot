@@ -100,6 +100,25 @@ que ela ia usar na tiragem. O histórico sumiu como área própria; ele é a aba
 A tabela comparativa de valores saiu da home e passou a viver dentro da tiragem:
 a home convence, e a comparação item a item é coisa de quem já decidiu entrar.
 
+### O catálogo em cartas
+
+Dentro de *Agendar*, cada serviço é uma **carta de tarot**, num carrossel por
+categoria. A arte não é decorativa: cada plano carrega o arcano maior que o
+representa (`arcano` em `src/data/plans.ts`) — Os Amantes na vida amorosa, A
+Justiça em "dois caminhos", O Eremita no autoconhecimento, O Louco nas perguntas
+avulsas. Quem procura tarot conhece o baralho, e uma imagem bonita e arbitrária
+não diria nada a essa pessoa.
+
+O escurecimento é o que faz a coisa funcionar. A arte do Rider-Waite é clara e
+cheia de detalhe amarelo: texto branco direto sobre ela fica ilegível justamente
+nas cartas mais bonitas. São três camadas — um véu geral, um degradê que fecha
+em preto na metade de baixo (onde mora o texto) e uma leve dessaturação.
+
+A rolagem é **nativa**, com `scroll-snap`, e não um carrossel de biblioteca com
+índice e transformação: assim já vem com arrasto no celular, roda do mouse,
+teclado e barra de rolagem, tudo de graça e tudo acessível. As setas são atalho
+para quem está no mouse, não o único jeito de andar.
+
 ### Sessão particular
 
 Uma mesa fora do catálogo e fora da agenda: o tarólogo combina o valor, gera um

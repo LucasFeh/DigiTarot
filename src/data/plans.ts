@@ -18,6 +18,15 @@ export type Plan = {
   /** Duração, quando o plano é vendido por tempo. */
   duration?: string
   price: number
+  /**
+   * Número do arcano maior que ilustra a carta deste plano (0 a 21).
+   *
+   * A escolha é de significado, não de estética: Os Amantes na leitura de vida
+   * amorosa, A Justiça em "dois caminhos", O Eremita no autoconhecimento. Uma
+   * imagem bonita e arbitrária não diria nada a quem conhece o baralho — e quem
+   * procura tarot costuma conhecer.
+   */
+  arcano: number
 }
 
 export type Category = {
@@ -40,6 +49,7 @@ export const categories: Category[] = [
     plans: [
       {
         id: 'avulsa-1',
+        arcano: 0,
         icon: '✦',
         title: '1 pergunta objetiva',
         resumo: 'Uma pergunta fechada, com a tiragem e a leitura correspondente.',
@@ -47,6 +57,7 @@ export const categories: Category[] = [
       },
       {
         id: 'avulsa-2',
+        arcano: 0,
         icon: '✦',
         title: '2 perguntas',
         resumo: 'Duas questões independentes, cada uma com sua tiragem.',
@@ -54,6 +65,7 @@ export const categories: Category[] = [
       },
       {
         id: 'avulsa-3',
+        arcano: 0,
         icon: '✦',
         title: '3 perguntas',
         resumo: 'Três questões, com espaço para desdobrar o que aparecer.',
@@ -61,6 +73,7 @@ export const categories: Category[] = [
       },
       {
         id: 'avulsa-5',
+        arcano: 0,
         icon: '✦',
         title: '5 perguntas',
         resumo: 'Cinco questões sobre frentes diferentes da sua vida.',
@@ -77,6 +90,7 @@ export const categories: Category[] = [
     plans: [
       {
         id: 'tema-amor',
+        arcano: 6,
         icon: '☾',
         title: 'Vida amorosa',
         resumo: 'Panorama do momento afetivo: o que está posto e o que se move.',
@@ -84,6 +98,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tema-complexa',
+        arcano: 18,
         icon: '☾',
         title: 'Situação amorosa complexa',
         resumo: 'Idas e vindas, triângulos e relações mal resolvidas, lidas com calma.',
@@ -91,6 +106,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tema-sentimentos',
+        arcano: 2,
         icon: '☾',
         title: 'Sentimentos e intenções',
         resumo: 'O que a outra pessoa sente e o que pretende fazer com isso.',
@@ -98,6 +114,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tema-futuro',
+        arcano: 10,
         icon: '☾',
         title: 'Futuro da relação',
         resumo: 'Para onde a relação caminha nos próximos meses e o que a decide.',
@@ -105,6 +122,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tema-trabalho',
+        arcano: 7,
         icon: '☾',
         title: 'Trabalho e carreira',
         resumo: 'Cargo, mudança de área, proposta na mesa, sociedade.',
@@ -112,6 +130,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tema-financas',
+        arcano: 4,
         icon: '☾',
         title: 'Vida financeira',
         resumo: 'O ciclo do dinheiro: entradas, travas e o que muda o quadro.',
@@ -119,6 +138,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tema-espiritual',
+        arcano: 5,
         icon: '☾',
         title: 'Espiritualidade e propósito',
         resumo: 'Caminho espiritual, dons e o que pede desenvolvimento.',
@@ -126,6 +146,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tema-auto',
+        arcano: 9,
         icon: '☾',
         title: 'Autoconhecimento',
         resumo: 'Leitura longa sobre os padrões seus que se repetem, e por quê.',
@@ -133,6 +154,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tema-caminhos',
+        arcano: 11,
         icon: '☾',
         title: 'Dois caminhos / tomada de decisão',
         resumo: 'Duas opções lidas lado a lado, com o desdobramento de cada uma.',
@@ -149,6 +171,7 @@ export const categories: Category[] = [
     plans: [
       {
         id: 'tempo-express',
+        arcano: 1,
         icon: '❖',
         title: 'Consulta express',
         resumo: 'Tempo curto para uma ou duas questões urgentes.',
@@ -157,6 +180,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tempo-completa',
+        arcano: 14,
         icon: '❖',
         title: 'Consulta completa',
         resumo: 'Espaço para um tema inteiro, com perguntas de acompanhamento.',
@@ -165,6 +189,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tempo-profunda',
+        arcano: 2,
         icon: '❖',
         title: 'Consulta profunda',
         resumo: 'Uma hora para atravessar várias frentes sem pressa.',
@@ -173,6 +198,7 @@ export const categories: Category[] = [
       },
       {
         id: 'tempo-premium',
+        arcano: 21,
         icon: '❖',
         title: 'Consulta premium',
         resumo: 'A sessão mais longa, para quem quer revisar o quadro inteiro.',
@@ -190,6 +216,7 @@ export const categories: Category[] = [
     plans: [
       {
         id: 'esp-cruz',
+        arcano: 20,
         icon: '◈',
         title: 'Cruz Celta',
         resumo: 'Dez posições: a tiragem clássica para uma situação complexa.',
@@ -197,6 +224,7 @@ export const categories: Category[] = [
       },
       {
         id: 'esp-mandala',
+        arcano: 19,
         icon: '◈',
         title: 'Mandala Astrológica',
         resumo: 'Doze casas, uma carta para cada área da vida.',
@@ -204,6 +232,7 @@ export const categories: Category[] = [
       },
       {
         id: 'esp-ano',
+        arcano: 21,
         icon: '◈',
         title: 'Leitura do Ano',
         resumo: 'Mês a mês, com o tema que atravessa os doze.',
@@ -211,6 +240,7 @@ export const categories: Category[] = [
       },
       {
         id: 'esp-mes',
+        arcano: 18,
         icon: '◈',
         title: 'Energia do mês',
         resumo: 'O clima das próximas semanas e onde pisar com cuidado.',
@@ -218,6 +248,7 @@ export const categories: Category[] = [
       },
       {
         id: 'esp-3meses',
+        arcano: 17,
         icon: '◈',
         title: 'Panorama dos próximos 3 meses',
         resumo: 'Um trimestre lido em blocos, com os pontos de virada.',
@@ -225,6 +256,7 @@ export const categories: Category[] = [
       },
       {
         id: 'esp-6meses',
+        arcano: 10,
         icon: '◈',
         title: 'Panorama dos próximos 6 meses',
         resumo: 'Meio ano à frente, mês a mês, com o fio que liga tudo.',
@@ -232,6 +264,7 @@ export const categories: Category[] = [
       },
       {
         id: 'esp-proposito',
+        arcano: 9,
         icon: '◈',
         title: 'Leitura de propósito e caminho pessoal',
         resumo: 'Vocação, talentos e a direção que pede ser seguida.',
@@ -249,6 +282,15 @@ export const categories: Category[] = [
 export const PLAN_BY_ID = new Map(
   categories.flatMap((c) => c.plans.map((p) => [p.id, { plano: p, categoria: c }] as const)),
 )
+
+/**
+ * A arte do arcano, servida de `public/`.
+ *
+ * Passa por `BASE_URL` porque o site mora em /<repositorio>/ no GitHub Pages:
+ * um caminho absoluto buscaria na raiz do domínio e daria 404.
+ */
+export const arteDoArcano = (numero: number) =>
+  `${import.meta.env.BASE_URL}baralhos/rider-waite/maior-${numero}.webp`
 
 export const formatPrice = (price: number) => `R$ ${price}`
 

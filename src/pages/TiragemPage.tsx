@@ -3,7 +3,7 @@ import { useAuth } from '../lib/useAuth'
 import { usePerfil } from '../lib/perfil'
 import LayoutPainel, { type ItemMenu } from '../components/painel/LayoutPainel'
 import SessaoParticular from '../components/painel/SessaoParticular'
-import CatalogoPlanos from '../components/CatalogoPlanos'
+import CarrosselPlanos from '../components/CarrosselPlanos'
 import PriceTable from '../components/PriceTable'
 import MinhasConsultas from '../components/agenda/MinhasConsultas'
 import AgendaTarologo from '../components/agenda/AgendaTarologo'
@@ -328,10 +328,11 @@ export default function TiragemPage() {
 
           {sub === 'agendar' ? (
             <>
-              <CatalogoPlanos destino={(id) => `#/agendar/${id}`} />
-              {/* A tabela comparativa, que antes ficava na home. Aqui ela serve
-                  a quem já decidiu entrar e quer comparar tudo de uma vez. */}
-              <div className="-mx-5 mt-4 md:-mx-10">
+              <CarrosselPlanos destino={(id) => `#/agendar/${id}`} />
+              {/* A tabela comparativa, que antes ficava na home. O carrossel é
+                  para escolher olhando; ela é para comparar valores de uma vez
+                  só, que o carrossel não faz bem. */}
+              <div className="-mx-5 mt-2 md:-mx-10">
                 <PriceTable />
               </div>
             </>
