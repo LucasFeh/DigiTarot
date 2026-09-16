@@ -97,8 +97,10 @@ mantê-los no perfil obrigava a pessoa a sair da tiragem para escolher o baralho
 que ela ia usar na tiragem. O histórico sumiu como área própria; ele é a aba
 *Conferir agendamento*, que já mostrava a mesma coisa.
 
-A tabela comparativa de valores saiu da home e passou a viver dentro da tiragem:
-a home convence, e a comparação item a item é coisa de quem já decidiu entrar.
+A tabela comparativa de valores deixou de existir: quem quer comparar preços usa
+o modo **Leque** do próprio baralho, que abre todas as cartas com os valores à
+mostra. Duas formas de dizer a mesma coisa na mesma página faziam a segunda
+parecer sobra da primeira.
 
 ### O catálogo em cartas
 
@@ -123,6 +125,46 @@ o baralho é só mudar qual índice é o centro. Não há posição acumulada ne
 Anda de quatro jeitos: arrastando o baralho, pelas setas, pelos marcadores, ou
 com as setas do teclado quando o palco tem o foco. Um carrossel que só responde
 a clique exclui quem navega por teclado.
+
+Há **dois modos**, para dois momentos: **Círculo**, uma carta por vez girando,
+para quem escolhe pela imagem; e **Leque**, todas abertas em pirâmide com os
+preços, para quem quer comparar. As filas da pirâmide saem do maior triângulo
+que cabe (1+2+3…), com o resto derramado de baixo para cima — assim a base nunca
+fica mais estreita que o topo, que é o que desmancharia o formato.
+
+E a arte **segue o baralho que a pessoa escolheu em Temas**: o catálogo usa
+`useArteCarta` com o deck do perfil, não uma imagem fixa. Trocar de deck troca o
+catálogo junto.
+
+### Listas em colunas, não em cartões
+
+As sessões particulares e o "Conferir agendamento" são tabelas: uma linha por
+item, colunas alinhadas, largura toda. É o formato certo para o que se faz ali —
+comparar e agir: achar a consulta de amanhã, ver qual ainda não foi paga, copiar
+um link. Em cartões empilhados cada valor cai num lugar diferente e o olho
+precisa procurar em vez de descer a coluna. O cabeçalho e as linhas dividem a
+MESMA constante de grade, senão o alinhamento se perde na primeira mudança.
+
+Criar sessão particular acontece numa janela, e não num formulário sempre aberto
+no topo: o formulário fixo empurrava a lista para baixo e ocupava a tela mesmo
+nos dias em que não se cria sessão nenhuma — que são quase todos.
+
+A faixa das ações tem **largura fixa**, e não `auto`. Com `auto` ela se mede
+pelo que tem dentro — e o que tem dentro muda de linha para linha ("Confirmar
+pagamento" é bem mais largo que "Entrar na mesa") e outra vez no cabeçalho, que
+só traz a palavra "Ações". Cada linha ficava com uma sobra diferente para
+dividir entre as faixas `fr`, e nada caía embaixo do próprio rótulo. Pelo mesmo
+motivo o selo de situação acompanha o nome da consulta, e não os botões: ali ele
+trocava de largura a cada estado.
+
+### O marcador de salvar
+
+Guardar um tema no seu conjunto é a bandeirinha de salvar, a mesma do TikTok e
+do YouTube — não mais uma estrela. Estrela quer dizer nota: cinco estrelas,
+avaliar, gostar. O gesto aqui é outro, é guardar para usar depois, e é
+exatamente isso que a bandeirinha já significa para quem usa aqueles
+aplicativos. Cheia quando está salvo, vazada quando não: a diferença fica na
+silhueta, e não só na cor, para quem não distingue o dourado do lilás.
 
 ### Sessão particular
 

@@ -4,7 +4,6 @@ import { usePerfil } from '../lib/perfil'
 import LayoutPainel, { type ItemMenu } from '../components/painel/LayoutPainel'
 import SessaoParticular from '../components/painel/SessaoParticular'
 import CarrosselPlanos from '../components/CarrosselPlanos'
-import PriceTable from '../components/PriceTable'
 import MinhasConsultas from '../components/agenda/MinhasConsultas'
 import AgendaTarologo from '../components/agenda/AgendaTarologo'
 import AvisoModoLocal from '../components/AvisoModoLocal'
@@ -107,7 +106,7 @@ function SecaoTemas() {
         </div>
 
         <p className="mb-4 text-[14px] leading-relaxed text-mist/70">
-          Marque com ★ os temas que você quer levar para a mesa — só o que estiver no seu conjunto
+          Use o marcador no canto do tema para guardar o que você quer levar para a mesa — só o que estiver no seu conjunto
           aparece durante a leitura. Clique num tema para selecioná-lo e defina-o como padrão.
         </p>
 
@@ -327,15 +326,11 @@ export default function TiragemPage() {
           </div>
 
           {sub === 'agendar' ? (
-            <>
-              <CarrosselPlanos destino={(id) => `#/agendar/${id}`} />
-              {/* A tabela comparativa, que antes ficava na home. O carrossel é
-                  para escolher olhando; ela é para comparar valores de uma vez
-                  só, que o carrossel não faz bem. */}
-              <div className="-mx-5 mt-2 md:-mx-10">
-                <PriceTable />
-              </div>
-            </>
+            /* Sem tabela: quem quer comparar valores usa o modo "Leque" do
+               próprio baralho, que mostra todas as cartas com os preços. Duas
+               formas de dizer a mesma coisa na mesma página faziam a segunda
+               parecer sobra da primeira. */
+            <CarrosselPlanos destino={(id) => `#/agendar/${id}`} />
           ) : (
             <MinhasConsultas />
           )}

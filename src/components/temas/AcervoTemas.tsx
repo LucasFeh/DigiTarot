@@ -88,7 +88,7 @@ export default function AcervoTemas({
               {aba === 'pessoais'
                 ? 'Você ainda não criou nenhum tema.'
                 : aba === 'favoritos'
-                  ? 'Seu conjunto está vazio — marque com ★ os temas que quiser levar para a mesa.'
+                  ? 'Seu conjunto está vazio — use o marcador no canto do tema para guardar o que quiser levar para a mesa.'
                   : 'O acervo está vazio por enquanto.'}
             </p>
             <a

@@ -15,6 +15,32 @@ function kb(bytes: number) {
   return bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`
 }
 
+/**
+ * O marcador de "salvar" — a mesma bandeirinha que o TikTok e o YouTube usam.
+ *
+ * Era uma estrela, e estrela quer dizer nota: cinco estrelas, avaliar, gostar.
+ * O que este botão faz é guardar o tema num conjunto para usar depois, que é
+ * exatamente o gesto que a bandeirinha já significa para quem usa aqueles
+ * aplicativos. Cheia quando está salvo, vazada quando não — a diferença fica
+ * na silhueta, e não só na cor, para quem não distingue o dourado do lilás.
+ */
+function Marcador({ cheio }: { cheio: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill={cheio ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    >
+      <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1z" />
+    </svg>
+  )
+}
+
 export default function CardTema({
   tema,
   favorito,
@@ -103,11 +129,11 @@ export default function CardTema({
               onFavoritar()
             }}
             aria-pressed={favorito}
-            title={favorito ? 'Tirar do meu conjunto' : 'Adicionar ao meu conjunto'}
-            className="glass grid h-8 w-8 place-items-center rounded-full text-[15px] transition hover:text-star"
+            title={favorito ? 'Tirar do meu conjunto' : 'Salvar no meu conjunto'}
+            className="glass grid h-8 w-8 place-items-center rounded-full transition hover:text-star"
             style={{ color: favorito ? '#f2d492' : '#cbbde8' }}
           >
-            {favorito ? '★' : '☆'}
+            <Marcador cheio={favorito} />
           </button>
         )}
         {meu && onApagar && (
