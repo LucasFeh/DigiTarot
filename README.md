@@ -109,15 +109,20 @@ Justiça em "dois caminhos", O Eremita no autoconhecimento, O Louco nas pergunta
 avulsas. Quem procura tarot conhece o baralho, e uma imagem bonita e arbitrária
 não diria nada a essa pessoa.
 
-O escurecimento é o que faz a coisa funcionar. A arte do Rider-Waite é clara e
-cheia de detalhe amarelo: texto branco direto sobre ela fica ilegível justamente
-nas cartas mais bonitas. São três camadas — um véu geral, um degradê que fecha
-em preto na metade de baixo (onde mora o texto) e uma leve dessaturação.
+As cartas aparecem **inteiras**, com a moldura e o título que o Rider-Waite já
+traz, e **nada é escrito por cima da arte**. Uma carta com o preço estampado no
+meio dela deixa de parecer carta e vira cartaz; o que o serviço custa fica
+embaixo, fora do baralho, onde o olho vai depois de escolher.
 
-A rolagem é **nativa**, com `scroll-snap`, e não um carrossel de biblioteca com
-índice e transformação: assim já vem com arrasto no celular, roda do mouse,
-teclado e barra de rolagem, tudo de graça e tudo acessível. As setas são atalho
-para quem está no mouse, não o único jeito de andar.
+O giro é **circular de verdade**: passar da última leva à primeira, e voltar da
+primeira leva à última. Cada carta é posicionada pelo seu afastamento do centro
+— quanto mais longe, mais girada em 3D, mais para trás e mais escura —, e girar
+o baralho é só mudar qual índice é o centro. Não há posição acumulada nem
+`scroll` para sair de sincronia, e é o que permite a volta completa sem emenda.
+
+Anda de quatro jeitos: arrastando o baralho, pelas setas, pelos marcadores, ou
+com as setas do teclado quando o palco tem o foco. Um carrossel que só responde
+a clique exclui quem navega por teclado.
 
 ### Sessão particular
 
