@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../lib/useAuth'
-import { irPara } from '../../lib/useHashRoute'
 import { SPREADS } from '../../data/spreads'
 import { formatPriceFull } from '../../data/plans'
 import SeloStatus from '../agenda/SeloStatus'
@@ -84,38 +83,38 @@ export default function SessaoParticular() {
     }
   }
 
+  /**
+   * Confirmar o pagamento JÁ ABRE a mesa.
+   *
+   * Eram dois cliques, e o segundo era invisível do outro lado: a pessoa via
+   * "pagamento confirmado" e continuava esperando, sem nada para clicar, até o
+   * tarólogo lembrar de abrir a sala. Como aqui não há horário marcado — a
+   * sessão particular acontece quando os dois estão a postos —, separar as duas
+   * ações só criava uma espera que ninguém entendia.
+   */
   const confirmar = async (c: Convite) => {
-    if (!backend || ocupado) return
-    setOcupado(c.token)
-    try {
-      await backend.atualizarConvite(c.token, { status: 'confirmado' })
-    } finally {
-      setOcupado(null)
-    }
-  }
-
-  const abrirMesa = async (c: Convite) => {
-    if (!backend || ocupado) return
+    if (!backend || !usuario || ocupado) return
     setErro(null)
     setOcupado(c.token)
     try {
-      const id = await backend.criarSessao({
-        tarologoUid: usuario.uid,
-        tarologoNome: usuario.nome,
-        clienteNome: c.convidadoNome || 'Convidado',
-        spreadId: SPREADS[0].id,
-        visualTarologo: { baralhoId: null, panoId: null },
-        cartas: [],
-        encerrada: false,
-        titulo: `${c.titulo} — ${c.convidadoNome || 'convidado'}`,
-        // Sem `clienteUid`: quem entra não tem conta. É o id imprevisível da
-        // própria mesa que faz as vezes de senha, e `publica` é o que autoriza
-        // as regras a liberarem a leitura por id.
-        publica: true,
-        conviteToken: c.token,
-      })
-      await backend.atualizarConvite(c.token, { sessaoId: id })
-      irPara(`/tiragem/${id}`)
+      const id =
+        c.sessaoId ??
+        (await backend.criarSessao({
+          tarologoUid: usuario.uid,
+          tarologoNome: usuario.nome,
+          clienteNome: c.convidadoNome || 'Convidado',
+          spreadId: SPREADS[0].id,
+          visualTarologo: { baralhoId: null, panoId: null },
+          cartas: [],
+          encerrada: false,
+          titulo: `${c.titulo} — ${c.convidadoNome || 'convidado'}`,
+          // Sem `clienteUid`: quem entra não tem conta. É o id imprevisível da
+          // própria mesa que faz as vezes de senha, e `publica` é o que autoriza
+          // as regras a liberarem a leitura por id.
+          publica: true,
+          conviteToken: c.token,
+        }))
+      await backend.atualizarConvite(c.token, { status: 'confirmado', sessaoId: id })
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível abrir a mesa.')
     } finally {
@@ -234,39 +233,22 @@ export default function SessaoParticular() {
                 ) : (
                   <button
                     type="button"
-                    disabled={c.status !== 'confirmado' || ocupado === c.token}
-                    onClick={() => void abrirMesa(c)}
-                    title={
-                      c.status !== 'confirmado' ? 'Confirme o pagamento antes de abrir a mesa.' : undefined
-                    }
-                    className="rounded-full px-5 py-2 text-[15px] font-medium text-star transition disabled:cursor-not-allowed disabled:opacity-35"
+                    disabled={ocupado === c.token || c.status === 'cancelado'}
+                    onClick={() => void confirmar(c)}
+                    className="rounded-full px-5 py-2 text-[15px] font-medium text-star transition disabled:opacity-40"
                     style={{
-                      background:
-                        c.status === 'confirmado'
-                          ? 'linear-gradient(100deg, #6d3fd4, #c2449d)'
-                          : '#ffffff12',
+                      background: 'linear-gradient(100deg, #6d3fd4, #c2449d)',
+                      boxShadow: '0 10px 30px -14px #c2449d',
                     }}
                   >
-                    {ocupado === c.token ? 'Abrindo…' : 'Abrir mesa'}
-                  </button>
-                )}
-
-                {(c.status === 'aguardando' || c.status === 'pago') && (
-                  <button
-                    type="button"
-                    disabled={ocupado === c.token}
-                    onClick={() => void confirmar(c)}
-                    className="rounded-full border border-gold/50 bg-gold/10 px-5 py-2 text-[15px] text-gold transition hover:bg-gold/20 disabled:opacity-50"
-                  >
-                    Confirmar pagamento
+                    {ocupado === c.token ? 'Abrindo…' : 'Confirmar pagamento e abrir a mesa'}
                   </button>
                 )}
               </div>
 
-              {c.status === 'confirmado' && !c.sessaoId && (
+              {c.sessaoId && (
                 <p className="mt-2 text-[13px] text-mist/55">
-                  A pessoa já pode entrar assim que você abrir a mesa — ela vê o botão aparecer
-                  sozinha, sem precisar do link de novo.
+                  A mesa já abriu no aparelho de quem tem o link — sem precisar recarregar nada.
                 </p>
               )}
             </li>

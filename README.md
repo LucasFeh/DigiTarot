@@ -121,6 +121,32 @@ O convidado pode exatamente duas coisas no convite: dizer como se chama e avisar
 que pagou. Valor, confirmação e abertura da mesa continuam sendo do tarólogo,
 mesmo que alguém reescreva a requisição à mão.
 
+**Confirmar o pagamento já abre a mesa**, num clique só, e a pessoa do outro
+lado é levada para dentro sozinha — sem recarregar, sem procurar botão. Eram
+duas ações, e a segunda era invisível para quem esperava: aqui não há horário
+marcado, então separá-las só criava uma espera que ninguém entendia.
+
+### A conversa da mesa
+
+Um chat entre as duas pessoas, escondido atrás do ícone ✉ e fechado por padrão —
+um painel sempre aberto rouba metade de uma cena 3D que a pessoa veio ver. O
+ícone ganha um número quando chega mensagem com o painel fechado.
+
+Ele fica à ESQUERDA: o painel de cartas do tarólogo e o resumo da carta em foco
+do cliente moram os dois na direita, e o chat lá cobria justamente a ferramenta
+em uso.
+
+As mensagens vivem numa subcoleção (`sessoes/{id}/mensagens`), e não num campo
+da sessão, por dois motivos: uma conversa cresce sem limite e estouraria o teto
+de 1 MiB do documento, e duas pessoas escrevendo ao mesmo tempo num array se
+sobrescreveriam — a última gravação venceria e a fala da outra sumiria. Mensagem
+não se edita nem se apaga: a conversa que as duas leram continua a mesma para as
+duas.
+
+No celular em pé, a mesa mostra um convite para girar o aparelho. É dica, não
+barreira — travar até o aparelho girar puniria quem está num tablet preso a um
+suporte, com a rotação bloqueada, ou deitado na cama.
+
 ### Contas
 
 | quem      | acesso                                                        |

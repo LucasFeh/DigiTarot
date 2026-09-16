@@ -5,6 +5,7 @@ import type {
   Backend,
   ConfirmacaoSms,
   Convite,
+  Mensagem,
   ModoSms,
   Perfil,
   Provedor,
@@ -21,6 +22,7 @@ const CHAVE_SESSOES = 'tarot.sessoes'
 const CHAVE_AGENDA = 'tarot.agendamentos'
 const CHAVE_HORARIOS = 'tarot.horarios'
 const CHAVE_CONVITES = 'tarot.convites'
+const CHAVE_MENSAGENS = 'tarot.mensagens'
 const CANAL = 'tarot.sync'
 
 /**
@@ -176,7 +178,7 @@ export class LocalBackend implements Backend {
     // `storage` cobre o caso de o BroadcastChannel não existir.
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', (e) => {
-        if (e.key === CHAVE_SESSOES) this.receber('sessoes')
+        if (e.key === CHAVE_SESSOES || e.key === CHAVE_MENSAGENS) this.receber('sessoes')
         if (e.key === CHAVE_AGENDA || e.key === CHAVE_HORARIOS) this.receber('agenda')
         if (e.key === CHAVE_PERFIS) this.receber('perfis')
       })
@@ -599,6 +601,27 @@ export class LocalBackend implements Backend {
       CHAVE_SESSOES,
       this.sessoes().map((s) => (s.id === id ? { ...s, ...patch } : s)),
     )
+    this.avisar('sessoes')
+  }
+
+  // ------------------------------ conversa ------------------------------
+
+  private mensagens(): Record<string, Mensagem[]> {
+    return ler<Record<string, Mensagem[]>>(CHAVE_MENSAGENS, {})
+  }
+
+  observarMensagens(sessaoId: string, cb: (m: Mensagem[]) => void): Unsubscribe {
+    const emitir = () => cb(this.mensagens()[sessaoId] ?? [])
+    this.ouvintesSessoes.add(emitir)
+    emitir()
+    return () => this.ouvintesSessoes.delete(emitir)
+  }
+
+  async enviarMensagem(sessaoId: string, dados: Omit<Mensagem, 'id' | 'em'>) {
+    const mapa = this.mensagens()
+    const nova: Mensagem = { ...dados, id: novoId('m'), em: new Date().toISOString() }
+    mapa[sessaoId] = [...(mapa[sessaoId] ?? []), nova]
+    gravar(CHAVE_MENSAGENS, mapa)
     this.avisar('sessoes')
   }
 

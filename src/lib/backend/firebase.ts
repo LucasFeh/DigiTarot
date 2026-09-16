@@ -43,6 +43,7 @@ import type {
   Backend,
   ConfirmacaoSms,
   Convite,
+  Mensagem,
   ModoSms,
   Perfil,
   Provedor,
@@ -466,12 +467,21 @@ export class FirebaseBackend implements Backend {
 
   observarMeusConvites(uid: string, cb: (c: Convite[]) => void): Unsubscribe {
     const q = query(collection(this.db, 'convites'), where('tarologoUid', '==', uid))
-    return onSnapshot(q, (s) =>
-      cb(
-        s.docs
-          .map((d) => ({ ...(d.data() as Convite), token: d.id }))
-          .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm)),
-      ),
+    return onSnapshot(
+      q,
+      (s) =>
+        cb(
+          s.docs
+            .map((d) => ({ ...(d.data() as Convite), token: d.id }))
+            .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm)),
+        ),
+      // Uma consulta negada pelas regras falha CALADA numa assinatura sem este
+      // tratamento: a lista simplesmente nunca chega, e a tela fica dizendo que
+      // não há nada. Foi assim que a regra errada passou despercebida.
+      (e) => {
+        console.error('convites:', e.message)
+        cb([])
+      },
     )
   }
 
@@ -499,6 +509,29 @@ export class FirebaseBackend implements Backend {
 
   async atualizarSessao(id: string, patch: Partial<Sessao>) {
     await updateDoc(doc(this.db, 'sessoes', id), patch)
+  }
+
+  // ------------------------------ conversa ------------------------------
+
+  observarMensagens(sessaoId: string, cb: (m: Mensagem[]) => void): Unsubscribe {
+    const q = query(collection(this.db, 'sessoes', sessaoId, 'mensagens'), orderBy('em'))
+    return onSnapshot(
+      q,
+      (s) => cb(s.docs.map((d) => ({ ...(d.data() as Omit<Mensagem, 'id'>), id: d.id }))),
+      () => cb([]),
+    )
+  }
+
+  async enviarMensagem(sessaoId: string, dados: Omit<Mensagem, 'id' | 'em'>) {
+    // `em` é gravado pelo relógio do cliente, e não por `serverTimestamp()`, de
+    // propósito: com o carimbo do servidor o campo chega `null` na primeira
+    // emissão local do onSnapshot, e a mensagem recém-enviada saltaria para o
+    // começo da conversa antes de voltar ao lugar certo. Um relógio adiantado
+    // desordena duas falas quase simultâneas; o salto acontecia em todas.
+    await setDoc(doc(collection(this.db, 'sessoes', sessaoId, 'mensagens')), {
+      ...dados,
+      em: new Date().toISOString(),
+    })
   }
 
   observarSessoesAbertas(cb: (s: Sessao[]) => void): Unsubscribe {

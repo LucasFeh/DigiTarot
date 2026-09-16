@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../lib/useAuth'
+import { irPara } from '../lib/useHashRoute'
 import { site } from '../data/site'
 import { formatPriceFull } from '../data/plans'
 import PixCobranca from '../components/PixCobranca'
@@ -34,6 +35,24 @@ export default function ConvitePage({ token }: { token: string }) {
   useEffect(() => {
     if (convite?.convidadoNome) setNome((n) => n || convite.convidadoNome)
   }, [convite?.convidadoNome])
+
+  /**
+   * No instante em que o tarólogo confirma, a mesa abre aqui sozinha.
+   *
+   * A pessoa está esperando com a página aberta, sem nada para fazer — mandá-la
+   * procurar um botão que acabou de aparecer é pedir que ela fique vigiando a
+   * tela. A assinatura já traz a mudança em tempo real; só faltava agir sobre
+   * ela.
+   *
+   * O `entrou` impede que voltar da mesa para o link jogue a pessoa de volta
+   * para dentro num laço — sair da sala tem que ser possível.
+   */
+  const entrou = useRef(false)
+  useEffect(() => {
+    if (!convite?.sessaoId || convite.status !== 'confirmado' || entrou.current) return
+    entrou.current = true
+    irPara(`/tiragem/${convite.sessaoId}`)
+  }, [convite?.sessaoId, convite?.status])
 
   if (convite === undefined) {
     return (
@@ -199,8 +218,8 @@ export default function ConvitePage({ token }: { token: string }) {
           </p>
           <p className="mt-2 text-[15px] leading-relaxed text-mist/85">
             {convite.sessaoId
-              ? 'Entre quando quiser — as cartas aparecem conforme forem para a mesa.'
-              : `Tudo certo. Assim que ${convite.tarologoNome} abrir a mesa, o botão de entrar aparece aqui.`}
+              ? 'Levando você para a mesa…'
+              : `Tudo certo. Assim que ${convite.tarologoNome} abrir a mesa, você entra automaticamente.`}
           </p>
           {convite.sessaoId && (
             <a

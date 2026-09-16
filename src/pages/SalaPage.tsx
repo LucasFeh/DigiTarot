@@ -10,6 +10,8 @@ import BarraFerramentas from '../components/sala/BarraFerramentas'
 import CartaFlutuante from '../components/sala/CartaFlutuante'
 import PainelTarologo from '../components/sala/PainelTarologo'
 import PopupCarta from '../components/sala/PopupCarta'
+import ChatMesa from '../components/sala/ChatMesa'
+import DicaGirar from '../components/sala/DicaGirar'
 import SeletorTema from '../components/temas/SeletorTema'
 import LoginPage from './LoginPage'
 import type { CartaNaMesa, Sessao } from '../lib/backend'
@@ -32,6 +34,8 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const [focoSlot, setFocoSlot] = useState<number | null>(null)
   const [acervo, setAcervo] = useState(false)
   const [menuAberto, setMenuAberto] = useState(true)
+  const [chat, setChat] = useState(false)
+  const [naoLidas, setNaoLidas] = useState(0)
   /** Carta viajando na ponta do ponteiro, em coordenadas de cliente. */
   const [arraste, setArraste] = useState<{ cardId: string; x: number; y: number } | null>(null)
   const [slotAlvo, setSlotAlvo] = useState<number | null>(null)
@@ -282,6 +286,45 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     </Suspense>
   )
 
+  /**
+   * O gatilho do chat. Mora aqui, e não dentro do painel, porque as duas visões
+   * da sala — a do cliente e a do tarólogo — o mostram no mesmo canto.
+   */
+  const botaoChat = (
+    <button
+      type="button"
+      onClick={() => setChat((v) => !v)}
+      aria-expanded={chat}
+      className="glass relative rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star"
+      title={chat ? 'Fechar a conversa' : 'Abrir a conversa'}
+    >
+      <span aria-hidden className="mr-1.5">
+        ✉
+      </span>
+      Conversa
+      {naoLidas > 0 && !chat && (
+        <span
+          aria-label={`${naoLidas} não lidas`}
+          className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-semibold text-void"
+          style={{ background: 'var(--color-gold)' }}
+        >
+          {naoLidas}
+        </span>
+      )}
+    </button>
+  )
+
+  const painelChat = (
+    <ChatMesa
+      sessaoId={sessao.id}
+      autor={ehTarologo ? 'tarologo' : 'cliente'}
+      nome={ehTarologo ? sessao.tarologoNome : (sessao.clienteNome ?? usuario?.nome ?? 'Convidado')}
+      aberto={chat}
+      aoFechar={() => setChat(false)}
+      aoNaoLidas={setNaoLidas}
+    />
+  )
+
   const botaoLuz = (
     <button
       type="button"
@@ -320,6 +363,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           </span>
           <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2">
             {avisoTemaAusente}
+            {botaoChat}
             {botaoLuz}
             <button
               type="button"
@@ -394,6 +438,9 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           </p>
         )}
 
+        {painelChat}
+        <DicaGirar />
+
         {acervo && (
           <SeletorTema
             visual={visual}
@@ -452,7 +499,11 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
             {sessao.titulo} · Você conduz{sessao.encerrada && ' · encerrada'}
           </span>
           {avisoTemaAusente}
+          <span className="pointer-events-auto">{botaoChat}</span>
         </div>
+
+        {painelChat}
+        <DicaGirar />
 
         {/* O menu no cantinho: some quando não é preciso, e volta num clique.
             `inert` e não `aria-hidden`: opacidade zero e `pointer-events: none`

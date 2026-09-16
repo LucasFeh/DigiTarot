@@ -111,7 +111,13 @@ service cloud.firestore {
     // que faz "só quem tem o link" significar alguma coisa.
     match /convites/{token} {
       allow get: if true;
-      allow list: if false;
+
+      // `list` fica fechado para o mundo e aberto para o tarólogo — e não
+      // fechado para todos, como estava. Todo convite é dele; sem poder
+      // consultá-los, a própria tela de sessões particulares ficava vazia para
+      // sempre, porque uma consulta ao Firestore é uma operação `list` e a
+      // negativa chegava calada na assinatura.
+      allow list: if ehTarologo();
 
       allow create: if ehTarologo() && request.resource.data.tarologoUid == uid();
 
@@ -181,6 +187,40 @@ service cloud.firestore {
       );
 
       allow delete: if logado() && resource.data.tarologoUid == uid();
+
+      // ------------------------------ conversa ------------------------------
+      // O chat da mesa. Fica numa subcoleção, e não num campo da sessão, por
+      // dois motivos: uma conversa cresce sem limite e estouraria o teto de
+      // 1 MiB do documento, e duas pessoas escrevendo ao mesmo tempo num array
+      // sobrescreveriam uma à outra — a última gravação venceria, e a mensagem
+      // da outra sumiria.
+      //
+      // Quem pode ler a mesa pode ler e escrever nela. `get()` busca o
+      // documento-pai para saber disso, inclusive quando não há ninguém logado:
+      // é assim que o convidado de sessão particular participa da conversa.
+      match /mensagens/{mensagemId} {
+        function mesa() {
+          return get(/databases/$(database)/documents/sessoes/$(sessaoId)).data;
+        }
+        function participa() {
+          return mesa().get('publica', false) == true
+                 || (
+                   logado()
+                   && (mesa().tarologoUid == uid() || mesa().get('clienteUid', null) == uid())
+                 );
+        }
+
+        allow read: if participa();
+
+        allow create: if participa()
+                      && request.resource.data.texto is string
+                      && request.resource.data.texto.size() > 0
+                      && request.resource.data.texto.size() <= 2000;
+
+        // Mensagem dita não se desdiz: sem edição e sem apagar, a conversa que
+        // as duas pessoas leram continua sendo a mesma para as duas.
+        allow update, delete: if false;
+      }
     }
   }
 }

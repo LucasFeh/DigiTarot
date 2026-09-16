@@ -226,6 +226,24 @@ export type ConfirmacaoSms = {
 /** Entrar de vez, ou apenas somar o telefone a uma conta que já existe. */
 export type ModoSms = 'entrar' | 'vincular'
 
+/**
+ * Uma fala no chat da mesa.
+ *
+ * `autor` é declarado por quem escreve, e não conferido pelo servidor — numa
+ * sessão particular quem entra não tem conta, então não há identidade a
+ * conferir. A conversa tem duas pessoas que já se conhecem, e o custo de errar
+ * aqui é um nome trocado, não um dado exposto: a mensagem continua visível
+ * apenas para quem pode abrir aquela mesa.
+ */
+export type Mensagem = {
+  id: string
+  autor: 'tarologo' | 'cliente'
+  nome: string
+  texto: string
+  /** ISO. */
+  em: string
+}
+
 export type Unsubscribe = () => void
 
 /**
@@ -312,6 +330,10 @@ export interface Backend {
   criarSessao(dados: Omit<Sessao, 'id' | 'criadaEm'>): Promise<string>
   observarSessao(id: string, cb: (s: Sessao | null) => void): Unsubscribe
   atualizarSessao(id: string, patch: Partial<Sessao>): Promise<void>
+  /** A conversa daquela mesa, em ordem de chegada. */
+  observarMensagens(sessaoId: string, cb: (m: Mensagem[]) => void): Unsubscribe
+  enviarMensagem(sessaoId: string, dados: Omit<Mensagem, 'id' | 'em'>): Promise<void>
+
   /** Sessões abertas de qualquer tarólogo — é por onde o cliente entra. */
   observarSessoesAbertas(cb: (s: Sessao[]) => void): Unsubscribe
   /** Histórico: tudo em que este usuário participou. */
