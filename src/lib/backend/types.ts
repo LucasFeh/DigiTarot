@@ -58,6 +58,8 @@ export type EscolhaVisual = {
  * aqui é o que atravessa as duas — o nome pelo qual a pessoa quer ser chamada,
  * o contato por onde ela recebe a leitura, o tema com que entra na mesa.
  */
+export type ModoDesempenho = 'auto' | 'leve' | 'completo'
+
 export type Perfil = {
   nome: string
   /** Telefone, WhatsApp, o que a pessoa quiser deixar. Livre de propósito. */
@@ -66,6 +68,16 @@ export type Perfil = {
   instagram: string
   /** URL (ou data URL) da foto. O avatar sabe cair na inicial do nome. */
   foto: string
+  /**
+   * Quanto a mesa 3D pode gastar do aparelho:
+   *   auto      — o site decide olhando o aparelho de quem abriu;
+   *   leve      — menos luz, menos sombra e menos pixel, para não engasgar;
+   *   completo  — tudo ligado, como a sala foi desenhada.
+   *
+   * Fica no perfil para seguir a pessoa, mas quem manda de verdade é a
+   * escolha gravada no aparelho — ver `lib/desempenho.ts`.
+   */
+  desempenho: ModoDesempenho
   /**
    * O tema com que a pessoa entra em toda sala. A escolha feita DENTRO de uma
    * sala vale só para aquela leitura e não mexe aqui — é o que separa
@@ -79,6 +91,7 @@ export const PERFIL_VAZIO: Perfil = {
   contato: '',
   instagram: '',
   foto: '',
+  desempenho: 'auto',
   padrao: { baralhoId: null, panoId: null },
 }
 

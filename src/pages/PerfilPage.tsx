@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { usePerfil } from '../lib/perfil'
+import { useDesempenho } from '../lib/desempenho'
 import LayoutPainel, { type ItemMenu } from '../components/painel/LayoutPainel'
 import AvatarEditavel from '../components/temas/AvatarEditavel'
+import SeletorDesempenho from '../components/SeletorDesempenho'
 import SecaoConta from '../components/perfil/SecaoConta'
 import LoginPage from './LoginPage'
 
@@ -53,6 +55,7 @@ function Campo({
 export default function PerfilPage() {
   const { usuario, carregando } = useAuth()
   const { perfil, salvar, nomeExibido } = usePerfil(usuario)
+  const desempenho = useDesempenho(usuario)
   const [secao, setSecao] = useState<Secao>('geral')
 
   if (carregando) {
@@ -130,6 +133,26 @@ export default function PerfilPage() {
               o site passa a usar a sua, e nunca mais mexe nisso.
             </p>
           )}
+
+          {/* Desempenho da mesa. Fica junto dos dados, e não numa seção
+              própria, porque é um botão só — uma aba inteira para ele faria a
+              pessoa procurar mais do que decidir. */}
+          <div className="mt-7 border-t border-white/10 pt-6">
+            <h3 className="font-display text-[17px] text-star">A mesa no seu aparelho</h3>
+            <p className="mb-3 mt-1 text-[14px] leading-relaxed text-mist/70">
+              A sala é 3D: velas com luz de verdade, sombra e o pano em textura. Em aparelho mais
+              modesto isso pode engasgar — aqui você escolhe o quanto ela gasta.
+            </p>
+            <SeletorDesempenho
+              modo={desempenho.modo}
+              leve={desempenho.leve}
+              onModo={desempenho.definir}
+            />
+            <p className="mt-2 text-[13px] leading-relaxed text-mist/55">
+              Vale para ESTE aparelho na hora, e vira o padrão dos próximos — quem escolheu “leve”
+              no celular não quer “leve” no computador.
+            </p>
+          </div>
 
           <p className="mt-7 border-t border-white/10 pt-5 text-[13px] leading-relaxed text-mist/55">
             Salva sozinho, e fica guardado na sua conta. Quem entra ({usuario.email || 'sem e-mail'})

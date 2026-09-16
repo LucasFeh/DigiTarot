@@ -17,13 +17,26 @@ export function usePerfil(usuario: Usuario | null) {
   const { backend } = useAuth()
   const uid = usuario?.uid ?? null
   const [perfil, setPerfil] = useState<Perfil>(PERFIL_VAZIO)
+  /**
+   * Já veio a primeira leitura? Enquanto isto é falso, `perfil` é o VAZIO —
+   * indistinguível de um perfil de verdade sem nada preenchido. Quem só mostra
+   * campos de texto pode ignorar; quem toma decisão a partir de um valor
+   * gravado (a sala escolhe o nível de detalhe por aqui) precisa saber a
+   * diferença, senão decide com o padrão e se corrige na frente da pessoa.
+   */
+  const [pronto, setPronto] = useState(false)
 
   useEffect(() => {
     if (!backend || !uid) {
       setPerfil(PERFIL_VAZIO)
+      setPronto(true)
       return
     }
-    return backend.observarPerfil(uid, setPerfil)
+    setPronto(false)
+    return backend.observarPerfil(uid, (p) => {
+      setPerfil(p)
+      setPronto(true)
+    })
   }, [backend, uid])
 
   const salvar = useCallback(
@@ -61,5 +74,5 @@ export function usePerfil(usuario: Usuario | null) {
   // ser chamada aqui.
   const nomeExibido = perfil.nome.trim() || usuario?.nome || 'Visitante'
 
-  return { perfil, salvar, nomeExibido }
+  return { perfil, pronto, salvar, nomeExibido }
 }

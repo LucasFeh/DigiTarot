@@ -3,9 +3,17 @@ import { useAuth } from '../lib/useAuth'
 import { irPara } from '../lib/useHashRoute'
 import { CARD_BY_ID } from '../data/cards'
 import { SPREAD_BY_ID } from '../data/spreads'
+import {
+  AFASTAMENTO_MAX,
+  AFASTAMENTO_MIN,
+  PASSO_BOTAO,
+  limitarAfastamento,
+} from '../lib/afastamento'
+import { useDesempenho } from '../lib/desempenho'
 import { panoEmbutidoDe } from '../lib/temas/visibilidade'
 import { useVisual } from '../lib/temas/useVisual'
 import { useTema } from '../lib/temas/useTema'
+import SeletorDesempenho from '../components/SeletorDesempenho'
 import BarraFerramentas from '../components/sala/BarraFerramentas'
 import CartaFlutuante from '../components/sala/CartaFlutuante'
 import PainelTarologo from '../components/sala/PainelTarologo'
@@ -20,6 +28,38 @@ import type { TemaBaralho, TemaPano } from '../lib/temas/tipos'
 // O Three.js só entra no bundle de quem abre a sala.
 const Sala3D = lazy(() => import('../components/sala/Sala3D'))
 
+/** Botão redondo de vidro. FORA do componente: declarado dentro do render, ele
+ *  vira um tipo novo a cada quadro e o React remonta a árvore inteira. */
+function BotaoRedondo({
+  children,
+  titulo,
+  onClick,
+  desabilitado,
+}: {
+  children: React.ReactNode
+  titulo: string
+  onClick: () => void
+  desabilitado?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      // `aria-disabled`, e não `disabled`: chega-se ao limite APERTANDO ESTE
+      // botão, e desabilitar um elemento com o foco em cima devolve o foco ao
+      // <body> — o Tab seguinte recomeçaria no cabeçalho do site, que continua
+      // montado atrás da sala. Inerte e focado é melhor que perdido, e o
+      // `limitarAfastamento` já prende o valor de qualquer jeito.
+      aria-disabled={desabilitado || undefined}
+      onClick={desabilitado ? undefined : onClick}
+      title={titulo}
+      aria-label={titulo}
+      className="glass grid h-10 w-10 place-items-center rounded-full text-[20px] leading-none text-mist transition hover:text-star aria-disabled:cursor-default aria-disabled:opacity-30 aria-disabled:hover:text-mist"
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const { usuario, carregando, backend } = useAuth()
   // `undefined` = ainda carregando; `null` = não existe. Assim o estado de
@@ -32,6 +72,17 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const [luzAcesa, setLuzAcesa] = useState(false)
   /** Carta que o cliente escolheu olhar de perto. */
   const [focoSlot, setFocoSlot] = useState<number | null>(null)
+  /**
+   * Quanto o cliente afastou a mesa. Começa em 1, que é o enquadramento
+   * desenhado — a mesa nunca NASCE longe, só vai para lá se pedirem.
+   */
+  const [afastamento, setAfastamento] = useState(AFASTAMENTO_MIN)
+  const [qualidadeAberta, setQualidadeAberta] = useState(false)
+  /** Gatilho e balão da qualidade: o de fora envolve os dois, e é ele que
+   *  decide o que é "clicar fora". */
+  const caixaQualidade = useRef<HTMLDivElement>(null)
+  const gatilhoQualidade = useRef<HTMLButtonElement>(null)
+  const balaoQualidade = useRef<HTMLDivElement>(null)
   const [acervo, setAcervo] = useState(false)
   const [menuAberto, setMenuAberto] = useState(true)
   const [chat, setChat] = useState(false)
@@ -46,6 +97,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   // Os hooks vêm todos ANTES dos early returns — é a regra dos hooks, e o
   // `useVisual` já trata sessão nula.
   const visual = useVisual(sessao, usuario)
+  const desempenho = useDesempenho(usuario)
   const baralho = useTema<TemaBaralho>(visual.visivel.baralhoId, 'baralho')
   const pano = useTema<TemaPano>(visual.visivel.panoId, 'pano')
   const ehTarologo = visual.ehTarologo
@@ -76,6 +128,36 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     window.addEventListener('keydown', esc)
     return () => window.removeEventListener('keydown', esc)
   }, [focoSlot])
+
+  /**
+   * Fecha o balão da qualidade devolvendo o foco a quem o abriu: sem isso o nó
+   * focado some do DOM e o foco cai no <body>. Só devolve se o foco ESTAVA lá
+   * dentro — num clique fora, puxar o foco de volta surpreende mais do que
+   * ajuda. O `.focus()` vem antes do setState de propósito, enquanto o nó
+   * ainda existe.
+   */
+  const fecharQualidade = useCallback(() => {
+    if (balaoQualidade.current?.contains(document.activeElement)) gatilhoQualidade.current?.focus()
+    setQualidadeAberta(false)
+  }, [])
+
+  // Esc ou clique fora fecham o balão. Sem camada cobrindo a tela: um
+  // `fixed inset-0` por cima da barra engoliria o primeiro clique no Sair, no
+  // zoom e no resumo da carta. É o mesmo padrão do menu do cabeçalho.
+  useEffect(() => {
+    if (!qualidadeAberta) return
+    const fora = (e: PointerEvent) => {
+      if (caixaQualidade.current && !caixaQualidade.current.contains(e.target as Node))
+        setQualidadeAberta(false)
+    }
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && fecharQualidade()
+    document.addEventListener('pointerdown', fora)
+    document.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('pointerdown', fora)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [qualidadeAberta, fecharQualidade])
 
   // O tarólogo pode tirar da mesa a carta que o cliente está olhando de perto.
   // Sem isto a câmera fica parada sobre um lugar vazio e o painel mente,
@@ -250,14 +332,18 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     )
   }
 
-  const cena = (
-    <Suspense
-      fallback={
-        <div className="grid h-full place-items-center bg-abyss">
-          <p className="text-[15px] text-mist/70">Acendendo as velas…</p>
-        </div>
-      }
-    >
+  const acendendo = (
+    <div className="grid h-full place-items-center bg-abyss">
+      <p className="text-[15px] text-mist/70">Acendendo as velas…</p>
+    </div>
+  )
+
+  // A cena só monta com o nível de detalhe já decidido: trocá-lo depois
+  // remontaria o Canvas na cara da pessoa. Ver `desempenho.pronto`.
+  const cena = !desempenho.pronto ? (
+    acendendo
+  ) : (
+    <Suspense fallback={acendendo}>
       <Sala3D
         spreadId={sessao.spreadId}
         panoEmbutidoId={panoEmbutidoId}
@@ -268,6 +354,9 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
         slotAtivo={arraste ? slotAlvo : slotAtivo}
         luzAcesa={luzAcesa}
         focoSlot={focoSlot}
+        afastamento={afastamento}
+        onAfastamento={setAfastamento}
+        leve={desempenho.leve}
         arrastando={Boolean(arraste)}
         onProjetar={(p) => {
           projecao.current = p
@@ -355,8 +444,11 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
       <div className="fixed inset-0 z-[80] bg-void">
         {cena}
 
-        {/* faixa de cima */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+        {/* Faixa de cima. `z-50` porque ela quebra em duas linhas no celular
+            — cinco pílulas não cabem em 390px — e o painel de conversa é z-40:
+            sem isto a segunda linha some atrás dele, inclusive o "◐ Qualidade",
+            que existe justamente para socorrer quem está com a mesa travando. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-50 flex items-start justify-between gap-2 p-3">
           <span className="glass pointer-events-auto rounded-full px-3 py-1.5 text-[13px] text-mist">
             {sessao.titulo} · com {sessao.tarologoNome}
             {sessao.encerrada && ' · encerrada'}
@@ -372,6 +464,44 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
             >
               ✦ Tema
             </button>
+
+            {/* Qualidade da cena. Também aqui, e não só no perfil, porque quem
+                entra por link não TEM perfil — e porque a hora de descobrir
+                que a mesa está travando é com ela travando na frente. */}
+            <div className="relative" ref={caixaQualidade}>
+              <button
+                type="button"
+                ref={gatilhoQualidade}
+                onClick={() => (qualidadeAberta ? fecharQualidade() : setQualidadeAberta(true))}
+                aria-expanded={qualidadeAberta}
+                className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star"
+                title="Quanto a mesa gasta do seu aparelho"
+              >
+                ◐ Qualidade
+              </button>
+              {qualidadeAberta && (
+                <div
+                  ref={balaoQualidade}
+                  // A altura é limitada porque a barra de cima quebra em duas
+                  // linhas no celular, e o balão nasce embaixo dela: sem teto
+                  // a última opção cairia fora da tela deitada. `svh` é o
+                  // viewport COM a barra do navegador; `vh` mente ali.
+                  className="glass absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(60vh,calc(100svh-7rem))] w-[min(calc(100vw-5rem),266px)] overflow-y-auto overscroll-contain rounded-2xl p-3 text-left"
+                  style={{ boxShadow: '0 24px 60px -18px #000' }}
+                >
+                  <SeletorDesempenho
+                    compacto
+                    modo={desempenho.modo}
+                    leve={desempenho.leve}
+                    onModo={desempenho.definir}
+                  />
+                  <p className="mt-2 px-1 text-[12px] leading-snug text-mist/55">
+                    Fica guardado neste aparelho{usuario && ' e no seu perfil'}. A mesa pisca ao
+                    trocar.
+                  </p>
+                </div>
+              )}
+            </div>
             <a
               href="#/tiragem"
               className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star"
@@ -432,8 +562,36 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           </aside>
         )}
 
-        {focoSlot === null && (
-          <p className="glass pointer-events-none absolute inset-x-3 bottom-3 mx-auto w-fit rounded-full px-4 py-2 text-center text-[13px] text-mist/85">
+        {/* Afastar e aproximar. Fica na FAIXA DE BAIXO À ESQUERDA porque é o
+            único canto livre nos dois estados da tela: o painel de conversa
+            ocupa a coluna da esquerda mas para 4rem antes do fim, e o resumo
+            da carta em foco mora à direita, no meio. */}
+        <div className="pointer-events-auto absolute bottom-3 left-3 z-30 flex gap-2">
+          <BotaoRedondo
+            titulo="Afastar a mesa para ver todas as cartas"
+            onClick={() => setAfastamento((f) => limitarAfastamento(f * PASSO_BOTAO))}
+            desabilitado={afastamento >= AFASTAMENTO_MAX - 0.001}
+          >
+            −
+          </BotaoRedondo>
+          <BotaoRedondo
+            titulo="Aproximar a mesa"
+            onClick={() => setAfastamento((f) => limitarAfastamento(f / PASSO_BOTAO))}
+            // A folga existe porque o passo é geométrico: o valor encosta no
+            // limite sem nunca bater nele exatamente, em ponto flutuante.
+            desabilitado={afastamento <= AFASTAMENTO_MIN + 0.001}
+          >
+            +
+          </BotaoRedondo>
+        </div>
+
+        {/* A dica sai de cena com a conversa aberta: a faixa que sobra abaixo
+            do painel é estreita, e a frase acabaria metade escondida atrás
+            dele. O texto fica curto de propósito — em 390px qualquer coisa
+            mais longa quebra em três linhas e sobe para debaixo da conversa.
+            Quem afasta a mesa encontra os botões ali do lado. */}
+        {focoSlot === null && !chat && (
+          <p className="glass pointer-events-none absolute bottom-3 left-28 right-3 mx-auto w-fit rounded-full px-4 py-2 text-center text-[13px] text-mist/85">
             Clique numa carta para vê-la de perto.
           </p>
         )}

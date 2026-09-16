@@ -31,6 +31,16 @@ const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favo
 function Rotas() {
   const { caminho, partes } = useHashRoute()
 
+  /**
+   * A sala 3D cobre a tela inteira e é opaca. Enquanto ela está aberta, o
+   * nebuloso e o ponteiro-estrela continuavam desenhando ATRÁS dela: dois
+   * `requestAnimationFrame` em canvas de tela cheia, mais quatro camadas de
+   * blur de 90 a 120px animadas em CSS, disputando cada quadro com o three e
+   * sem que nada disso aparecesse. Desmontá-los aqui não custa um pixel de
+   * imagem e é a economia mais barata que a sala tem.
+   */
+  const naSala = partes[0] === 'tiragem' && Boolean(partes[1])
+
   // `#/tiragem/<id>` abre a sala daquela sessão; `#/tiragem` é o lobby.
   const conteudo =
     partes[0] === 'tiragem' && partes[1] ? (
@@ -64,6 +74,7 @@ function Rotas() {
 
   return (
     <>
+      {!naSala && <NebulaBackdrop />}
       <Header caminho={caminho} />
       <Suspense
         fallback={
@@ -74,6 +85,8 @@ function Rotas() {
       >
         {conteudo}
       </Suspense>
+      {/* Ponteiro-estrela com rastro — por cima de tudo, sem capturar clique. */}
+      {!naSala && <StarCursor />}
     </>
   )
 }
@@ -81,12 +94,9 @@ function Rotas() {
 export default function App() {
   return (
     <AuthProvider>
-      <NebulaBackdrop />
       {/* Definições dos filtros de fumaça — montadas uma vez para a página toda. */}
       <SmokeFilters />
       <Rotas />
-      {/* Ponteiro-estrela com rastro — por cima de tudo, sem capturar clique. */}
-      <StarCursor />
     </AuthProvider>
   )
 }
