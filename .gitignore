@@ -23,6 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.firebase-admin/
 
 # Fontes pesadas que não entram no site: o modelo 3D da mão (55 MB) foi
 # descartado quando a mão virou o círculo mágico, e a imagem de referência

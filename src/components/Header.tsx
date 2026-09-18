@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { site } from '../data/site'
 import { useAuth } from '../lib/useAuth'
 
@@ -30,20 +31,36 @@ function Avatar({ nome, foto }: { nome: string; foto?: string }) {
 export default function Header({ caminho }: { caminho: string }) {
   const { usuario, sair, backend } = useAuth()
   const [menu, setMenu] = useState(false)
+  const [posicaoMenu, setPosicaoMenu] = useState({ top: 64, left: 8 })
   const caixa = useRef<HTMLDivElement>(null)
+  const painelMenu = useRef<HTMLDivElement>(null)
+
+  function atualizarPosicaoMenu() {
+    if (!caixa.current) return
+    const ancora = caixa.current.getBoundingClientRect()
+    setPosicaoMenu({
+      top: ancora.bottom + 8,
+      left: Math.max(8, Math.min(ancora.right - 224, window.innerWidth - 232)),
+    })
+  }
 
   // Fecha o menu ao clicar fora ou apertar Esc.
   useEffect(() => {
     if (!menu) return
     const fora = (e: PointerEvent) => {
-      if (caixa.current && !caixa.current.contains(e.target as Node)) setMenu(false)
+      if (caixa.current && !caixa.current.contains(e.target as Node)
+        && !painelMenu.current?.contains(e.target as Node)) setMenu(false)
     }
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(false)
     document.addEventListener('pointerdown', fora)
     document.addEventListener('keydown', esc)
+    window.addEventListener('resize', atualizarPosicaoMenu)
+    window.addEventListener('scroll', atualizarPosicaoMenu, true)
     return () => {
       document.removeEventListener('pointerdown', fora)
       document.removeEventListener('keydown', esc)
+      window.removeEventListener('resize', atualizarPosicaoMenu)
+      window.removeEventListener('scroll', atualizarPosicaoMenu, true)
     }
   }, [menu])
 
@@ -86,7 +103,10 @@ export default function Header({ caminho }: { caminho: string }) {
             <div className="relative ml-1" ref={caixa}>
               <button
                 type="button"
-                onClick={() => setMenu((v) => !v)}
+                onClick={() => {
+                  atualizarPosicaoMenu()
+                  setMenu((v) => !v)
+                }}
                 aria-expanded={menu}
                 aria-haspopup="menu"
                 className="glass flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-[15px] text-mist transition hover:text-star"
@@ -95,10 +115,12 @@ export default function Header({ caminho }: { caminho: string }) {
                 <span className="hidden max-w-[10ch] truncate sm:inline">{usuario.nome}</span>
               </button>
 
-              {menu && (
+              {menu && createPortal(
                 <div
                   role="menu"
-                  className="glass absolute right-0 top-[calc(100%+8px)] w-56 overflow-hidden rounded-2xl py-1.5 text-[15px]"
+                  ref={painelMenu}
+                  style={{ top: posicaoMenu.top, left: posicaoMenu.left }}
+                  className="glass fixed z-[100] max-h-[calc(100dvh-7rem)] w-56 overflow-y-auto rounded-2xl py-1.5 text-[15px] shadow-2xl"
                 >
                   <p className="truncate px-4 py-2 text-[13px] text-mist/70">{usuario.email}</p>
                   {usuario.papel === 'tarologo' && (
@@ -112,7 +134,7 @@ export default function Header({ caminho }: { caminho: string }) {
                     onClick={() => setMenu(false)}
                     className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star"
                   >
-                    Perfil
+                    Meu perfil
                   </a>
                   {usuario.admin && (
                     <a href="#/admin" role="menuitem" onClick={() => setMenu(false)} className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star">
@@ -143,7 +165,7 @@ export default function Header({ caminho }: { caminho: string }) {
                       Modo local: dados só neste navegador.
                     </p>
                   )}
-                </div>
+                </div>, document.body,
               )}
             </div>
           ) : (
