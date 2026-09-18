@@ -5,6 +5,7 @@ import { useAuth } from '../lib/useAuth'
 const LINKS = [
   { href: '#/', rotulo: 'Home', combina: (c: string) => c === '/' },
   { href: '#/tiragem', rotulo: 'Tiragem digital', combina: (c: string) => c.startsWith('/tiragem') },
+  { href: '#/tarologos', rotulo: 'Tarólogos', combina: (c: string) => c.startsWith('/tarologos') },
 ]
 
 /** Rola ao topo quando já se está na home — o `hashchange` não dispara sozinho
@@ -113,6 +114,11 @@ export default function Header({ caminho }: { caminho: string }) {
                   >
                     Perfil
                   </a>
+                  {usuario.admin && (
+                    <a href="#/admin" role="menuitem" onClick={() => setMenu(false)} className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star">
+                      Gestão DigiTarot
+                    </a>
+                  )}
                   <a
                     href="#/tiragem"
                     role="menuitem"

@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_STORAGE_BUCKET?: string
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID?: string
   readonly VITE_FIREBASE_APP_ID?: string
+  /** Chave pública reCAPTCHA Enterprise registrada no App Check. */
+  readonly VITE_FIREBASE_APPCHECK_SITE_KEY?: string
   /** Chave Pix do recebedor: CPF, CNPJ, telefone, e-mail ou chave aleatória. */
   readonly VITE_PIX_CHAVE?: string
   /** Nome do recebedor como aparece no app do pagador. Até 25 caracteres. */

@@ -1,28 +1,26 @@
+import { categories } from '../../data/plans'
+import type { TarologoPublico } from './types'
+
 /**
- * Quem é o tarólogo. Uma linha, no código, versionada.
- *
- * Isto já foi uma variável de ambiente (`VITE_TAROLOGO_EMAILS`), guardada como
- * "secret" do GitHub — e a escolha estava errada por dois motivos.
- *
- * Primeiro, não é segredo: o MESMO endereço está escrito em `firestore.rules`,
- * que é público no repositório e precisa ser, porque é o servidor que decide o
- * papel de verdade. Esconder no front o que está exposto no servidor não
- * protege nada.
- *
- * Segundo, e foi o que doeu: um valor que mora fora do repositório sai de
- * sincronia sem avisar. Ao trocar o e-mail do tarólogo, o código e as regras
- * mudaram no mesmo commit, mas o secret ficou para trás — e o Rodrigo entrou
- * com a conta certa, com as regras já reconhecendo-o no servidor, e mesmo assim
- * viu a tela de cliente. Nenhum erro apareceu em lugar nenhum: a interface
- * simplesmente perguntou a uma cópia velha quem ele era.
- *
- * Aqui, trocar o tarólogo é editar dois arquivos vizinhos no mesmo commit —
- * este e `firestore.rules` — e o próximo push publica os dois juntos. Continua
- * sendo decisão de segurança, e continua exigindo tocar nos dois lugares; só
- * não dá mais para mudar um e esquecer o outro por três semanas.
+ * Bootstrap do administrador Rodrigo. Os demais tarólogos são cadastrados no
+ * Firestore por e-mail; não há lista de profissionais no código. As regras são
+ * publicadas no Firebase separadamente do fluxo do GitHub Pages.
  */
 export const EMAIL_TAROLOGO = 'rodriv.l680@gmail.com'
 
 /** Comparação de e-mail é sempre sem caixa: o Google devolve o que a pessoa digitou. */
 export const ehEmailDeTarologo = (email: string | null | undefined): boolean =>
   (email ?? '').trim().toLowerCase() === EMAIL_TAROLOGO
+
+/** Vitrine inicial e documento semeado para Rodrigo quando ele entra. */
+export const TAROLOGO_RODRIGO: TarologoPublico = {
+  uid: EMAIL_TAROLOGO,
+  email: EMAIL_TAROLOGO,
+  nome: 'Rodrigo',
+  foto: `${import.meta.env.BASE_URL}foto-tarologo-provisoria.jpg`,
+  personagem: `${import.meta.env.BASE_URL}rodrigo.webp`,
+  bio: 'Tarólogo e anfitrião da DigiTarot.',
+  avaliacao: { media: 5, total: 0 },
+  modalidades: Object.fromEntries(categories.flatMap((categoria) => categoria.plans.map((plano) => [plano.id, plano.price]))),
+  ativo: true,
+}

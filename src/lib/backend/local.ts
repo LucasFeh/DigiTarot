@@ -1,4 +1,5 @@
-import { EMAIL_TAROLOGO, ehEmailDeTarologo } from './tarologo'
+import { EMAIL_TAROLOGO, ehEmailDeTarologo, TAROLOGO_RODRIGO } from './tarologo'
+import { dadosPix } from '../pix'
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
@@ -10,6 +11,8 @@ import type {
   Perfil,
   Provedor,
   Sessao,
+  TarologoPix,
+  TarologoPublico,
   Unsubscribe,
   Usuario,
 } from './types'
@@ -23,6 +26,8 @@ const CHAVE_AGENDA = 'tarot.agendamentos'
 const CHAVE_HORARIOS = 'tarot.horarios'
 const CHAVE_CONVITES = 'tarot.convites'
 const CHAVE_MENSAGENS = 'tarot.mensagens'
+const CHAVE_TAROLOGOS = 'digitarot.tarologos'
+const CHAVE_PIX_TAROLOGOS = 'digitarot.pixTarologos'
 const CANAL = 'tarot.sync'
 
 /**
@@ -145,9 +150,13 @@ const semSenha = (c: Conta): Usuario => ({
   uid: c.uid,
   nome: c.nome,
   email: c.email,
+  emailVerificado: true,
   foto: c.foto,
   telefone: c.telefone,
-  papel: ehEmailDeTarologo(c.email) ? 'tarologo' : 'cliente',
+  papel: ehEmailDeTarologo(c.email) || Boolean(ler<Record<string, TarologoPublico>>(CHAVE_TAROLOGOS, {})[c.email.toLowerCase()])
+    ? 'tarologo'
+    : 'cliente',
+  admin: ehEmailDeTarologo(c.email),
   provedores: c.provedores,
 })
 
@@ -172,6 +181,7 @@ export class LocalBackend implements Backend {
   private ouvintesSessoes = new Set<() => void>()
   private ouvintesAgenda = new Set<() => void>()
   private ouvintesPerfil = new Set<() => void>()
+  private ouvintesTarologos = new Set<() => void>()
 
   constructor() {
     this.canal?.addEventListener('message', (e) => this.receber(String(e.data)))
@@ -181,6 +191,7 @@ export class LocalBackend implements Backend {
         if (e.key === CHAVE_SESSOES || e.key === CHAVE_MENSAGENS) this.receber('sessoes')
         if (e.key === CHAVE_AGENDA || e.key === CHAVE_HORARIOS) this.receber('agenda')
         if (e.key === CHAVE_PERFIS) this.receber('perfis')
+        if (e.key === CHAVE_TAROLOGOS || e.key === CHAVE_PIX_TAROLOGOS) this.receber('tarologos')
       })
     }
   }
@@ -189,9 +200,10 @@ export class LocalBackend implements Backend {
     if (tipo === 'sessoes') this.ouvintesSessoes.forEach((f) => f())
     if (tipo === 'agenda') this.ouvintesAgenda.forEach((f) => f())
     if (tipo === 'perfis') this.ouvintesPerfil.forEach((f) => f())
+    if (tipo === 'tarologos') this.ouvintesTarologos.forEach((f) => f())
   }
 
-  private avisar(tipo: 'sessoes' | 'agenda' | 'perfis') {
+  private avisar(tipo: 'sessoes' | 'agenda' | 'perfis' | 'tarologos') {
     this.canal?.postMessage(tipo)
     this.receber(tipo)
   }
@@ -329,6 +341,14 @@ export class LocalBackend implements Backend {
     }
     this.salvarConta(conta)
     this.definirUsuario(semSenha(conta))
+  }
+
+  async enviarVerificacaoEmail() {
+    // No modo de demonstração não há caixa de entrada real.
+  }
+
+  async atualizarVerificacaoEmail(): Promise<boolean> {
+    return true
   }
 
   async recuperarSenha(email: string) {
@@ -484,10 +504,72 @@ export class LocalBackend implements Backend {
     this.avisar('perfis')
   }
 
+  // ---------------------------- tarólogos ----------------------------
+
+  private tarologos(): Record<string, TarologoPublico> {
+    return { [TAROLOGO_RODRIGO.uid]: TAROLOGO_RODRIGO, ...ler<Record<string, TarologoPublico>>(CHAVE_TAROLOGOS, {}) }
+  }
+
+  observarTarologos(cb: (lista: TarologoPublico[]) => void): Unsubscribe {
+    const emitir = () => cb(Object.values(this.tarologos()))
+    this.ouvintesTarologos.add(emitir)
+    emitir()
+    return () => this.ouvintesTarologos.delete(emitir)
+  }
+
+  observarTarologo(uid: string, cb: (perfil: TarologoPublico | null) => void): Unsubscribe {
+    const emitir = () => cb(this.tarologos()[uid.toLowerCase()] ?? null)
+    this.ouvintesTarologos.add(emitir)
+    emitir()
+    return () => this.ouvintesTarologos.delete(emitir)
+  }
+
+  async salvarTarologo(uid: string, patch: Partial<TarologoPublico>) {
+    const id = uid.trim().toLowerCase()
+    if (!id || id.includes('/')) throw new Error('Informe um e-mail válido para o tarólogo.')
+    const mapa = ler<Record<string, TarologoPublico>>(CHAVE_TAROLOGOS, {})
+    const anterior = this.tarologos()[id]
+    mapa[id] = {
+      ...(anterior ?? {
+        nome: '', foto: '', personagem: '', bio: '',
+        avaliacao: { media: 5, total: 0 }, modalidades: {}, ativo: true,
+      }),
+      ...patch,
+      uid: id,
+      email: id,
+    }
+    gravar(CHAVE_TAROLOGOS, mapa)
+    this.avisar('tarologos')
+  }
+
+  observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe {
+    const emitir = () => {
+      const pix = ler<Record<string, TarologoPix>>(CHAVE_PIX_TAROLOGOS, {})
+      const configurado = dadosPix()
+      cb(pix[uid.toLowerCase()] ?? (uid.toLowerCase() === EMAIL_TAROLOGO && configurado.configurado
+        ? { chave: configurado.chave, nome: configurado.nome, cidade: configurado.cidade }
+        : null))
+    }
+    this.ouvintesTarologos.add(emitir)
+    emitir()
+    return () => this.ouvintesTarologos.delete(emitir)
+  }
+
+  async salvarPixTarologo(uid: string, pix: TarologoPix) {
+    const mapa = ler<Record<string, TarologoPix>>(CHAVE_PIX_TAROLOGOS, {})
+    mapa[uid.toLowerCase()] = pix
+    gravar(CHAVE_PIX_TAROLOGOS, mapa)
+    this.avisar('tarologos')
+  }
+
   // ---------------------------- agendamentos ----------------------------
 
   async criarAgendamento(dados: Omit<Agendamento, 'id' | 'criadoEm'>) {
-    const slot = `${dados.data}T${dados.hora}`
+    const perfil = this.tarologos()[dados.tarologoUid]
+    if (!perfil?.ativo || perfil.modalidades[dados.planoId] !== dados.preco) {
+      throw new Error('Esta modalidade não está disponível com este tarólogo.')
+    }
+    const slot = `${dados.tarologoUid}_${dados.data}T${dados.hora}`
     if (this.horarios()[slot]) throw new Error('Esse horário acabou de ser reservado. Escolha outro.')
 
     const id = novoId('a')
@@ -513,7 +595,10 @@ export class LocalBackend implements Backend {
   }
 
   observarTodosAgendamentos(cb: (a: Agendamento[]) => void): Unsubscribe {
-    const emitir = () => cb(this.agendamentos())
+    const emitir = () => {
+      const u = ler<Usuario | null>(CHAVE_USER, null, 'sessao')
+      cb(u?.admin ? this.agendamentos() : this.agendamentos().filter((a) => a.tarologoUid === u?.email.toLowerCase()))
+    }
     this.ouvintesAgenda.add(emitir)
     emitir()
     return () => this.ouvintesAgenda.delete(emitir)
@@ -529,7 +614,7 @@ export class LocalBackend implements Backend {
       const alvo = lista.find((a) => a.id === id)
       if (alvo) {
         const mapa = this.horarios()
-        delete mapa[`${alvo.data}T${alvo.hora}`]
+        delete mapa[alvo.tarologoUid ? `${alvo.tarologoUid}_${alvo.data}T${alvo.hora}` : `${alvo.data}T${alvo.hora}`]
         gravar(CHAVE_HORARIOS, mapa)
       }
     }

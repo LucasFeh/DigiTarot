@@ -11,7 +11,7 @@ import type { ChaveArte, Tema, TemaPano } from './tipos'
  * 3D e a mesa tratam todos igual.
  *
  * `import.meta.env.BASE_URL` e não um caminho absoluto: no GitHub Pages o site
- * mora em /portifolio-tarot/, e uma barra no começo apontaria para a raiz do
+ * mora em /DigiTarot/, e uma barra no começo apontaria para a raiz do
  * domínio (ver a `base` em vite.config.ts).
  */
 const RAIZ = `${import.meta.env.BASE_URL}baralhos`

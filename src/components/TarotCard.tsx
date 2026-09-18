@@ -9,7 +9,7 @@ import {
 import type { RefObject } from 'react'
 import CardVisual, { CARD_H, CARD_W } from './CardVisual'
 import { fanOffset, noise } from '../lib/fan'
-import { formatPrice, type Plan } from '../data/plans'
+import type { Plan } from '../data/plans'
 import type { PullField } from '../lib/usePortalPull'
 
 type Custom = {
@@ -245,7 +245,7 @@ export default function TarotCard({
           onPointerEnter={(e) => e.pointerType !== 'touch' && onActivate()}
           onFocus={(e) => e.currentTarget.matches(':focus-visible') && onActivate()}
           onClick={(e) => (revealed ? onSelect(e.currentTarget.getBoundingClientRect()) : onActivate())}
-          aria-label={`${plan.title}${plan.duration ? `, ${plan.duration}` : ''}, ${formatPrice(plan.price)}`}
+          aria-label={`${plan.title}${plan.duration ? `, ${plan.duration}` : ''}`}
           className="block h-full w-full cursor-pointer rounded-[14px] outline-none transition-[transform,filter] duration-[420ms] ease-[cubic-bezier(.2,.8,.2,1)] focus-visible:ring-2 focus-visible:ring-gold/70 disabled:cursor-default"
           style={{
             transform: revealed

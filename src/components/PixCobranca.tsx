@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { dadosPix, payloadPix } from '../lib/pix'
+import { dadosPix, payloadPix, type DadosPix } from '../lib/pix'
 import { formatPriceFull } from '../data/plans'
 
 /**
@@ -14,12 +14,14 @@ export default function PixCobranca({
   valor,
   codigo,
   descricao,
+  pix: pixInformado,
 }: {
   valor: number
   codigo: string
   descricao: string
+  pix?: DadosPix
 }) {
-  const pix = dadosPix()
+  const pix = pixInformado ?? dadosPix()
   const [copiado, setCopiado] = useState(false)
 
   const payload = useMemo(
@@ -51,11 +53,9 @@ export default function PixCobranca({
   if (!pix.configurado) {
     return (
       <div className="rounded-2xl border border-gold/40 bg-gold/10 p-6">
-        <p className="font-display text-[17px] text-gold">Pix ainda não configurado</p>
+        <p className="font-display text-[17px] text-gold">Pagamento indisponível no momento</p>
         <p className="mt-2 text-[15px] leading-relaxed text-mist">
-          A chave do recebedor não foi preenchida. Defina <code className="text-gold">VITE_PIX_CHAVE</code>,{' '}
-          <code className="text-gold">VITE_PIX_NOME</code> e <code className="text-gold">VITE_PIX_CIDADE</code>{' '}
-          no arquivo <code className="text-gold">.env</code> para o QR Code aparecer aqui.
+          O tarólogo ainda precisa configurar os dados Pix. Volte mais tarde ou fale com o atendimento antes de pagar.
         </p>
       </div>
     )

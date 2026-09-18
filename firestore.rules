@@ -1,8 +1,7 @@
 rules_version = '2';
 
-// Regras do Firestore. A lista de tarólogos do front (VITE_TAROLOGO_EMAILS) só
-// decide o que a interface mostra — quem de fato protege os dados é isto aqui,
-// que roda no servidor e não pode ser burlado pelo cliente.
+// Regras do Firestore. A vitrine pública vem da coleção `tarologos`, mas quem
+// de fato protege os dados é este arquivo, executado no servidor.
 //
 // Publicar:  Firebase Console › Firestore Database › Regras › colar › Publicar.
 service cloud.firestore {
@@ -17,10 +16,9 @@ service cloud.firestore {
     }
 
     /**
-     * O único acesso de tarólogo. O e-mail está escrito à mão de propósito: é a
-     * mesma lista do `.env`, mas esta cópia roda no servidor e é a que vale.
-     * Trocar o e-mail do Rodrigo exige mexer nos dois lugares — e é bom que
-     * exija, porque é uma decisão de segurança, não de interface.
+     * A conta administrativa inicial é identificada no servidor pelo e-mail
+     * verificado. Os demais tarólogos são reconhecidos por um documento criado
+     * previamente pelo administrador em `tarologos/{email-normalizado}`.
      *
      * `token.get('email', '')`, e NUNCA `token.email`: quem entra por SMS tem um
      * token sem a chave `email`, e nas regras do Firestore ler um campo ausente
@@ -37,10 +35,47 @@ service cloud.firestore {
      * entrada — o que o login pelo Google faz sozinho, e o cadastro por senha
      * só consegue clicando num link que chega ao Rodrigo.
      */
-    function ehTarologo() {
+    function emailVerificado() {
       return logado()
              && request.auth.token.get('email_verified', false) == true
-             && request.auth.token.get('email', '').lower() == 'rodriv.l680@gmail.com';
+             && request.auth.token.get('email', '') is string;
+    }
+
+    // E-mail/senha e Google precisam de endereço confirmado. Quem entrou só
+    // por SMS já comprovou a posse do telefone e não tem e-mail para confirmar.
+    function contaConfirmada() {
+      return emailVerificado()
+             || (logado()
+                 && request.auth.token.get('email', '') == ''
+                 && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'phone');
+    }
+
+    function perfilId() {
+      return request.auth.token.get('email', '').lower();
+    }
+
+    function ehAdmin() {
+      return emailVerificado() && perfilId() == 'rodriv.l680@gmail.com';
+    }
+
+    function perfilTarologo(id) {
+      return get(/databases/$(database)/documents/tarologos/$(id)).data;
+    }
+
+    function tarologoAtivo(id) {
+      return id is string
+             && exists(/databases/$(database)/documents/tarologos/$(id))
+             && perfilTarologo(id).get('ativo', false) == true;
+    }
+
+    function donoTarologo(id) {
+      return emailVerificado()
+             && perfilId() == id
+             && exists(/databases/$(database)/documents/tarologos/$(id));
+    }
+
+    function ehTarologo() {
+      return ehAdmin() || donoTarologo(perfilId());
     }
 
     /** Só os campos listados mudaram nesta escrita. */
@@ -49,11 +84,61 @@ service cloud.firestore {
     }
 
     // ------------------------------- perfis -------------------------------
-    // O registro de cada pessoa. É dela, e só dela — o tarólogo lê porque
-    // precisa saber com quem vai falar.
+    // O registro de cada pessoa. É dela, e só dela; o atendimento usa os dados
+    // mínimos já copiados no agendamento.
     match /perfis/{usuarioId} {
-      allow read: if logado() && (uid() == usuarioId || ehTarologo());
-      allow write: if logado() && uid() == usuarioId;
+      allow read: if contaConfirmada() && (uid() == usuarioId || ehAdmin());
+      allow write: if contaConfirmada() && uid() == usuarioId;
+    }
+
+    // A vitrine é pública; papel, avaliações e preços não vêm de perfis
+    // editáveis pelo usuário. Admin cria pelo e-mail antes mesmo do login.
+    match /tarologos/{tarologoId} {
+      allow read: if true;
+      allow create: if ehAdmin()
+                    && request.resource.data.uid == tarologoId
+                    && request.resource.data.email == tarologoId
+                    && request.resource.data.modalidades is map;
+      allow update: if ehAdmin()
+                    && request.resource.data.uid == tarologoId
+                    && request.resource.data.email == tarologoId
+                    && request.resource.data.modalidades is map;
+      allow delete: if ehAdmin();
+    }
+
+    // A chave Pix é legível pelo recebedor, admin e cliente com reserva válida.
+    // Ela nunca sai na consulta pública da vitrine.
+    match /pixTarologos/{tarologoId} {
+      function acessoCliente() {
+        let caminho = /databases/$(database)/documents/pixAcessos/$(tarologoId + '_' + uid());
+        return contaConfirmada()
+               && exists(caminho)
+               && get(caminho).data.clienteUid == uid()
+               && get(caminho).data.tarologoUid == tarologoId;
+      }
+      allow get: if ehAdmin() || donoTarologo(tarologoId) || acessoCliente();
+      allow list: if false;
+      allow create, update: if ehAdmin()
+                            && request.resource.data.keys().hasOnly(['chave', 'nome', 'cidade'])
+                            && request.resource.data.chave is string
+                            && request.resource.data.chave.size() > 0
+                            && request.resource.data.nome is string
+                            && request.resource.data.nome.size() > 0
+                            && request.resource.data.cidade is string
+                            && request.resource.data.cidade.size() > 0;
+      allow delete: if ehAdmin();
+    }
+
+    match /pixAcessos/{acessoId} {
+      allow read: if false;
+      allow create, update: if contaConfirmada()
+                            && acessoId == request.resource.data.tarologoUid + '_' + uid()
+                            && request.resource.data.clienteUid == uid()
+                            && request.resource.data.agendamentoId is string
+                            && getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.clienteUid == uid()
+                            && getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.tarologoUid == request.resource.data.tarologoUid
+                            && getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.status != 'cancelado';
+      allow delete: if false;
     }
 
     // ------------------------------ horários ------------------------------
@@ -67,36 +152,77 @@ service cloud.firestore {
     // quais minutos caíram. E por isso o documento guarda só o uid de quem
     // reservou: nome, contato e valor ficam em `agendamentos`, que é fechado.
     match /horarios/{slot} {
-      allow read: if logado();
-      allow create: if logado() && request.resource.data.uid == uid();
+      allow read: if contaConfirmada();
+      allow create: if contaConfirmada()
+                    && request.resource.data.uid == uid()
+                    && !exists(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId))
+                    && slot == request.resource.data.tarologoUid + '_'
+                               + getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.data
+                               + 'T'
+                               + getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.hora
+                    && getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.clienteUid == uid()
+                    && getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.status == 'aguardando'
+                    && getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.tarologoUid == request.resource.data.tarologoUid;
       allow update: if false;
-      allow delete: if ehTarologo() || (logado() && resource.data.uid == uid());
+      allow delete: if contaConfirmada()
+                    && (ehAdmin() || resource.data.uid == uid() || donoTarologo(resource.data.get('tarologoUid', '')))
+                    && getAfter(/databases/$(database)/documents/agendamentos/$(resource.data.agendamentoId)).data.status == 'cancelado';
     }
 
     // ---------------------------- agendamentos ----------------------------
     match /agendamentos/{agendamentoId} {
-      allow read: if logado() && (resource.data.clienteUid == uid() || ehTarologo());
+      allow read: if contaConfirmada() && (resource.data.clienteUid == uid()
+                                 || ehAdmin()
+                                 || donoTarologo(resource.data.get('tarologoUid', '')));
 
-      allow create: if logado()
+      allow create: if contaConfirmada()
                     && request.resource.data.clienteUid == uid()
                     // Ninguém nasce pago: quem confirma pagamento é o tarólogo.
                     && request.resource.data.status == 'aguardando'
                     // Nem já com mesa aberta.
                     && !('sessaoId' in request.resource.data)
                     && request.resource.data.preco is number
-                    && request.resource.data.preco > 0;
+                    && request.resource.data.preco > 0
+                    && request.resource.data.planoId is string
+                    && tarologoAtivo(request.resource.data.tarologoUid)
+                    && perfilTarologo(request.resource.data.tarologoUid).modalidades.get(request.resource.data.planoId, 0) == request.resource.data.preco
+                    && exists(/databases/$(database)/documents/pixTarologos/$(request.resource.data.tarologoUid))
+                    && get(/databases/$(database)/documents/pixTarologos/$(request.resource.data.tarologoUid)).data.chave.size() > 0
+                    && getAfter(/databases/$(database)/documents/pixAcessos/$(request.resource.data.tarologoUid + '_' + uid())).data.agendamentoId == agendamentoId
+                    && getAfter(/databases/$(database)/documents/horarios/$(request.resource.data.tarologoUid + '_' + request.resource.data.data + 'T' + request.resource.data.hora)).data.agendamentoId == agendamentoId;
 
-      // O tarólogo manda em tudo. O cliente só pode avisar que pagou ou
-      // desistir — não pode mudar o preço, o horário nem se dar por confirmado.
-      allow update: if ehTarologo()
+      // Administrador e tarólogo responsável só executam transições previstas;
+      // preço, cliente, modalidade e horário continuam imutáveis para auditoria.
+      // O cliente só pode avisar que pagou ou desistir.
+      allow update: if ((ehAdmin() || donoTarologo(resource.data.get('tarologoUid', '')))
+                        && (
+                          (mexeuSoEm(['status', 'confirmadoEm'])
+                           && resource.data.status in ['aguardando', 'pago']
+                           && request.resource.data.status == 'confirmado'
+                           && request.resource.data.confirmadoEm is string)
+                          || (mexeuSoEm(['status'])
+                              && resource.data.status in ['aguardando', 'pago', 'confirmado']
+                              && request.resource.data.status == 'cancelado')
+                          || (mexeuSoEm(['sessaoId'])
+                              && resource.data.status == 'confirmado'
+                              && request.resource.data.sessaoId is string
+                              && get(/databases/$(database)/documents/sessoes/$(request.resource.data.sessaoId)).data.agendamentoId == agendamentoId
+                              && get(/databases/$(database)/documents/sessoes/$(request.resource.data.sessaoId)).data.tarologoUid == uid())
+                          || (mexeuSoEm(['atendidoEm'])
+                              && resource.data.status == 'confirmado'
+                              && !('atendidoEm' in resource.data)
+                              && request.resource.data.atendidoEm is string)
+                        ))
                     || (
-                      logado()
+                      contaConfirmada()
                       && resource.data.clienteUid == uid()
                       && mexeuSoEm(['status'])
-                      && request.resource.data.status in ['pago', 'cancelado']
+                      && ((resource.data.status == 'aguardando' && request.resource.data.status in ['pago', 'cancelado'])
+                          || (resource.data.status == 'pago' && request.resource.data.status == 'cancelado'))
                     );
 
-      allow delete: if ehTarologo();
+      // Agendamentos são preservados como histórico; cancelamento é um status.
+      allow delete: if false;
     }
 
     // --------------------------- sessões particulares ---------------------------
@@ -117,7 +243,7 @@ service cloud.firestore {
       // consultá-los, a própria tela de sessões particulares ficava vazia para
       // sempre, porque uma consulta ao Firestore é uma operação `list` e a
       // negativa chegava calada na assinatura.
-      allow list: if ehTarologo();
+      allow list: if ehAdmin() || (ehTarologo() && resource.data.tarologoUid == uid());
 
       allow create: if ehTarologo() && request.resource.data.tarologoUid == uid();
 
@@ -147,12 +273,12 @@ service cloud.firestore {
     match /sessoes/{sessaoId} {
       allow get: if resource.data.get('publica', false) == true
                  || (
-                   logado()
+                   contaConfirmada()
                    && (resource.data.tarologoUid == uid()
                        || resource.data.get('clienteUid', null) == uid())
                  );
 
-      allow list: if logado()
+      allow list: if contaConfirmada()
                   && (resource.data.tarologoUid == uid()
                       || resource.data.get('clienteUid', null) == uid());
 
@@ -173,7 +299,7 @@ service cloud.firestore {
       // `get(campo, null)` em vez de `resource.data.campo`: sessão gravada
       // antes deste campo existir não tem a chave, e o acesso direto a um
       // campo ausente faz a regra INTEIRA falhar, não devolver null.
-      allow update: if logado() && (
+      allow update: if contaConfirmada() && (
         resource.data.tarologoUid == uid()
         || (
           resource.data.get('clienteUid', null) == null
@@ -186,7 +312,7 @@ service cloud.firestore {
         )
       );
 
-      allow delete: if logado() && resource.data.tarologoUid == uid();
+      allow delete: if contaConfirmada() && resource.data.tarologoUid == uid();
 
       // ------------------------------ conversa ------------------------------
       // O chat da mesa. Fica numa subcoleção, e não num campo da sessão, por
@@ -205,7 +331,7 @@ service cloud.firestore {
         function participa() {
           return mesa().get('publica', false) == true
                  || (
-                   logado()
+                   contaConfirmada()
                    && (mesa().tarologoUid == uid() || mesa().get('clienteUid', null) == uid())
                  );
         }

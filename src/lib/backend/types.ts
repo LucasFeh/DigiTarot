@@ -7,10 +7,14 @@ export type Usuario = {
   uid: string
   nome: string
   email: string
+  /** Contas com e-mail só usam áreas privadas após confirmar a caixa de entrada. */
+  emailVerificado: boolean
   foto?: string
   /** Em E.164 (`+5531982676254`), quando a conta tem telefone verificado. */
   telefone?: string
   papel: Papel
+  /** Rodrigo administra os perfis; também continua sendo tarólogo. */
+  admin?: boolean
   /**
    * Quais formas de login estão ligadas a esta conta. A tela de perfil precisa
    * disso para não deixar alguém desvincular o Google sendo ele a ÚNICA porta —
@@ -18,6 +22,22 @@ export type Usuario = {
    */
   provedores: Provedor[]
 }
+
+/** ID do perfil = e-mail normalizado. Pode existir antes do primeiro login. */
+export type TarologoPublico = {
+  uid: string
+  nome: string
+  email: string
+  foto: string
+  personagem: string
+  bio: string
+  avaliacao: { media: number; total: number }
+  /** Plano do catálogo -> preço em reais. Ausência significa não atendido. */
+  modalidades: Record<string, number>
+  ativo: boolean
+}
+
+export type TarologoPix = { chave: string; nome: string; cidade: string }
 
 /** Uma carta posta pelo tarólogo num slot do layout. */
 export type CartaNaMesa = {
@@ -109,6 +129,9 @@ export type FormatoConsulta = 'chamada' | 'audio' | 'escrito'
 
 export type Agendamento = {
   id: string
+  /** ID do perfil do tarólogo (e-mail normalizado), não UID do Firebase Auth. */
+  tarologoUid: string
+  tarologoNome: string
   clienteUid: string
   clienteNome: string
   clienteEmail: string
@@ -131,6 +154,10 @@ export type Agendamento = {
   observacao: string
 
   status: StatusAgendamento
+  /** Marca a conferência manual do pagamento; não é confirmação bancária automática. */
+  confirmadoEm?: string
+  /** Preenchido quando o atendimento realmente terminar. */
+  atendidoEm?: string
   /** ISO. String, para o mesmo formato servir aos dois backends. */
   criadoEm: string
   /**
@@ -280,8 +307,10 @@ export interface Backend {
   observarUsuario(cb: (u: Usuario | null) => void): Unsubscribe
   entrarComGoogle(): Promise<void>
   entrarComEmail(email: string, senha: string): Promise<void>
-  /** Cria a conta do visitante e já o deixa logado. */
+  /** Cria a conta e envia o link para confirmar o e-mail. */
   cadastrarComEmail(nome: string, email: string, senha: string): Promise<void>
+  enviarVerificacaoEmail(): Promise<void>
+  atualizarVerificacaoEmail(): Promise<boolean>
   /** Dispara o e-mail de redefinição. Nunca revela se a conta existe. */
   recuperarSenha(email: string): Promise<void>
   sair(): Promise<void>
@@ -315,6 +344,13 @@ export interface Backend {
 
   observarPerfil(uid: string, cb: (p: Perfil) => void): Unsubscribe
   salvarPerfil(uid: string, patch: Partial<Perfil>): Promise<void>
+
+  // ---------------------------- tarólogos ----------------------------
+  observarTarologos(cb: (lista: TarologoPublico[]) => void, onError?: (erro: string) => void): Unsubscribe
+  observarTarologo(uid: string, cb: (perfil: TarologoPublico | null) => void): Unsubscribe
+  salvarTarologo(uid: string, patch: Partial<TarologoPublico>): Promise<void>
+  observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe
+  salvarPixTarologo(uid: string, pix: TarologoPix): Promise<void>
 
   // ---------------------------- agendamentos ----------------------------
 

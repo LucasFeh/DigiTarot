@@ -4,6 +4,7 @@ import { useAuth } from '../lib/useAuth'
 import { usePerfil } from '../lib/perfil'
 import { irPara } from '../lib/useHashRoute'
 import { PLAN_BY_ID, formatPriceFull } from '../data/plans'
+import { useTarologos } from '../lib/tarologos'
 import { rotuloCompleto } from '../data/agenda'
 import SeletorHorario from '../components/agenda/SeletorHorario'
 import AvisoModoLocal from '../components/AvisoModoLocal'
@@ -26,12 +27,14 @@ const CAMPO =
  * Só letras e números, que é tudo que o txid aceita.
  */
 function novoCodigo() {
-  return `TAROT${Date.now().toString(36).toUpperCase()}`
+  return `DIGI${Date.now().toString(36).toUpperCase()}`
 }
 
 export default function AgendarPage({ planoId }: { planoId: string }) {
   const { usuario, carregando, backend } = useAuth()
   const { perfil, nomeExibido } = usePerfil(usuario)
+  const { tarologos, carregando: carregandoTarologos, erro: erroTarologos } = useTarologos()
+  const [tarologoId, setTarologoId] = useState<string | null>(null)
 
   const [dia, setDia] = useState<string | null>(null)
   const [hora, setHora] = useState<string | null>(null)
@@ -44,6 +47,8 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
   const [enviando, setEnviando] = useState(false)
 
   const item = PLAN_BY_ID.get(planoId)
+  const disponiveis = tarologos.filter((t) => t.ativo && Number(t.modalidades[planoId]) > 0)
+  const tarologo = disponiveis.find((t) => t.uid === tarologoId)
 
   useEffect(() => {
     if (!backend || !usuario) return
@@ -59,22 +64,21 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
     setContato((c) => c || perfil.contato)
   }, [perfil.contato])
 
-  const tomados = useMemo(() => new Set(ocupados), [ocupados])
+  const tomados = useMemo(() => {
+    if (!tarologoId) return new Set<string>()
+    const prefixo = `${tarologoId}_`
+    return new Set(
+      ocupados.flatMap((slot) =>
+        slot.startsWith(prefixo) ? [slot.slice(prefixo.length)] : slot.includes('_') ? [] : [slot],
+      ),
+    )
+  }, [ocupados, tarologoId])
 
   if (carregando) {
     return (
       <main className="grid min-h-[calc(100vh-4rem)] place-items-center">
         <p className="text-[15px] text-mist/70">Carregando…</p>
       </main>
-    )
-  }
-
-  if (!usuario) {
-    return (
-      <LoginPage
-        titulo="Falta só entrar"
-        descricao="A reserva fica guardada na sua conta — é por ela que você recebe o horário, o pagamento e a sala da consulta."
-      />
     )
   }
 
@@ -96,6 +100,59 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
   }
 
   const { plano, categoria } = item
+  if (!tarologo) {
+    return (
+      <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-5xl px-5 py-12">
+        <a href="#/tiragem" className="text-[14px] text-mist/70 transition hover:text-star">← Voltar ao catálogo</a>
+        <p className="mt-8 text-[12px] uppercase tracking-[0.25em] text-gold">{categoria.title}</p>
+        <h1 className="text-nebula mt-2 text-3xl sm:text-5xl">Escolha seu tarólogo</h1>
+        <p className="mt-3 max-w-2xl text-[16px] leading-relaxed text-mist/80">
+          {plano.title}. Veja quem realiza esta modalidade e o valor de cada atendimento.
+        </p>
+        {carregandoTarologos ? (
+          <p className="mt-10 text-mist/70">Carregando profissionais…</p>
+        ) : erroTarologos ? (
+          <p className="mt-10 rounded-xl border border-rose/40 bg-rose/10 p-4 text-rose">{erroTarologos}</p>
+        ) : disponiveis.length === 0 ? (
+          <p className="mt-10 rounded-xl border border-white/15 bg-white/5 p-5 text-mist">
+            Nenhum tarólogo oferece esta modalidade no momento. Escolha outra carta no catálogo.
+          </p>
+        ) : (
+          <div className="mt-9 grid gap-4 sm:grid-cols-2">
+            {disponiveis.map((t) => (
+              <button
+                key={t.uid}
+                type="button"
+                onClick={() => setTarologoId(t.uid)}
+                className="glass flex items-center gap-5 rounded-2xl p-5 text-left transition hover:-translate-y-1 hover:border-gold/50 focus-visible:outline-2 focus-visible:outline-gold"
+              >
+                <img
+                  src={t.foto || `${import.meta.env.BASE_URL}rodrigo.webp`}
+                  alt={`Retrato de ${t.nome}`}
+                  className="h-20 w-20 shrink-0 rounded-xl object-cover"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-display text-xl text-star">{t.nome}</span>
+                  <span className="mt-1 block line-clamp-2 text-[13px] leading-relaxed text-mist/70">{t.bio}</span>
+                  <span className="mt-2 block text-[13px] text-gold">
+                    {t.avaliacao.total ? `★ ${t.avaliacao.media.toFixed(1)} · ${t.avaliacao.total} avaliações` : '★★★★★ · avaliações em breve'}
+                  </span>
+                  {t.foto.includes('foto-tarologo-provisoria') && <span className="mt-1 block text-[11px] text-mist/50">Foto ilustrativa</span>}
+                </span>
+                <span className="shrink-0 font-display text-lg text-gold">{formatPriceFull(t.modalidades[planoId])}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </main>
+    )
+  }
+
+  if (!usuario) {
+    return <LoginPage titulo="Falta só entrar" descricao={`Sua consulta com ${tarologo.nome} ficará guardada na sua conta.`} />
+  }
+
+  const preco = tarologo.modalidades[planoId]
   const pronto = Boolean(dia && hora && nome.trim() && contato.trim())
 
   const reservar = async () => {
@@ -108,11 +165,13 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
         clienteNome: nome.trim(),
         clienteEmail: usuario.email,
         contato: contato.trim(),
+        tarologoUid: tarologo.uid,
+        tarologoNome: tarologo.nome,
         planoId: plano.id,
         planoTitulo: plano.title,
         categoriaTitulo: categoria.title,
         duracao: plano.duration ?? '',
-        preco: plano.price,
+        preco,
         data: dia,
         hora,
         formato,
@@ -150,10 +209,13 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
           <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
             <h1 className="font-display text-2xl text-star sm:text-3xl">{plano.title}</h1>
             <span className="font-display text-2xl font-semibold text-gold">
-              {formatPriceFull(plano.price)}
+              {formatPriceFull(preco)}
             </span>
           </div>
           <p className="mt-2 text-[15px] leading-relaxed text-mist/85">{plano.resumo}</p>
+          <button type="button" onClick={() => { setTarologoId(null); setDia(null); setHora(null) }} className="mt-3 text-[14px] text-gold hover:text-star">
+            Com {tarologo.nome} · trocar tarólogo
+          </button>
           {plano.duration && (
             <p className="mt-2 text-[13px] uppercase tracking-[0.14em] text-mist/70">
               Duração: {plano.duration}
@@ -242,7 +304,7 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
               value={observacao}
               onChange={(e) => setObservacao(e.target.value)}
               rows={3}
-              placeholder="Escreva aqui a pergunta ou a situação. Ajuda o Rodrigo a preparar a tiragem."
+              placeholder={`Escreva aqui a pergunta ou a situação. Ajuda ${tarologo.nome} a preparar a tiragem.`}
               className={`${CAMPO} resize-y leading-relaxed`}
             />
           </label>
@@ -260,7 +322,7 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
             </p>
           </div>
           <span className="font-display text-2xl font-semibold text-gold">
-            {formatPriceFull(plano.price)}
+            {formatPriceFull(preco)}
           </span>
         </div>
 

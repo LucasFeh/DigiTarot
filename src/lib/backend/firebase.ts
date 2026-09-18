@@ -1,4 +1,5 @@
 import { initializeApp, type FirebaseOptions } from 'firebase/app'
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
 import {
   EmailAuthProvider,
   GoogleAuthProvider,
@@ -8,10 +9,11 @@ import {
   linkWithCredential,
   linkWithPhoneNumber,
   linkWithPopup,
-  onAuthStateChanged,
+  onIdTokenChanged,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signInWithPopup,
@@ -24,7 +26,6 @@ import {
 } from 'firebase/auth'
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getFirestore,
@@ -34,9 +35,11 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore'
 import { novoToken } from './local'
-import { ehEmailDeTarologo } from './tarologo'
+import { ehEmailDeTarologo, TAROLOGO_RODRIGO } from './tarologo'
+import { dadosPix } from '../pix'
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
@@ -48,6 +51,8 @@ import type {
   Perfil,
   Provedor,
   Sessao,
+  TarologoPix,
+  TarologoPublico,
   Unsubscribe,
   Usuario,
 } from './types'
@@ -57,8 +62,7 @@ import type {
  * interface mostra. A regra que vale é a do Firestore, no servidor, que traz o
  * mesmo e-mail e ainda exige que ele venha verificado. Veja `firestore.rules`.
  */
-const papelDe = (email: string | null): Usuario['papel'] =>
-  ehEmailDeTarologo(email) ? 'tarologo' : 'cliente'
+const idTarologo = (email: string | null | undefined) => (email ?? '').trim().toLowerCase()
 
 const PROVEDORES: Record<string, Provedor> = {
   'google.com': 'google',
@@ -66,15 +70,17 @@ const PROVEDORES: Record<string, Provedor> = {
   phone: 'telefone',
 }
 
-const paraUsuario = (u: User): Usuario => ({
+const paraUsuario = (u: User, habilitado = false): Usuario => ({
   uid: u.uid,
   // Quem entrou só pelo telefone não tem nome nem e-mail: o número é o único
   // jeito de a pessoa se reconhecer na tela até preencher o perfil.
   nome: u.displayName ?? u.email?.split('@')[0] ?? u.phoneNumber ?? 'Visitante',
   email: u.email ?? '',
+  emailVerificado: u.email ? u.emailVerified : Boolean(u.phoneNumber),
   foto: u.photoURL ?? undefined,
   telefone: u.phoneNumber ?? undefined,
-  papel: papelDe(u.email),
+  papel: habilitado || (u.emailVerified && ehEmailDeTarologo(u.email)) ? 'tarologo' : 'cliente',
+  admin: u.emailVerified && ehEmailDeTarologo(u.email),
   provedores: u.providerData
     .map((p) => PROVEDORES[p.providerId])
     .filter((p): p is Provedor => Boolean(p)),
@@ -115,13 +121,13 @@ function traduzir(e: unknown): Error {
     'auth/billing-not-enabled':
       'A entrada por SMS está indisponível no momento. Use o Google ou seu e-mail e senha.',
     'auth/admin-restricted-operation':
-      'A entrada por SMS está indisponível no momento. Use o Google ou seu e-mail e senha.',
+      'A criação de novas contas está temporariamente suspensa. Se já tem uma conta, entre normalmente.',
     'auth/captcha-check-failed': 'A verificação anti-robô falhou. Recarregue a página e tente de novo.',
     'auth/account-exists-with-different-credential':
       'Este contato já pertence a outra conta. Entre por ela e vincule os dois no perfil.',
     'auth/too-many-requests': 'Muitas tentativas seguidas. Espere um pouco e tente de novo.',
     'auth/network-request-failed': 'Sem conexão com o servidor. Verifique a internet e tente de novo.',
-    'permission-denied': 'Este horário acabou de ser reservado por outra pessoa.',
+    'permission-denied': 'Não foi possível reservar. Confira o horário, o preço e o Pix deste tarólogo.',
 
     // Os três seguintes não são erro de quem está usando o site: são passos do
     // console do Firebase que faltam. Sem uma mensagem própria, a pessoa lê um
@@ -146,6 +152,13 @@ export class FirebaseBackend implements Backend {
 
   constructor(config: FirebaseOptions) {
     const app = initializeApp(config)
+    const siteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY?.trim()
+    if (siteKey) {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(siteKey),
+        isTokenAutoRefreshEnabled: true,
+      })
+    }
     this.auth = getAuth(app)
     this.db = getFirestore(app)
   }
@@ -173,7 +186,44 @@ export class FirebaseBackend implements Backend {
   // ------------------------------- conta -------------------------------
 
   observarUsuario(cb: (u: Usuario | null) => void): Unsubscribe {
-    return onAuthStateChanged(this.auth, (u) => cb(u ? paraUsuario(u) : null))
+    let pararPerfil: Unsubscribe | undefined
+    const pararAuth = onIdTokenChanged(this.auth, (u) => {
+      pararPerfil?.()
+      pararPerfil = undefined
+      if (!u) {
+        cb(null)
+        return
+      }
+      if (u.emailVerified && ehEmailDeTarologo(u.email)) {
+        void this.semearRodrigo().catch((e) => console.error('Perfil inicial do Rodrigo:', e))
+        cb(paraUsuario(u))
+        return
+      }
+      if (!u.emailVerified || !u.email) {
+        cb(paraUsuario(u))
+        return
+      }
+      pararPerfil = onSnapshot(
+        doc(this.db, 'tarologos', idTarologo(u.email)),
+        (d) => cb(paraUsuario(u, d.exists())),
+        () => cb(paraUsuario(u)),
+      )
+    })
+    return () => {
+      pararPerfil?.()
+      pararAuth()
+    }
+  }
+
+  private async semearRodrigo() {
+    const ref = doc(this.db, 'tarologos', TAROLOGO_RODRIGO.uid)
+    if (!(await getDoc(ref)).exists()) await setDoc(ref, TAROLOGO_RODRIGO)
+    const pix = dadosPix()
+    if (!pix.configurado || !pix.nome || !pix.cidade) return
+    const pixRef = doc(this.db, 'pixTarologos', TAROLOGO_RODRIGO.uid)
+    if (!(await getDoc(pixRef)).exists()) {
+      await setDoc(pixRef, { chave: pix.chave, nome: pix.nome, cidade: pix.cidade })
+    }
   }
 
   async entrarComGoogle() {
@@ -197,9 +247,30 @@ export class FirebaseBackend implements Backend {
       const { user } = await createUserWithEmailAndPassword(this.auth, email.trim(), senha)
       const limpo = nome.trim()
       if (limpo) await updateProfile(user, { displayName: limpo })
-      // O `onAuthStateChanged` já disparou com o displayName ainda vazio. Este
-      // reload devolve o usuário com o nome, e o AuthProvider reemite.
-      await user.reload()
+      this.auth.languageCode = 'pt'
+      await sendEmailVerification(user)
+    } catch (e) {
+      throw traduzir(e)
+    }
+  }
+
+  async enviarVerificacaoEmail() {
+    try {
+      const u = this.exigirUsuario()
+      if (!u.email || u.emailVerified) return
+      this.auth.languageCode = 'pt'
+      await sendEmailVerification(u)
+    } catch (e) {
+      throw traduzir(e)
+    }
+  }
+
+  async atualizarVerificacaoEmail(): Promise<boolean> {
+    try {
+      const u = this.exigirUsuario()
+      await u.reload()
+      if (u.emailVerified) await u.getIdToken(true)
+      return !u.email || u.emailVerified
     } catch (e) {
       throw traduzir(e)
     }
@@ -357,33 +428,84 @@ export class FirebaseBackend implements Backend {
     await setDoc(doc(this.db, 'perfis', uid), semVazios(patch), { merge: true })
   }
 
+  // ---------------------------- tarólogos ----------------------------
+
+  observarTarologos(cb: (lista: TarologoPublico[]) => void, onError?: (erro: string) => void): Unsubscribe {
+    return onSnapshot(
+      collection(this.db, 'tarologos'),
+      (s) => cb(s.docs.map((d) => ({ ...(d.data() as TarologoPublico), uid: d.id }))),
+      (e) => {
+        console.error('Tarólogos:', e.message)
+        onError?.('Não foi possível carregar os tarólogos. Confira as regras do Firestore.')
+      },
+    )
+  }
+
+  observarTarologo(uid: string, cb: (perfil: TarologoPublico | null) => void): Unsubscribe {
+    return onSnapshot(
+      doc(this.db, 'tarologos', idTarologo(uid)),
+      (d) => cb(d.exists() ? { ...(d.data() as TarologoPublico), uid: d.id } : null),
+      () => cb(null),
+    )
+  }
+
+  async salvarTarologo(uid: string, patch: Partial<TarologoPublico>) {
+    const id = idTarologo(uid)
+    if (!id || id.includes('/')) throw new Error('Informe um e-mail válido para o tarólogo.')
+    const ref = doc(this.db, 'tarologos', id)
+    const existente = await getDoc(ref)
+    const novo: TarologoPublico = {
+      nome: '',
+      foto: '',
+      personagem: '',
+      bio: '',
+      avaliacao: { media: 5, total: 0 },
+      modalidades: {},
+      ativo: true,
+      ...(existente.data() as Partial<TarologoPublico> | undefined),
+      ...patch,
+      uid: id,
+      email: id,
+    }
+    await setDoc(ref, novo)
+  }
+
+  observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe {
+    return onSnapshot(
+      doc(this.db, 'pixTarologos', idTarologo(uid)),
+      (d) => cb(d.exists() ? (d.data() as TarologoPix) : null),
+      () => cb(null),
+    )
+  }
+
+  async salvarPixTarologo(uid: string, pix: TarologoPix) {
+    await setDoc(doc(this.db, 'pixTarologos', idTarologo(uid)), pix)
+  }
+
   // ---------------------------- agendamentos ----------------------------
 
   async criarAgendamento(dados: Omit<Agendamento, 'id' | 'criadoEm'>) {
     const ref = doc(collection(this.db, 'agendamentos'))
-    const slot = doc(this.db, 'horarios', `${dados.data}T${dados.hora}`)
-
-    // O horário é reservado ANTES do agendamento, e o id do documento é o
-    // próprio encaixe. A regra do Firestore só permite `create` nessa coleção —
-    // nunca `update` —, então o segundo cliente que tentar o mesmo minuto
-    // recebe permissão negada do servidor. A trava contra reserva dupla é essa,
-    // e não uma conferência na tela, que duas pessoas passariam ao mesmo tempo.
+    const perfilId = idTarologo(dados.tarologoUid)
+    const slot = doc(this.db, 'horarios', `${perfilId}_${dados.data}T${dados.hora}`)
+    const pixAcesso = doc(this.db, 'pixAcessos', `${perfilId}_${dados.clienteUid}`)
     try {
-      await setDoc(slot, {
+      // Os três registros nascem juntos; falha em qualquer um não prende o horário.
+      const lote = writeBatch(this.db)
+      lote.set(slot, {
         uid: dados.clienteUid,
+        tarologoUid: perfilId,
         agendamentoId: ref.id,
         criadoEm: new Date().toISOString(),
       })
+      lote.set(ref, semVazios({ ...dados, tarologoUid: perfilId, criadoEm: new Date().toISOString() }))
+      lote.set(pixAcesso, {
+        clienteUid: dados.clienteUid,
+        tarologoUid: perfilId,
+        agendamentoId: ref.id,
+      })
+      await lote.commit()
     } catch (e) {
-      throw traduzir(e)
-    }
-
-    try {
-      await setDoc(ref, semVazios({ ...dados, criadoEm: new Date().toISOString() }))
-    } catch (e) {
-      // Sem isto, um erro aqui deixaria o encaixe bloqueado para sempre, sem
-      // consulta nenhuma por trás.
-      await deleteDoc(slot).catch(() => {})
       throw traduzir(e)
     }
     return ref.id
@@ -407,10 +529,11 @@ export class FirebaseBackend implements Backend {
   }
 
   observarTodosAgendamentos(cb: (a: Agendamento[]) => void): Unsubscribe {
-    // Ordenar por `data` e `hora` no servidor exigiria um índice composto
-    // criado à mão no console. Um campo só usa o índice automático, e o
-    // desempate por hora sai daqui — são dezenas de documentos, não milhares.
-    const q = query(collection(this.db, 'agendamentos'), orderBy('data'))
+    const u = this.auth.currentUser
+    const admin = Boolean(u?.emailVerified && ehEmailDeTarologo(u.email))
+    const q = admin
+      ? query(collection(this.db, 'agendamentos'), orderBy('data'))
+      : query(collection(this.db, 'agendamentos'), where('tarologoUid', '==', idTarologo(u?.email)))
     return onSnapshot(q, (s) =>
       cb(
         s.docs
@@ -428,11 +551,18 @@ export class FirebaseBackend implements Backend {
     // sempre por uma consulta que não existe mais.
     if (patch.status === 'cancelado') {
       const atual = (await getDoc(ref)).data() as Agendamento | undefined
-      if (atual) {
-        await deleteDoc(doc(this.db, 'horarios', `${atual.data}T${atual.hora}`)).catch(() => {})
+      if (atual && atual.status !== 'cancelado') {
+        const slotId = atual.tarologoUid
+          ? `${atual.tarologoUid}_${atual.data}T${atual.hora}`
+          : `${atual.data}T${atual.hora}`
+        const lote = writeBatch(this.db)
+        lote.update(ref, semVazios(patch))
+        lote.delete(doc(this.db, 'horarios', slotId))
+        await lote.commit()
+        return
       }
     }
-
+    if (patch.status === 'confirmado') patch = { ...patch, confirmadoEm: new Date().toISOString() }
     await updateDoc(ref, semVazios(patch))
   }
 

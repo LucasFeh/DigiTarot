@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage'
 import { Suspense, lazy } from 'react'
 import { useHashRoute } from './lib/useHashRoute'
 import { AuthProvider } from './lib/AuthProvider'
+import { useAuth } from './lib/useAuth'
 import type { Aba } from './lib/temas/tipos'
 
 /**
@@ -24,12 +25,19 @@ const PerfilPage = lazy(() => import('./pages/PerfilPage'))
 const AgendarPage = lazy(() => import('./pages/AgendarPage'))
 const PagamentoPage = lazy(() => import('./pages/PagamentoPage'))
 const ConvitePage = lazy(() => import('./pages/ConvitePage'))
+const TarologosPage = lazy(() => import('./pages/TarologosPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const VerificarEmailPage = lazy(() => import('./pages/VerificarEmailPage'))
+const ArmazenamentoPage = lazy(() => import('./pages/ArmazenamentoPage'))
 
 /** `#/temas/pessoais` e `#/temas/favoritos` abrem o acervo já na aba certa. */
 const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favoritos' }
 
 function Rotas() {
   const { caminho, partes } = useHashRoute()
+  const { usuario, backend } = useAuth()
+  const paginaPublica = !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento'].includes(partes[0])
+  const aguardaEmail = backend?.modo === 'firebase' && Boolean(usuario?.email) && usuario?.emailVerificado === false && !paginaPublica
 
   /**
    * A sala 3D cobre a tela inteira e é opaca. Enquanto ela está aberta, o
@@ -61,6 +69,10 @@ function Rotas() {
       <TemasPage abaInicial={ABAS_TEMAS[partes[1] ?? ''] ?? 'comunidade'} />
     ) : partes[0] === 'perfil' ? (
       <PerfilPage />
+    ) : partes[0] === 'tarologos' ? (
+      <TarologosPage />
+    ) : partes[0] === 'admin' ? (
+      <AdminPage />
     ) : partes[0] === 'historico' ? (
       // O histórico virou a aba "Conferir agendamento" da tiragem. A rota
       // antiga continua existindo porque ela foi divulgada em links e no menu
@@ -68,6 +80,8 @@ function Rotas() {
       <TiragemPage />
     ) : partes[0] === 'sobre' ? (
       <SobrePage />
+    ) : partes[0] === 'armazenamento' ? (
+      <ArmazenamentoPage />
     ) : (
       <HomePage />
     )
@@ -83,7 +97,7 @@ function Rotas() {
           </main>
         }
       >
-        {conteudo}
+        {aguardaEmail ? <VerificarEmailPage /> : conteudo}
       </Suspense>
       {/* Ponteiro-estrela com rastro — por cima de tudo, sem capturar clique. */}
       {!naSala && <StarCursor />}

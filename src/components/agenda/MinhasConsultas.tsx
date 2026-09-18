@@ -136,7 +136,7 @@ export default function MinhasConsultas() {
 
               {a.status === 'confirmado' && !a.sessaoId && !passou && (
                 <p className="col-span-full text-[13px] leading-relaxed text-mist/55">
-                  No horário marcado, o Rodrigo abre a sua mesa e o botão de entrar aparece aqui.
+                  No horário marcado, {a.tarologoNome || 'Rodrigo'} abre a sua mesa e o botão de entrar aparece aqui.
                 </p>
               )}
             </li>

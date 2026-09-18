@@ -9,7 +9,7 @@ import tailwindcss from '@tailwindcss/vite'
  *
  * Renomeou o repositório? Troque aqui também.
  */
-const REPO = '/portifolio-tarot/'
+const REPO = '/DigiTarot/'
 
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? REPO : '/',

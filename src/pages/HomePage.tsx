@@ -14,6 +14,11 @@ export default function HomePage() {
     <>
       <main className="relative">
         <Hero />
+        <section className="mx-auto max-w-6xl px-5 pt-5 text-center">
+          <a href="#/tarologos" className="inline-flex items-center gap-2 rounded-full border border-gold/45 bg-gold/10 px-6 py-3 text-[15px] text-star transition hover:-translate-y-0.5 hover:bg-gold/20 focus-visible:outline-2 focus-visible:outline-gold">
+            Conheça os tarólogos <span aria-hidden>↗</span>
+          </a>
+        </section>
         <DeckSection />
         <HowItWorks />
       </main>

@@ -1,4 +1,4 @@
-# Portfólio Tarot
+# DigiTarot
 
 Site de consultas de tarot: landing page + **sala de tiragem digital ao vivo**.
 Vite + React + TypeScript + Tailwind 4, animações em Framer Motion, a sala em
@@ -30,12 +30,12 @@ Faltam dois cliques, uma vez só, que só o dono da conta pode dar:
    Actions** (não "Deploy from a branch").
 
 Pronto: a aba **Actions** mostra a publicação, e o site sai em
-`https://lucasfeh.github.io/portifolio-tarot/`. O primeiro build leva uns 2
+`https://lucasfeh.github.io/DigiTarot/`. O primeiro build leva uns 2
 minutos.
 
 ### O que sustenta isso
 
-- `vite.config.ts` põe `base: '/portifolio-tarot/'` **só no build** — em
+- `vite.config.ts` põe `base: '/DigiTarot/'` **só no build** — em
   desenvolvimento a base segue `/`. Sem essa base, os assets seriam buscados na
   raiz do domínio e a página subiria em branco. **Renomeou o repositório?**
   Troque a constante `REPO` lá.
@@ -58,25 +58,25 @@ republique. O passo a passo do console está em
 Sem elas o site sobe em **modo local** — o que, num site público, significa que
 cada visitante tem o seu próprio mundo em `localStorage`: ele pode percorrer o
 catálogo, a agenda e a mesa sozinho, mas ninguém vê a reserva de ninguém e nada
-chega ao Rodrigo. **Para atender cliente de verdade, o Firebase é obrigatório.**
+chega aos tarólogos. **Para atender cliente de verdade, o Firebase é obrigatório.**
 
 ## Tiragem digital
 
-O caminho inteiro do visitante, de ponta a ponta: **catálogo → agenda → Pix →
+O caminho inteiro do visitante, de ponta a ponta: **catálogo → tarólogo → agenda → Pix →
 mesa exclusiva**.
 
 1. A pessoa entra em `#/tiragem` (Google, e-mail e senha, ou SMS) e vê o catálogo.
 2. Escolhe um serviço e vai para `#/agendar/<plano>`.
-3. Marca **dia e horário** — todos os dias, das 16h às 21h, de hora em hora.
+3. Escolhe o tarólogo que aceita a modalidade e vê o preço dele; depois marca **dia e horário**.
 4. Reserva e cai em `#/pagamento/<id>`, com o **QR Code do Pix** e o copia e cola.
 5. Paga, manda o comprovante e avisa pelo botão *Já fiz o pagamento*.
-6. O Rodrigo confere a entrada e **confirma** na agenda dele.
-7. **No horário marcado**, o botão *Abrir mesa* acende no painel do Rodrigo. Ele
+6. O tarólogo escolhido confere a entrada e **confirma** na agenda dele.
+7. **No horário marcado**, o botão *Abrir mesa* acende no painel do tarólogo. Ele
    clica, e nasce uma sala **daquele cliente** — ninguém mais entra nela, nem
    com o link.
 
 A trava contra reserva dupla não está na tela: o horário é um documento cujo
-**id é o próprio encaixe** (`2026-09-20T16:00`), numa coleção que só aceita
+**id combina o tarólogo e o encaixe** (`email_2026-09-20T16:00`), numa coleção que só aceita
 `create`. Duas pessoas clicando no mesmo minuto terminam com uma reservada e a
 outra avisada — decidido pelo servidor, não pelo navegador.
 
@@ -97,10 +97,8 @@ mantê-los no perfil obrigava a pessoa a sair da tiragem para escolher o baralho
 que ela ia usar na tiragem. O histórico sumiu como área própria; ele é a aba
 *Conferir agendamento*, que já mostrava a mesma coisa.
 
-A tabela comparativa de valores deixou de existir: quem quer comparar preços usa
-o modo **Leque** do próprio baralho, que abre todas as cartas com os valores à
-mostra. Duas formas de dizer a mesma coisa na mesma página faziam a segunda
-parecer sobra da primeira.
+O catálogo mostra modalidades sem valor. A tela seguinte mostra os tarólogos
+que aceitam a modalidade e o preço de cada um, antes da escolha do horário.
 
 ### O catálogo em cartas
 
@@ -113,8 +111,8 @@ não diria nada a essa pessoa.
 
 As cartas aparecem **inteiras**, com a moldura e o título que o Rider-Waite já
 traz, e **nada é escrito por cima da arte**. Uma carta com o preço estampado no
-meio dela deixa de parecer carta e vira cartaz; o que o serviço custa fica
-embaixo, fora do baralho, onde o olho vai depois de escolher.
+meio dela deixa de parecer carta e vira cartaz; o preço aparece após escolher
+a modalidade, porque cada tarólogo pode cobrar um valor diferente.
 
 O giro é **circular de verdade**: passar da última leva à primeira, e voltar da
 primeira leva à última. Cada carta é posicionada pelo seu afastamento do centro
@@ -127,8 +125,8 @@ com as setas do teclado quando o palco tem o foco. Um carrossel que só responde
 a clique exclui quem navega por teclado.
 
 Há **dois modos**, para dois momentos: **Círculo**, uma carta por vez girando,
-para quem escolhe pela imagem; e **Leque**, todas abertas em pirâmide com os
-preços, para quem quer comparar. As filas da pirâmide saem do maior triângulo
+para quem escolhe pela imagem; e **Leque**, todas abertas em pirâmide para
+comparar as modalidades. As filas da pirâmide saem do maior triângulo
 que cabe (1+2+3…), com o resto derramado de baixo para cima — assim a base nunca
 fica mais estreita que o topo, que é o que desmancharia o formato.
 
@@ -226,12 +224,13 @@ suporte, com a rotação bloqueada, ou deitado na cama.
 
 | quem      | acesso                                                        |
 | --------- | ------------------------------------------------------------- |
-| tarólogo  | `rodriv.l680@gmail.com` — o único do site, entra pelo Google   |
+| administrador e tarólogo | `rodriv.l680@gmail.com` — entra com e-mail verificado |
+| outros tarólogos | e-mail cadastrado no painel administrativo; acesso após verificação |
 | visitante | Google, e-mail e senha, ou telefone com código por SMS        |
 | teste     | `visitante@teste.com` / `tarot123` — **só no modo local**      |
 | tarólogo (local) | `rodriv.l680@gmail.com` / `tarot-local` — **só no modo local** |
 
-> **O tarólogo entra pelo Google, e não há senha de produção em lugar nenhum.**
+> **O administrador entra com e-mail verificado, e não há senha de produção no repositório.**
 > Foi a forma de resolver dois problemas de uma vez: o endereço antigo
 > (`rodrigo@tarot.com`) não era uma caixa de entrada real, então recuperação de
 > senha nunca funcionaria; e este repositório é público, então qualquer senha
@@ -296,16 +295,17 @@ mesmo navegador — com tudo em localStorage, as duas dividiriam o mesmo login.
 
 ### Pagamento por Pix
 
-O Pix é **estático**: o BR Code é montado no navegador (`src/lib/pix.ts`) a
-partir da chave do recebedor, no padrão EMV do Banco Central, com o valor já
-embutido para o cliente não digitar outro por engano. Não há gateway, o que
-também significa que **nenhum sistema avisa que o dinheiro caiu** — quem dá
-baixa é o Rodrigo, no painel, depois de ver o valor na conta. Cada reserva ganha
-um código (`TAROT…`) que vai no txid e é citado no comprovante: é o fio que liga
-a entrada à consulta.
+O Pix é **estático**: o BR Code é montado no navegador (`src/lib/pix.ts`) com os
+dados privados do tarólogo escolhido, acessíveis ao cliente após a reserva. O
+valor vem da modalidade cadastrada no Firestore e vai embutido no código.
+Cada reserva ganha um identificador (`DIGI…`) para conferir o comprovante.
+**O site não recebe confirmação automática do banco**: o tarólogo confirma
+manualmente após verificar o extrato. O painel chama essa soma de valor
+confirmado manualmente, não de faturamento liquidado.
 
-Enquanto `VITE_PIX_CHAVE` estiver vazia, a tela de pagamento diz que o Pix não
-está configurado, em vez de gerar um QR Code que não leva a lugar nenhum.
+Os antigos `VITE_PIX_*` podem preencher o perfil inicial do Rodrigo. Depois,
+edite o Pix de cada profissional em `#/admin`. Um perfil ativo precisa ter
+chave, nome do recebedor e cidade antes de receber reservas.
 
 ### Ligando o Firebase
 
@@ -315,40 +315,72 @@ backend está em uso — as duas implementações cumprem a mesma interface em
 `src/lib/backend/types.ts`, e `carregarBackend()` escolhe. O SDK entra por
 import dinâmico, então sem as chaves ele nem é baixado.
 
-No [console do Firebase](https://console.firebase.google.com):
+No [console do Firebase](https://console.firebase.google.com), use o projeto já ligado ao site:
 
-1. **Criar um projeto.** Pode desligar o Google Analytics.
-2. **Adicionar um app Web** (o ícone `</>`), dar um apelido e copiar o objeto
-   `firebaseConfig` que aparece ao final.
-3. **Authentication › Get started** e habilitar três provedores:
+1. **Conferir o projeto e o app Web** e confirmar que o `firebaseConfig` em `.env` pertence a esse projeto. O Google Analytics pode ficar desligado.
+2. **Authentication › Sign-in method**: conferir os provedores usados pelo site:
    - **E-mail/senha** (só o primeiro item; "link por e-mail" não é usado);
    - **Google** — escolha um e-mail de suporte;
    - **Telefone** — veja a cota de SMS antes de publicar; o plano gratuito cobre
      poucas mensagens por dia e o restante é cobrado.
-4. **Nada a fazer.** O tarólogo é `rodriv.l680@gmail.com`, e a conta nasce
-   sozinha na primeira vez que ele entrar pelo Google. Não crie usuário à mão:
-   uma conta de e-mail e senha nasce com o e-mail NÃO verificado, e as regras
-   exigem verificação para conceder o papel.
-5. **Firestore Database › Create database**, modo de produção, região
-   `southamerica-east1` (São Paulo).
-6. **Firestore › Regras**: apague o que estiver lá, cole o conteúdo de
-   `firestore.rules` (na raiz deste repositório) e **Publicar**.
-7. Copie `.env.example` para `.env` e preencha as seis chaves do passo 2, mais a
-   chave Pix e o WhatsApp.
-8. **Authentication › Settings › Authorized domains**: acrescente o domínio onde
+3. **Firestore Database**: confirmar o banco e sua região. Se ainda não existir,
+   criá-lo em modo de produção na região adequada ao projeto.
+4. **Firestore › Regras**: comparar as regras ativas com `firestore.rules`, testar
+   no emulador e publicar a versão revisada. O `firebase.json` aponta para esse
+   arquivo; a publicação do site no GitHub Pages não publica as regras.
+5. Entre como administrador (`rodriv.l680@gmail.com`) com e-mail verificado.
+   A primeira entrada cria o perfil do Rodrigo com as modalidades e preços
+   atuais. Em `#/admin`, cadastre outros tarólogos pelo e-mail e configure
+   foto, modalidades, preços e Pix. Eles entram com o mesmo e-mail verificado;
+   não é necessário copiar UID do Authentication.
+6. Se necessário, copie `.env.example` para `.env` e preencha a configuração
+   do projeto e o WhatsApp. Configure o Pix pelo painel administrativo. Os
+   antigos `VITE_PIX_*` servem apenas para migrar os dados de Rodrigo e devem
+   sair do build depois da conferência.
+7. **Authentication › Settings › Authorized domains**: acrescente o domínio onde
    o site é publicado (`<usuario>.github.io`), senão o login com Google é
    recusado em produção.
 
-Quem é o tarólogo está em **dois arquivos versionados**, lado a lado:
-`src/lib/backend/tarologo.ts` (o que a interface mostra) e `firestore.rules` (o
-que o servidor permite). Trocar exige editar os dois, no mesmo commit — e é bom
-que exija, porque é decisão de segurança, não de interface.
+O cadastro por e-mail/senha envia um link de confirmação. Enquanto o endereço
+não for confirmado, a conta fica numa tela de verificação e as regras do
+Firestore recusam reservas e dados privados. Contas que entram só por telefone
+continuam usando o SMS como prova de posse; contas Google seguem o estado de
+verificação informado pelo Firebase.
+Contas antigas sem confirmação podem pedir outro link nessa tela. Isso **não
+impede a criação do registro no Authentication**: para conter cadastros
+automatizados, confira as opções de proteção contra bots do Firebase
+Authentication com Identity Platform e as quotas do projeto.
 
-Isto já foi uma variável de ambiente guardada como secret do GitHub, e a escolha
-estava errada: o mesmo e-mail já é público em `firestore.rules`, então não havia
-segredo a proteger — só uma cópia fora do repositório, que saiu de sincronia sem
-avisar. O tarólogo entrou com a conta certa, as regras o reconheceram no
-servidor, e a tela mostrou a ele a visão de cliente. Nenhum erro em lugar nenhum.
+#### Conter cadastros automatizados
+
+1. Durante um ataque, em **Authentication › Settings › User actions**, desative
+   temporariamente a criação de contas por usuários. Isso impede novos clientes
+   de se cadastrar por qualquer método; contas existentes continuam podendo
+   entrar. Reative quando a proteção estiver pronta.
+2. Para proteger o Authentication com **App Check**, atualize o projeto para
+   **Firebase Authentication with Identity Platform** e confira antes os limites
+   e preços dessa modalidade. Crie uma chave Web do **reCAPTCHA Enterprise**
+   restrita ao domínio de produção e registre o app em **Security › App Check**.
+3. Defina `VITE_FIREBASE_APPCHECK_SITE_KEY` no ambiente de produção e publique o
+   site. O cliente inicializa App Check antes de Authentication e Firestore.
+   Confira as métricas em **App Check › APIs**; só então ative **Enforce** para
+   **Authentication** e **Cloud Firestore**. Sem a chave no site, ativar Enforce
+   bloqueia clientes legítimos. A chave é pública; não use uma chave de
+   produção autorizada para `localhost`.
+4. A verificação de e-mail e as regras do Firestore limitam o uso de contas
+   falsas, mas não impedem sua criação no Authentication. Não trate um CAPTCHA
+   apenas na tela como barreira para o endpoint público de cadastro.
+
+O e-mail do administrador está em `src/lib/backend/tarologo.ts` e
+`firestore.rules`; os demais papéis vêm dos documentos `tarologos/{email}`
+criados somente pelo administrador. A regra exige e-mail verificado e compara
+o endereço do login com o ID do perfil. O profissional não edita o próprio
+perfil público, preços ou Pix.
+
+Antes de publicar a nova versão, siga o diagnóstico e as verificações de
+privacidade em [`docs/seguranca-privacidade.md`](docs/seguranca-privacidade.md).
+Ele inclui testes de regras, inventário de cookies e informações que faltam
+para redigir o aviso público de privacidade.
 
 Uma sutileza das regras que o telefone trouxe: elas leem o e-mail com
 `request.auth.token.get('email', '')`, e nunca `request.auth.token.email`. Quem
@@ -362,8 +394,10 @@ O que cada coleção guarda:
 | coleção        | o que é                                                     |
 | -------------- | ----------------------------------------------------------- |
 | `perfis`       | o registro de cada pessoa: nome, contato, foto, tema padrão |
-| `horarios`     | os encaixes tomados. Id = `<data>T<hora>`; é a trava        |
-| `agendamentos` | a consulta: plano, valor, horário, status, código do Pix    |
+| `tarologos`    | perfis públicos, modalidades e preços administrados       |
+| `pixTarologos` | dados Pix privados de cada profissional                    |
+| `horarios`     | encaixes tomados por tarólogo e horário                     |
+| `agendamentos` | consulta, preço contratado, status e código do Pix         |
 | `sessoes`      | a mesa de cada consulta, com dono e convidado definidos     |
 | `convites`     | sessões particulares. `get` liberado, `list` proibido       |
 
@@ -397,10 +431,11 @@ Três coisas na cena que custaram tentativa:
 
 | Quero mudar…                         | Arquivo                    |
 | ------------------------------------ | -------------------------- |
-| preços, nomes e descrições das consultas | `src/data/plans.ts`    |
+| modalidades e preços por tarólogo      | painel `#/admin`         |
+| nomes e descrições das consultas       | `src/data/plans.ts`      |
 | horários da agenda e janela da mesa  | `src/data/agenda.ts`       |
 | formato e validação de telefone      | `src/lib/telefone.ts`      |
-| dados do recebedor do Pix            | `.env`                     |
+| dados do recebedor do Pix            | painel `#/admin`           |
 | títulos, textos e links de contato   | `src/data/site.ts`         |
 | cores, fontes e sombras              | `src/index.css` (`@theme`) |
 | tamanho do círculo, do portal e do leque | `src/lib/useStageMetrics.ts` |
@@ -481,9 +516,11 @@ a barra:
 | rota              | página                                  |
 | ----------------- | --------------------------------------- |
 | `#/`              | landing page                            |
+| `#/tarologos`     | perfis públicos dos tarólogos           |
+| `#/admin`         | perfis, Pix e indicadores semanais      |
 | `#/sobre`         | sobre (em manutenção)                   |
 | `#/tiragem`         | catálogo e suas consultas — ou login  |
-| `#/agendar/<plano>` | escolher dia e horário                |
+| `#/agendar/<plano>` | escolher tarólogo, dia e horário     |
 | `#/pagamento/<id>`  | o Pix daquela reserva                 |
 | `#/convite/<token>` | sessão particular — **funciona sem login** |
 | `#/tiragem/<id>`    | a sala 3D daquela leitura             |
@@ -686,7 +723,7 @@ Dois detalhes que custaram tentativa:
 
 ## Pendente
 
-- **Baixa automática do Pix.** Hoje o Rodrigo confirma cada pagamento à mão, que
+- **Baixa automática do Pix.** Hoje cada tarólogo confirma o pagamento à mão, que
   é o preço de não ter gateway nem servidor. Um Mercado Pago (ou o Pix dinâmico
   de um banco) com webhook resolveria — exige Cloud Functions no plano Blaze.
 - **Aviso ao cliente.** Quando o pagamento é confirmado ou a mesa abre, ele só

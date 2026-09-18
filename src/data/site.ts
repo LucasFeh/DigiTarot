@@ -8,7 +8,7 @@ const asset = (arquivo: string) => `${import.meta.env.BASE_URL}${arquivo}`
 
 /** Textos e links do site — edite tudo por aqui. */
 export const site = {
-  brand: 'Tarot',
+  brand: 'DigiTarot',
   /** Aparece acima do título, em maiúsculas espaçadas. */
   eyebrow: 'Leitura de cartas online',
   headline: 'As cartas já sabem.\nFalta você perguntar.',
@@ -23,7 +23,7 @@ export const site = {
   avatarWebp: asset('rodrigo.webp'),
   avatarAlt: 'Ilustração do tarólogo segurando um leque de cartas',
   /** Destino do clique no rosto da ilustração. */
-  facePage: { href: '#/sobre', label: 'Sobre mim' },
+  facePage: { href: '#/tarologos', label: 'Conheça os tarólogos' },
   contact: {
     whatsapp: '#',
     email: '#',

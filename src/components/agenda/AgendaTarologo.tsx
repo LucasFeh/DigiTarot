@@ -81,13 +81,13 @@ export default function AgendaTarologo() {
    * por pessoa, e só de quem aparece na lista.
    */
   useEffect(() => {
-    if (!backend) return
+    if (!backend || !usuario?.admin) return
     const uids = [...new Set(lista.map((a) => a.clienteUid))]
     const parar = uids.map((uid) =>
       backend.observarPerfil(uid, (p) => setPerfis((m) => ({ ...m, [uid]: p }))),
     )
     return () => parar.forEach((f) => f())
-  }, [backend, lista])
+  }, [backend, lista, usuario?.admin])
 
   const visiveis = useMemo(() => {
     const ordenada = [...lista].sort((a, b) =>
@@ -153,6 +153,19 @@ export default function AgendaTarologo() {
     }
   }
 
+  const marcarConcluido = async (a: Agendamento) => {
+    if (!backend || ocupado || a.atendidoEm) return
+    setErro(null)
+    setOcupado(a.id)
+    try {
+      await backend.atualizarAgendamento(a.id, { atendidoEm: new Date().toISOString() })
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não foi possível registrar o atendimento.')
+    } finally {
+      setOcupado(null)
+    }
+  }
+
   /** Os botões de ação, iguais nas três visualizações. */
   const Acoes = ({ a }: { a: Agendamento }) => {
     const naHora = naJanela(a.data, a.hora, agora)
@@ -211,6 +224,15 @@ export default function AgendaTarologo() {
           >
             Confirmar pagamento
           </button>
+        )}
+        {a.status === 'confirmado' && (passou || Boolean(a.sessaoId)) && (
+          a.atendidoEm ? (
+            <span className="rounded-full border border-gold/30 px-4 py-2 text-[13px] text-gold">Atendimento concluído</span>
+          ) : (
+            <button type="button" disabled={ocupado === a.id} onClick={() => void marcarConcluido(a)} className="rounded-full border border-gold/50 bg-gold/10 px-5 py-2 text-[14px] text-gold transition hover:bg-gold/20 disabled:opacity-50">
+              Marcar atendimento concluído
+            </button>
+          )
         )}
       </div>
     )

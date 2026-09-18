@@ -13,8 +13,8 @@ const STEPS = [
   },
   {
     icon: '☾',
-    title: 'Marque dia e horário',
-    text: 'Atendimento todos os dias, das 16h às 21h. Você escolhe o encaixe na agenda.',
+    title: 'Escolha o tarólogo',
+    text: 'Veja quem atende essa modalidade, confira o valor e escolha dia e horário.',
   },
   {
     icon: '❖',

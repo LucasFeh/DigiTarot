@@ -40,6 +40,10 @@ export default function Footer() {
           })}
         </nav>
 
+        <a href="#/armazenamento" className="text-[14px] text-mist/80 underline underline-offset-4 transition hover:text-gold">
+          Cookies e armazenamento
+        </a>
+
         <p className="max-w-md text-[13px] leading-relaxed text-mist/55">{site.footerNote}</p>
       </div>
     </footer>

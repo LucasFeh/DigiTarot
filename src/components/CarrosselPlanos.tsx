@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { categories, formatPriceFull, type Plan } from '../data/plans'
+import { categories, type Plan } from '../data/plans'
 import { CARD_BY_ID } from '../data/cards'
 import { useAuth } from '../lib/useAuth'
 import { usePerfil } from '../lib/perfil'
@@ -243,7 +243,7 @@ export default function CarrosselPlanos({ destino }: { destino: (planoId: string
                     type="button"
                     role="option"
                     aria-selected={centro}
-                    aria-label={`${p.title} — ${formatPriceFull(p.price)}`}
+                    aria-label={p.title}
                     onClick={() => !centro && setAtivo(ativo + d)}
                     tabIndex={-1}
                     className="group absolute left-1/2 top-1/2 w-[min(46vw,210px)] outline-none"
@@ -312,10 +312,6 @@ export default function CarrosselPlanos({ destino }: { destino: (planoId: string
 
             <p className="mt-2.5 text-[15px] leading-relaxed text-mist/85">{plano.resumo}</p>
 
-            <p className="mt-3 font-display text-[30px] font-semibold text-gold">
-              {formatPriceFull(plano.price)}
-            </p>
-
             <a
               href={destino(plano.id)}
               className="mt-3 inline-block rounded-full px-10 py-3 text-[16px] font-medium tracking-wide text-star transition"
@@ -324,7 +320,7 @@ export default function CarrosselPlanos({ destino }: { destino: (planoId: string
                 boxShadow: '0 14px 40px -14px #c2449d',
               }}
             >
-              Agendar
+              Escolher tarólogo
             </a>
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
@@ -382,16 +378,13 @@ export default function CarrosselPlanos({ destino }: { destino: (planoId: string
                       {p.duration}
                     </span>
                   )}
-                  <span className="mt-0.5 block font-display text-[18px] font-semibold text-gold">
-                    {formatPriceFull(p.price)}
-                  </span>
                 </a>
               ))}
             </div>
           ))}
 
           <p className="mt-1 text-center text-[13px] leading-relaxed text-mist/55">
-            Todas as consultas desta categoria, com os valores. Clique numa carta para agendar.
+            Escolha uma carta para ver os tarólogos disponíveis e os valores de cada um.
           </p>
         </div>
       )}

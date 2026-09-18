@@ -55,6 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cadastrarComEmail: com((b, nome: string, email: string, senha: string) =>
         b.cadastrarComEmail(nome, email, senha),
       ),
+      enviarVerificacaoEmail: com((b) => b.enviarVerificacaoEmail()),
+      atualizarVerificacaoEmail: async () => {
+        const b = backend ?? (await carregarBackend())
+        const confirmado = await b.atualizarVerificacaoEmail()
+        if (confirmado) setUsuario((atual) => atual ? { ...atual, emailVerificado: true } : atual)
+        return confirmado
+      },
       recuperarSenha: com((b, email: string) => b.recuperarSenha(email)),
       sair: com((b) => b.sair()),
       trocarEmail: com((b, novo: string, atual?: string) => b.trocarEmail(novo, atual)),

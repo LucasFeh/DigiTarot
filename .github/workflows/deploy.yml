@@ -31,9 +31,8 @@ jobs:
         run: npm ci
 
       - name: Build
-        # As chaves do Firebase são opcionais: sem elas o site sobe em modo
-        # local. Para ligar de verdade, cadastre-as em
-        # Settings › Secrets and variables › Actions.
+        # Produção precisa do Firebase e App Check. Falhar o build é mais seguro
+        # do que publicar por engano o modo local de demonstração.
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -41,11 +40,19 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
           VITE_PIX_CHAVE: ${{ secrets.VITE_PIX_CHAVE }}
           VITE_PIX_NOME: ${{ secrets.VITE_PIX_NOME }}
           VITE_PIX_CIDADE: ${{ secrets.VITE_PIX_CIDADE }}
           VITE_WHATSAPP: ${{ secrets.VITE_WHATSAPP }}
-        run: npm run build
+        run: |
+          for name in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID VITE_FIREBASE_APPCHECK_SITE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name não configurado em Settings > Secrets and variables > Actions"
+              exit 1
+            fi
+          done
+          npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -9,6 +9,7 @@ import SeloStatus from '../components/agenda/SeloStatus'
 import AvisoModoLocal from '../components/AvisoModoLocal'
 import LoginPage from './LoginPage'
 import type { Agendamento } from '../lib/backend'
+import type { DadosPix } from '../lib/pix'
 
 const FORMATO: Record<string, string> = {
   chamada: 'Chamada de vídeo',
@@ -30,6 +31,8 @@ export default function PagamentoPage({ agendamentoId }: { agendamentoId: string
   const [ag, setAg] = useState<Agendamento | null>(null)
   const [buscando, setBuscando] = useState(true)
   const [ocupado, setOcupado] = useState(false)
+  const [pix, setPix] = useState<DadosPix | null>(null)
+  const [carregandoPix, setCarregandoPix] = useState(false)
 
   useEffect(() => {
     if (!backend || !usuario) return
@@ -38,6 +41,15 @@ export default function PagamentoPage({ agendamentoId }: { agendamentoId: string
       setBuscando(false)
     })
   }, [backend, usuario, agendamentoId])
+
+  useEffect(() => {
+    if (!backend || !usuario || !ag?.tarologoUid) return
+    setCarregandoPix(true)
+    return backend.observarPixTarologo(ag.tarologoUid, (dados) => {
+      setPix(dados ? { ...dados, configurado: Boolean(dados.chave.trim()) } : { chave: '', nome: '', cidade: '', configurado: false })
+      setCarregandoPix(false)
+    })
+  }, [backend, usuario, ag?.tarologoUid])
 
   if (carregando) {
     return (
@@ -81,9 +93,10 @@ export default function PagamentoPage({ agendamentoId }: { agendamentoId: string
     )
   }
 
-  const ehTarologo = usuario.papel === 'tarologo'
+  const nomeTarologo = ag.tarologoNome || 'Rodrigo'
+  const ehTarologo = Boolean(usuario.admin || (usuario.papel === 'tarologo' && usuario.email.toLowerCase() === ag.tarologoUid))
   const mensagem = `Olá! Acabei de pagar a consulta ${ag.codigo} — ${ag.planoTitulo}, ${rotuloCompleto(ag.data)} às ${ag.hora}.`
-  const linkZap = site.whatsapp
+  const linkZap = (!ag.tarologoUid || ag.tarologoUid === 'rodriv.l680@gmail.com') && site.whatsapp
     ? `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(mensagem)}`
     : null
 
@@ -135,11 +148,14 @@ export default function PagamentoPage({ agendamentoId }: { agendamentoId: string
       {/* ------------------------------ o pagamento ------------------------------ */}
       {ag.status === 'aguardando' && (
         <section className="glass mt-6 rounded-2xl p-6 sm:p-7">
-          <PixCobranca
-            valor={ag.preco}
-            codigo={ag.codigo}
-            descricao={`${ag.planoTitulo} — ${ag.codigo}`}
-          />
+          {carregandoPix ? <p className="text-mist/70">Carregando dados de pagamento…</p> : (
+            <PixCobranca
+              valor={ag.preco}
+              codigo={ag.codigo}
+              descricao={`${ag.planoTitulo} — ${ag.codigo}`}
+              pix={ag.tarologoUid ? (pix ?? { chave: '', nome: '', cidade: '', configurado: false }) : undefined}
+            />
+          )}
 
           <ol className="mt-6 flex flex-col gap-2 border-t border-white/10 pt-5 text-[14px] leading-relaxed text-mist/80">
             <li>1. Pague pelo QR Code ou pelo código copia e cola, no app do seu banco.</li>
@@ -180,7 +196,7 @@ export default function PagamentoPage({ agendamentoId }: { agendamentoId: string
         <section className="glass mt-6 rounded-2xl p-6 sm:p-7">
           <p className="font-display text-[18px] text-star">Pagamento em conferência</p>
           <p className="mt-2 text-[15px] leading-relaxed text-mist/85">
-            O Rodrigo confere a entrada e confirma a consulta por aqui. Seu horário
+            {nomeTarologo} confere a entrada e confirma a consulta por aqui. Seu horário
             ({rotuloCompleto(ag.data)}, às {ag.hora}) já está reservado e ninguém mais pode tomá-lo.
           </p>
           {linkZap && !ehTarologo && (
@@ -201,8 +217,8 @@ export default function PagamentoPage({ agendamentoId }: { agendamentoId: string
           <p className="font-display text-[18px] text-star">Consulta confirmada</p>
           <p className="mt-2 text-[15px] leading-relaxed text-mist/85">
             {ag.sessaoId
-              ? 'Sua mesa está aberta. Entre quando quiser — as cartas aparecem conforme o Rodrigo as põe.'
-              : `No horário marcado, ${rotuloCompleto(ag.data)} às ${ag.hora}, o Rodrigo abre a sua mesa e ela aparece aqui. Ela é só sua: ninguém mais entra nessa sala.`}
+              ? `Sua mesa está aberta. Entre quando quiser — as cartas aparecem conforme ${nomeTarologo} as põe.`
+              : `No horário marcado, ${rotuloCompleto(ag.data)} às ${ag.hora}, ${nomeTarologo} abre a sua mesa e ela aparece aqui. Ela é só sua: ninguém mais entra nessa sala.`}
           </p>
           {ag.sessaoId && (
             <a

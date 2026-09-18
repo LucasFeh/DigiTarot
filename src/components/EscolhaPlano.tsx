@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { formatPriceFull, type Plan } from '../data/plans'
+import type { Plan } from '../data/plans'
 
 /**
  * O que aparece depois que a carta escolhida pousa: a confirmação do serviço e
@@ -56,8 +56,7 @@ export default function EscolhaPlano({
           <h2 className="text-nebula text-3xl sm:text-4xl">Esta é a sua carta</h2>
 
           <p className="mx-auto mt-4 max-w-sm text-base leading-relaxed text-mist">
-            Agora é escolher o dia e o horário na agenda e concluir pelo Pix. A consulta fica
-            reservada no seu nome assim que você continuar.
+            Agora é escolher quem vai atender você. Depois, marque o horário e conclua pelo Pix.
           </p>
 
           <div
@@ -73,9 +72,6 @@ export default function EscolhaPlano({
                   </p>
                 )}
               </div>
-              <span className="shrink-0 font-display text-xl font-bold text-gold">
-                {formatPriceFull(plan.price)}
-              </span>
             </div>
             <p className="mt-2 text-[14px] leading-relaxed text-mist/75">{plan.resumo}</p>
           </div>
@@ -88,7 +84,7 @@ export default function EscolhaPlano({
               boxShadow: '0 12px 40px -14px #c2449d',
             }}
           >
-            Escolher dia e horário
+            Escolher tarólogo
           </a>
 
           <button
