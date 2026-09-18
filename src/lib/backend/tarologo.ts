@@ -7,6 +7,7 @@ import type { TarologoPublico } from './types'
  * publicadas no Firebase separadamente do fluxo do GitHub Pages.
  */
 export const EMAIL_TAROLOGO = 'rodriv.l680@gmail.com'
+export const FOTO_RODRIGO = `${import.meta.env.BASE_URL}rodrigo-foto.jpg`
 
 /** Comparação de e-mail é sempre sem caixa: o Google devolve o que a pessoa digitou. */
 export const ehEmailDeTarologo = (email: string | null | undefined): boolean =>
@@ -17,7 +18,7 @@ export const TAROLOGO_RODRIGO: TarologoPublico = {
   uid: EMAIL_TAROLOGO,
   email: EMAIL_TAROLOGO,
   nome: 'Rodrigo',
-  foto: `${import.meta.env.BASE_URL}foto-tarologo-provisoria.jpg`,
+  foto: FOTO_RODRIGO,
   personagem: `${import.meta.env.BASE_URL}rodrigo.webp`,
   bio: 'Tarólogo e anfitrião da DigiTarot.',
   avaliacao: { media: 5, total: 0 },

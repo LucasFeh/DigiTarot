@@ -10,6 +10,7 @@ import SeletorHorario from '../components/agenda/SeletorHorario'
 import AvisoModoLocal from '../components/AvisoModoLocal'
 import LoginPage from './LoginPage'
 import type { FormatoConsulta } from '../lib/backend'
+import { FOTO_RODRIGO } from '../lib/backend/tarologo'
 import './AgendarPage.css'
 
 const FORMATOS: { id: FormatoConsulta; rotulo: string; descricao: string; icone: string }[] = [
@@ -35,6 +36,12 @@ const FORMATOS: { id: FormatoConsulta; rotulo: string; descricao: string; icone:
 
 const CAMPO =
   'w-full rounded-xl border border-white/20 bg-[#171123] px-4 py-3 text-[16px] text-star outline-none transition placeholder:text-mist/45 focus:border-gold/70'
+
+function fotoDoTarologo(tarologo: { nome: string; foto: string }) {
+  return tarologo.nome.trim().toLocaleLowerCase('pt-BR').includes('rodrigo')
+    ? FOTO_RODRIGO
+    : tarologo.foto || `${import.meta.env.BASE_URL}foto-tarologo-provisoria.jpg`
+}
 
 /** Código que liga a reserva ao Pix estático e ao comprovante. */
 function novoCodigo() {
@@ -142,7 +149,7 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
                 className="glass flex items-center gap-5 rounded-2xl p-5 text-left transition hover:-translate-y-1 hover:border-gold/50 focus-visible:outline-2 focus-visible:outline-gold"
               >
                 <img
-                  src={t.foto || `${import.meta.env.BASE_URL}rodrigo.webp`}
+                  src={fotoDoTarologo(t)}
                   alt={`Retrato de ${t.nome}`}
                   className="h-20 w-20 shrink-0 rounded-xl object-cover"
                 />
@@ -256,7 +263,7 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
             <span className="booking-comet">✦</span>
           </div>
           <Retrato foto={perfil.foto || usuario.foto} nome={nomeExibido} lado="cliente" />
-          <Retrato foto={tarologo.foto || `${import.meta.env.BASE_URL}rodrigo.webp`} nome={tarologo.nome} lado="tarologo" />
+          <Retrato foto={fotoDoTarologo(tarologo)} nome={tarologo.nome} lado="tarologo" />
           <p className="booking-journey-note">Sua pergunta segue para uma leitura feita para você.</p>
         </motion.section>
 

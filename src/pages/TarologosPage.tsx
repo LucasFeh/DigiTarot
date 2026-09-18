@@ -3,6 +3,7 @@ import Footer from '../components/Footer'
 import { PLAN_BY_ID } from '../data/plans'
 import { useTarologos } from '../lib/tarologos'
 import type { TarologoPublico } from '../lib/backend'
+import { FOTO_RODRIGO } from '../lib/backend/tarologo'
 import './TarologosPage.css'
 
 const FOTO_PROVISORIA = `${import.meta.env.BASE_URL}foto-tarologo-provisoria.jpg`
@@ -44,9 +45,8 @@ function CartaTarologo({ tarologo, indice }: { tarologo: TarologoPublico; indice
   const modalidades = Object.keys(tarologo.modalidades ?? {}).filter((id) => Number.isFinite(tarologo.modalidades[id]))
   const ehRodrigo = tarologo.nome.trim().toLocaleLowerCase('pt-BR').includes('rodrigo')
   const personagem = tarologo.personagem || (ehRodrigo ? PERSONAGEM_RODRIGO : tarologo.foto || FOTO_PROVISORIA)
-  const fotoEhIlustracao = ehRodrigo && /\/rodrigo\.(png|webp)(?:\?|$)/i.test(tarologo.foto)
-  const fotoProvisoria = !tarologo.foto || fotoEhIlustracao
-  const foto = fotoProvisoria ? FOTO_PROVISORIA : tarologo.foto
+  const fotoProvisoria = !ehRodrigo && !tarologo.foto
+  const foto = ehRodrigo ? FOTO_RODRIGO : tarologo.foto || FOTO_PROVISORIA
   const estilo = { '--card-index': indice } as CSSProperties
 
   function acompanharPonteiro(evento: PointerEvent<HTMLButtonElement>) {
