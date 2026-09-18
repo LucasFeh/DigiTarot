@@ -184,7 +184,7 @@ export default function SecaoConta() {
           descricao={
             temSenha
               ? 'Mínimo de 6 caracteres.'
-              : 'Você entrou pelo Google e ainda não tem senha. Criar uma agora é o que te dá uma segunda porta — e o que permite desvincular o Google depois.'
+              : 'Sua conta ainda não tem senha. Crie uma para também entrar com e-mail e senha.'
           }
         >
           <form

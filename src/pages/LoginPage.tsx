@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../lib/useAuth'
+import { irPara } from '../lib/useHashRoute'
 import VerificacaoTelefone from '../components/conta/VerificacaoTelefone'
 
 function GoogleIcon() {
@@ -17,7 +18,7 @@ function GoogleIcon() {
 const CAMPO =
   'rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] text-star outline-none transition placeholder:text-mist/50 focus:border-gold/50'
 
-type Modo = 'entrar' | 'criar' | 'recuperar' | 'telefone'
+type Modo = 'entrar' | 'criar' | 'link' | 'recuperar' | 'telefone'
 
 /**
  * Uma porta só para todo mundo. O tarólogo entra com e-mail e senha como
@@ -32,7 +33,7 @@ export default function LoginPage({
   titulo?: string
   descricao?: string
 }) {
-  const { entrarComGoogle, entrarComEmail, cadastrarComEmail, recuperarSenha } = useAuth()
+  const { backend, entrarComGoogle, entrarComEmail, enviarLinkEmail, recuperarSenha } = useAuth()
   const [modo, setModo] = useState<Modo>('entrar')
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
@@ -64,7 +65,12 @@ export default function LoginPage({
   const enviar = (e: React.FormEvent) => {
     e.preventDefault()
     if (modo === 'entrar') void tentar(() => entrarComEmail(email, senha))
-    else if (modo === 'criar') void tentar(() => cadastrarComEmail(nome, email, senha))
+    else if (modo === 'criar' || modo === 'link') {
+      void tentar(async () => {
+        await enviarLinkEmail(modo === 'criar' ? nome : '', email)
+        if (backend?.modo === 'local') irPara('/confirmar-cadastro')
+      }, 'Enviamos um link para seu e-mail. Abra a mensagem para confirmar e entrar. Confira também o spam.')
+    }
     else
       void tentar(
         () => recuperarSenha(email),
@@ -91,6 +97,8 @@ export default function LoginPage({
           <h1 className="text-nebula mt-3 text-3xl">
             {modo === 'criar'
               ? 'Criar sua conta'
+              : modo === 'link'
+                ? 'Entrar por e-mail'
               : modo === 'recuperar'
                 ? 'Recuperar acesso'
                 : modo === 'telefone'
@@ -100,6 +108,10 @@ export default function LoginPage({
           <p className="mt-3 text-[15px] leading-relaxed text-mist">
             {modo === 'recuperar'
               ? 'Informe o e-mail da sua conta e enviaremos um link para você definir uma senha nova.'
+              : modo === 'criar'
+                ? 'Enviaremos um link para confirmar seu e-mail. Sua conta só será criada quando você abrir o link.'
+              : modo === 'link'
+                ? 'Receba um link para entrar sem senha. Se for sua primeira vez, a conta será criada após a confirmação.'
               : modo === 'telefone'
                 ? 'Enviamos um código por SMS. Se for a sua primeira vez, a conta é criada na hora.'
                 : descricao}
@@ -130,7 +142,7 @@ export default function LoginPage({
               <VerificacaoTelefone modo="entrar" containerId="recaptcha-login" />
             </div>
           ) : (
-          <form className={`flex flex-col gap-3 ${modo === 'recuperar' ? 'mt-7' : ''}`} onSubmit={enviar}>
+          <form className={`flex flex-col gap-3 ${modo === 'recuperar' || modo === 'link' ? 'mt-7' : ''}`} onSubmit={enviar}>
             {modo === 'criar' && (
               <input
                 required
@@ -150,15 +162,15 @@ export default function LoginPage({
               autoComplete="username"
               className={CAMPO}
             />
-            {modo !== 'recuperar' && (
+            {modo === 'entrar' && (
               <input
                 type="password"
                 required
                 minLength={6}
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                placeholder={modo === 'criar' ? 'Senha (mínimo 6 caracteres)' : 'Senha'}
-                autoComplete={modo === 'criar' ? 'new-password' : 'current-password'}
+                placeholder="Senha"
+                autoComplete="current-password"
                 className={CAMPO}
               />
             )}
@@ -175,7 +187,9 @@ export default function LoginPage({
               {ocupado
                 ? 'Aguarde…'
                 : modo === 'criar'
-                  ? 'Criar conta'
+                  ? 'Enviar link de confirmação'
+                  : modo === 'link'
+                    ? 'Enviar link para entrar'
                   : modo === 'recuperar'
                     ? 'Enviar link'
                     : 'Entrar'}
@@ -195,13 +209,22 @@ export default function LoginPage({
           )}
 
           {modo === 'entrar' && (
-            <button
-              type="button"
-              onClick={() => trocarModo('telefone')}
-              className="mt-3 w-full rounded-xl border border-white/20 px-4 py-3 text-[15px] text-star transition hover:border-gold/60 hover:bg-white/5"
-            >
-              Entrar com meu telefone
-            </button>
+            <div className="mt-3 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => trocarModo('link')}
+                className="w-full rounded-xl border border-white/20 px-4 py-3 text-[15px] text-star transition hover:border-gold/60 hover:bg-white/5"
+              >
+                Entrar com link por e-mail
+              </button>
+              <button
+                type="button"
+                onClick={() => trocarModo('telefone')}
+                className="w-full rounded-xl border border-white/20 px-4 py-3 text-[15px] text-star transition hover:border-gold/60 hover:bg-white/5"
+              >
+                Entrar com meu telefone
+              </button>
+            </div>
           )}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-[14px]">

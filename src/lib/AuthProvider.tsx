@@ -52,8 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       backend,
       entrarComGoogle: com((b) => b.entrarComGoogle()),
       entrarComEmail: com((b, email: string, senha: string) => b.entrarComEmail(email, senha)),
-      cadastrarComEmail: com((b, nome: string, email: string, senha: string) =>
-        b.cadastrarComEmail(nome, email, senha),
+      enviarLinkEmail: com((b, nome: string, email: string) => b.enviarLinkEmail(nome, email)),
+      concluirLinkEmail: com((b, nome: string, email: string, link: string) =>
+        b.concluirLinkEmail(nome, email, link),
       ),
       enviarVerificacaoEmail: com((b) => b.enviarVerificacaoEmail()),
       atualizarVerificacaoEmail: async () => {

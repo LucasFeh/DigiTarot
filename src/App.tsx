@@ -7,6 +7,7 @@ import { Suspense, lazy } from 'react'
 import { useHashRoute } from './lib/useHashRoute'
 import { AuthProvider } from './lib/AuthProvider'
 import { useAuth } from './lib/useAuth'
+import { haLinkDeEmailNaUrl } from './lib/cadastroPorLink'
 import type { Aba } from './lib/temas/tipos'
 
 /**
@@ -28,6 +29,7 @@ const ConvitePage = lazy(() => import('./pages/ConvitePage'))
 const TarologosPage = lazy(() => import('./pages/TarologosPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const VerificarEmailPage = lazy(() => import('./pages/VerificarEmailPage'))
+const ConcluirCadastroPage = lazy(() => import('./pages/ConcluirCadastroPage'))
 const ArmazenamentoPage = lazy(() => import('./pages/ArmazenamentoPage'))
 
 /** `#/temas/pessoais` e `#/temas/favoritos` abrem o acervo já na aba certa. */
@@ -36,7 +38,8 @@ const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favo
 function Rotas() {
   const { caminho, partes } = useHashRoute()
   const { usuario, backend } = useAuth()
-  const paginaPublica = !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento'].includes(partes[0])
+  const linkEmail = haLinkDeEmailNaUrl() || partes[0] === 'confirmar-cadastro'
+  const paginaPublica = linkEmail || !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento'].includes(partes[0])
   const aguardaEmail = backend?.modo === 'firebase' && Boolean(usuario?.email) && usuario?.emailVerificado === false && !paginaPublica
 
   /**
@@ -51,7 +54,9 @@ function Rotas() {
 
   // `#/tiragem/<id>` abre a sala daquela sessão; `#/tiragem` é o lobby.
   const conteudo =
-    partes[0] === 'tiragem' && partes[1] ? (
+    linkEmail ? (
+      <ConcluirCadastroPage />
+    ) : partes[0] === 'tiragem' && partes[1] ? (
       <SalaPage sessaoId={partes[1]} />
     ) : partes[0] === 'tiragem' ? (
       <TiragemPage />

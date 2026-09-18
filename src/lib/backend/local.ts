@@ -1,5 +1,6 @@
 import { EMAIL_TAROLOGO, ehEmailDeTarologo, TAROLOGO_RODRIGO } from './tarologo'
 import { dadosPix } from '../pix'
+import { guardarCadastroPendente, lerCadastroPendente, limparCadastroPendente } from '../cadastroPorLink'
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
@@ -328,19 +329,33 @@ export class LocalBackend implements Backend {
     this.definirUsuario(semSenha(conta))
   }
 
-  async cadastrarComEmail(nome: string, email: string, senha: string) {
+  async enviarLinkEmail(nome: string, email: string) {
     const chave = email.trim().toLowerCase()
-    if (this.contas()[chave]) throw new Error('Já existe uma conta com este e-mail.')
-    if (senha.length < 6) throw new Error('A senha precisa de ao menos 6 caracteres.')
+    if (!chave.includes('@')) throw new Error('E-mail inválido.')
+    guardarCadastroPendente({ nome: nome.trim(), email: chave })
+  }
+
+  async concluirLinkEmail(nome: string, email: string, _link: string): Promise<{ novo: boolean }> {
+    const chave = email.trim().toLowerCase()
+    const pendente = lerCadastroPendente()
+    if (!pendente || pendente.email !== chave) throw new Error('Solicite um novo link para este e-mail.')
+    const existente = this.contas()[chave]
+    if (existente) {
+      this.definirUsuario(semSenha(existente))
+      limparCadastroPendente()
+      return { novo: false }
+    }
     const conta: Conta = {
       uid: novoId('cliente'),
       nome: nome.trim() || 'Visitante',
       email: email.trim(),
-      senha,
-      provedores: ['senha'],
+      senha: '',
+      provedores: [],
     }
     this.salvarConta(conta)
     this.definirUsuario(semSenha(conta))
+    limparCadastroPendente()
+    return { novo: true }
   }
 
   async enviarVerificacaoEmail() {

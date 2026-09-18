@@ -319,7 +319,7 @@ No [console do Firebase](https://console.firebase.google.com), use o projeto já
 
 1. **Conferir o projeto e o app Web** e confirmar que o `firebaseConfig` em `.env` pertence a esse projeto. O Google Analytics pode ficar desligado.
 2. **Authentication › Sign-in method**: conferir os provedores usados pelo site:
-   - **E-mail/senha** (só o primeiro item; "link por e-mail" não é usado);
+   - **E-mail/senha** e **Link por e-mail (entrada sem senha)**, ambos ativados;
    - **Google** — escolha um e-mail de suporte;
    - **Telefone** — veja a cota de SMS antes de publicar; o plano gratuito cobre
      poucas mensagens por dia e o restante é cobrado.
@@ -341,15 +341,18 @@ No [console do Firebase](https://console.firebase.google.com), use o projeto já
    o site é publicado (`<usuario>.github.io`), senão o login com Google é
    recusado em produção.
 
-O cadastro por e-mail/senha envia um link de confirmação. Enquanto o endereço
-não for confirmado, a conta fica numa tela de verificação e as regras do
-Firestore recusam reservas e dados privados. Contas que entram só por telefone
-continuam usando o SMS como prova de posse; contas Google seguem o estado de
-verificação informado pelo Firebase.
-Contas antigas sem confirmação podem pedir outro link nessa tela. Isso **não
-impede a criação do registro no Authentication**: para conter cadastros
-automatizados, confira as opções de proteção contra bots do Firebase
-Authentication com Identity Platform e as quotas do projeto.
+O novo cadastro por e-mail envia um link sem criar usuário no Authentication.
+O Firebase só cria a conta quando a pessoa abre o link, informa o mesmo e-mail
+e confirma; a posse do endereço já fica verificada. Depois ela pode criar uma
+senha ou continuar entrando por link. O e-mail não é colocado no endereço do
+link: no mesmo navegador ele fica temporariamente no armazenamento local, e em
+outro aparelho a pessoa precisa digitá-lo novamente. Contas antigas ainda não
+verificadas continuam na tela de verificação. Telefone usa o SMS como prova de
+posse; Google segue o estado de verificação informado pelo Firebase.
+
+Isso impede contas não verificadas **pelo fluxo do site**, mas não impede bots
+de chamar diretamente a API pública do Firebase nem de pedir links em massa.
+Mantenha o cadastro desativado até a proteção do Authentication estar ativa.
 
 #### Conter cadastros automatizados
 

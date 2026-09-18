@@ -9,7 +9,8 @@ export type EstadoAuth = {
 
   entrarComGoogle: () => Promise<void>
   entrarComEmail: (email: string, senha: string) => Promise<void>
-  cadastrarComEmail: (nome: string, email: string, senha: string) => Promise<void>
+  enviarLinkEmail: (nome: string, email: string) => Promise<void>
+  concluirLinkEmail: (nome: string, email: string, link: string) => Promise<{ novo: boolean }>
   enviarVerificacaoEmail: () => Promise<void>
   atualizarVerificacaoEmail: () => Promise<boolean>
   recuperarSenha: (email: string) => Promise<void>

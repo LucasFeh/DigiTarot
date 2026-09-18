@@ -3,8 +3,9 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-ch
 import {
   EmailAuthProvider,
   GoogleAuthProvider,
-  createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   getAuth,
+  isSignInWithEmailLink,
   RecaptchaVerifier,
   linkWithCredential,
   linkWithPhoneNumber,
@@ -14,7 +15,9 @@ import {
   reauthenticateWithPopup,
   sendPasswordResetEmail,
   sendEmailVerification,
+  sendSignInLinkToEmail,
   signInWithEmailAndPassword,
+  signInWithEmailLink,
   signInWithPhoneNumber,
   signInWithPopup,
   signOut,
@@ -40,6 +43,13 @@ import {
 import { novoToken } from './local'
 import { ehEmailDeTarologo, TAROLOGO_RODRIGO } from './tarologo'
 import { dadosPix } from '../pix'
+import {
+  guardarCadastroPendente,
+  limparCadastroPendente,
+  limparSenhaPendente,
+  marcarSemSenha,
+  temSenhaPendente,
+} from '../cadastroPorLink'
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
@@ -83,7 +93,8 @@ const paraUsuario = (u: User, habilitado = false): Usuario => ({
   admin: u.emailVerified && ehEmailDeTarologo(u.email),
   provedores: u.providerData
     .map((p) => PROVEDORES[p.providerId])
-    .filter((p): p is Provedor => Boolean(p)),
+    .filter((p): p is Provedor => Boolean(p))
+    .filter((p) => p !== 'senha' || !temSenhaPendente(u.uid)),
 })
 
 /**
@@ -105,6 +116,8 @@ function traduzir(e: unknown): Error {
     'auth/wrong-password': 'Senha incorreta.',
     'auth/email-already-in-use': 'Já existe uma conta com este e-mail.',
     'auth/weak-password': 'A senha precisa de ao menos 6 caracteres.',
+    'auth/invalid-action-code': 'O link expirou ou já foi usado. Solicite outro link.',
+    'auth/expired-action-code': 'O link expirou. Solicite outro link.',
     'auth/requires-recent-login': 'Por segurança, entre de novo antes de alterar isto.',
     'auth/popup-closed-by-user': 'A janela do Google foi fechada antes de concluir.',
     'auth/credential-already-in-use': 'Esta conta Google já está ligada a outro cadastro.',
@@ -242,13 +255,45 @@ export class FirebaseBackend implements Backend {
     }
   }
 
-  async cadastrarComEmail(nome: string, email: string, senha: string) {
+  async enviarLinkEmail(nome: string, email: string) {
     try {
-      const { user } = await createUserWithEmailAndPassword(this.auth, email.trim(), senha)
-      const limpo = nome.trim()
-      if (limpo) await updateProfile(user, { displayName: limpo })
       this.auth.languageCode = 'pt'
-      await sendEmailVerification(user)
+      const endereco = email.trim().toLowerCase()
+      const url = new URL(import.meta.env.BASE_URL, window.location.origin)
+      await sendSignInLinkToEmail(this.auth, endereco, {
+        url: url.toString(),
+        handleCodeInApp: true,
+      })
+      guardarCadastroPendente({ nome: nome.trim(), email: endereco })
+    } catch (e) {
+      throw traduzir(e)
+    }
+  }
+
+  async concluirLinkEmail(nome: string, email: string, link: string): Promise<{ novo: boolean }> {
+    try {
+      if (!isSignInWithEmailLink(this.auth, link)) {
+        throw new Error('Este link não é válido para entrar. Solicite outro link.')
+      }
+      const resultado = await signInWithEmailLink(this.auth, email.trim().toLowerCase(), link)
+      const novo = Boolean(getAdditionalUserInfo(resultado)?.isNewUser)
+      if (novo) {
+        marcarSemSenha(resultado.user.uid)
+        if (nome.trim()) {
+          // O link já foi consumido: uma falha ao salvar o nome não pode prender
+          // a pessoa na tela nem fazer parecer que deve abrir o mesmo link de novo.
+          try {
+            await updateProfile(resultado.user, { displayName: nome.trim() })
+          } catch (erro) {
+            console.warn('Nome do novo cadastro não foi salvo:', erro)
+          }
+        }
+      }
+      limparCadastroPendente()
+      // Atualiza o nome na sessão sem transformar uma falha de refresh em
+      // "link inválido" depois de o código já ter sido consumido.
+      void resultado.user.getIdToken(true).catch(() => undefined)
+      return { novo }
     } catch (e) {
       throw traduzir(e)
     }
@@ -309,11 +354,24 @@ export class FirebaseBackend implements Backend {
   async definirSenha(novaSenha: string, senhaAtual?: string) {
     try {
       const u = this.exigirUsuario()
-      const temSenha = u.providerData.some((p) => p.providerId === 'password')
-      await this.reautenticar(senhaAtual)
-      if (temSenha) {
+      const senhaPendente = temSenhaPendente(u.uid)
+      const temSenha = !senhaPendente && u.providerData.some((p) => p.providerId === 'password')
+      if (senhaPendente) {
+        await updatePassword(u, novaSenha)
+        limparSenhaPendente(u.uid)
+      } else if (temSenha) {
+        await this.reautenticar(senhaAtual)
         await updatePassword(u, novaSenha)
       } else {
+        const temGoogle = u.providerData.some((p) => p.providerId === 'google.com')
+        if (!temGoogle && u.email && u.emailVerified) {
+          // Contas de link podem não expor `password` em providerData.
+          await updatePassword(u, novaSenha)
+          await u.reload()
+          await u.getIdToken(true)
+          return
+        }
+        await this.reautenticar(senhaAtual)
         // Conta que só tinha Google: a senha entra como um provedor NOVO,
         // ligado à mesma conta. É isto que dá à pessoa uma segunda porta antes
         // de ela fechar a do Google.
@@ -321,6 +379,7 @@ export class FirebaseBackend implements Backend {
         await linkWithCredential(u, EmailAuthProvider.credential(u.email, novaSenha))
       }
       await u.reload()
+      await u.getIdToken(true)
     } catch (e) {
       throw traduzir(e)
     }

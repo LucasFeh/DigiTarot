@@ -307,8 +307,10 @@ export interface Backend {
   observarUsuario(cb: (u: Usuario | null) => void): Unsubscribe
   entrarComGoogle(): Promise<void>
   entrarComEmail(email: string, senha: string): Promise<void>
-  /** Cria a conta e envia o link para confirmar o e-mail. */
-  cadastrarComEmail(nome: string, email: string, senha: string): Promise<void>
+  /** Envia o link; só abri-lo cria a conta no Firebase. */
+  enviarLinkEmail(nome: string, email: string): Promise<void>
+  /** Confirma a posse do e-mail e entra. */
+  concluirLinkEmail(nome: string, email: string, link: string): Promise<{ novo: boolean }>
   enviarVerificacaoEmail(): Promise<void>
   atualizarVerificacaoEmail(): Promise<boolean>
   /** Dispara o e-mail de redefinição. Nunca revela se a conta existe. */
