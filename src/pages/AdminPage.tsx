@@ -18,7 +18,7 @@ type Formulario = {
 }
 
 const PIX_VAZIO: DadosPix = { chave: '', nome: '', cidade: '' }
-const FOTO_RODRIGO = `${import.meta.env.BASE_URL}foto-tarologo-provisoria.jpg`
+const FOTO_RODRIGO = `${import.meta.env.BASE_URL}rodrigo-foto.jpg`
 const PERSONAGEM_RODRIGO = `${import.meta.env.BASE_URL}rodrigo.webp`
 const PLANOS = categories.flatMap((categoria) => categoria.plans)
 const MODALIDADES_RODRIGO = Object.fromEntries(PLANOS.map((plano) => [plano.id, plano.price]))

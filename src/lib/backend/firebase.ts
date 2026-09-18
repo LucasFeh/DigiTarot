@@ -517,6 +517,8 @@ export class FirebaseBackend implements Backend {
       nome: '',
       foto: '',
       personagem: '',
+      // Perfis antigos já estavam na vitrine; só os novos aguardam publicação.
+      cartaoPublicado: existente.exists(),
       bio: '',
       avaliacao: { media: 5, total: 0 },
       modalidades: {},
@@ -527,6 +529,14 @@ export class FirebaseBackend implements Backend {
       email: id,
     }
     await setDoc(ref, novo)
+  }
+
+  async publicarCartaTarologo(uid: string, foto: string, personagem: string) {
+    await updateDoc(doc(this.db, 'tarologos', idTarologo(uid)), {
+      foto,
+      personagem,
+      cartaoPublicado: true,
+    })
   }
 
   observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe {

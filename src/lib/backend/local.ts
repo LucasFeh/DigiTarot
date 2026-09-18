@@ -546,7 +546,7 @@ export class LocalBackend implements Backend {
     const anterior = this.tarologos()[id]
     mapa[id] = {
       ...(anterior ?? {
-        nome: '', foto: '', personagem: '', bio: '',
+        nome: '', foto: '', personagem: '', cartaoPublicado: false, bio: '',
         avaliacao: { media: 5, total: 0 }, modalidades: {}, ativo: true,
       }),
       ...patch,
@@ -555,6 +555,10 @@ export class LocalBackend implements Backend {
     }
     gravar(CHAVE_TAROLOGOS, mapa)
     this.avisar('tarologos')
+  }
+
+  async publicarCartaTarologo(uid: string, foto: string, personagem: string) {
+    await this.salvarTarologo(uid, { foto, personagem, cartaoPublicado: true })
   }
 
   observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe {

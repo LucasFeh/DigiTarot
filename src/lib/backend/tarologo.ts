@@ -20,6 +20,7 @@ export const TAROLOGO_RODRIGO: TarologoPublico = {
   nome: 'Rodrigo',
   foto: FOTO_RODRIGO,
   personagem: `${import.meta.env.BASE_URL}rodrigo.webp`,
+  cartaoPublicado: true,
   bio: 'Tarólogo e anfitrião da DigiTarot.',
   avaliacao: { media: 5, total: 0 },
   modalidades: Object.fromEntries(categories.flatMap((categoria) => categoria.plans.map((plano) => [plano.id, plano.price]))),

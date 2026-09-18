@@ -83,6 +83,31 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
     }
 
+    function fotoDaCartaValida() {
+      let valor = request.resource.data.foto;
+      return valor is string
+             && valor.size() <= 260000
+             && valor.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$');
+    }
+
+    function chibiDaCartaValido() {
+      let valor = request.resource.data.personagem;
+      return valor is string
+             && (valor == '' || (valor.size() <= 320000
+                 && valor.matches('^data:image/png;base64,[A-Za-z0-9+/=]+$')));
+    }
+
+    function edicaoDaCartaPeloDono(id) {
+      let campos = request.resource.data.diff(resource.data).affectedKeys();
+      return donoTarologo(id)
+             && campos.hasOnly(['foto', 'personagem', 'cartaoPublicado'])
+             && request.resource.data.get('cartaoPublicado', false) is bool
+             && request.resource.data.foto is string
+             && request.resource.data.foto.size() > 0
+             && (!campos.hasAny(['foto']) || fotoDaCartaValida())
+             && (!campos.hasAny(['personagem']) || chibiDaCartaValido());
+    }
+
     // ------------------------------- perfis -------------------------------
     // O registro de cada pessoa. É dela, e só dela; o atendimento usa os dados
     // mínimos já copiados no agendamento.
@@ -99,7 +124,7 @@ service cloud.firestore {
                     && request.resource.data.uid == tarologoId
                     && request.resource.data.email == tarologoId
                     && request.resource.data.modalidades is map;
-      allow update: if ehAdmin()
+      allow update: if (ehAdmin() || edicaoDaCartaPeloDono(tarologoId))
                     && request.resource.data.uid == tarologoId
                     && request.resource.data.email == tarologoId
                     && request.resource.data.modalidades is map;

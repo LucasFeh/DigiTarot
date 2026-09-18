@@ -6,6 +6,7 @@ import LayoutPainel, { type ItemMenu } from '../components/painel/LayoutPainel'
 import AvatarEditavel from '../components/temas/AvatarEditavel'
 import SeletorDesempenho from '../components/SeletorDesempenho'
 import SecaoConta from '../components/perfil/SecaoConta'
+import EditorCartaTarologo from '../components/perfil/EditorCartaTarologo'
 import LoginPage from './LoginPage'
 
 /**
@@ -16,7 +17,7 @@ import LoginPage from './LoginPage'
  * obrigava a pessoa a sair da tiragem para escolher o baralho que ela ia usar
  * na tiragem.
  */
-type Secao = 'geral' | 'conta'
+type Secao = 'geral' | 'carta' | 'conta'
 
 const SECOES: ItemMenu<Secao>[] = [
   { id: 'geral', rotulo: 'Geral', icone: '☾' },
@@ -71,6 +72,9 @@ export default function PerfilPage() {
   // a pessoa decidiu. Enquanto ela não escolher nenhuma, vale a do Google —
   // ninguém precisa procurar uma foto para não ficar com uma inicial genérica.
   const foto = perfil.foto || usuario.foto || ''
+  const secoes: ItemMenu<Secao>[] = usuario.papel === 'tarologo'
+    ? [SECOES[0], { id: 'carta', rotulo: 'Minha carta', icone: '✦' }, SECOES[1]]
+    : SECOES
 
   const avatar = foto ? (
     <img src={foto} alt="" className="h-11 w-11 rounded-full object-cover" />
@@ -85,7 +89,7 @@ export default function PerfilPage() {
       titulo={nomeExibido}
       subtitulo={usuario.papel === 'tarologo' ? 'tarólogo' : 'cliente'}
       avatar={avatar}
-      itens={SECOES}
+      itens={secoes}
       atual={secao}
       aoEscolher={setSecao}
     >
@@ -162,6 +166,7 @@ export default function PerfilPage() {
       )}
 
       {secao === 'conta' && <SecaoConta />}
+      {secao === 'carta' && usuario.papel === 'tarologo' && <EditorCartaTarologo />}
     </LayoutPainel>
   )
 }

@@ -355,6 +355,12 @@
   text-shadow: 0 3px 15px #000d;
 }
 
+.tarologo-back.is-empty .tarologo-back-name {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+
 .tarologo-back-mark { position: absolute; z-index: 5; top: 47%; right: 28px; color: #f2d492; font-size: 1.8rem; }
 
 .tarologo-profile-copy { padding: 2rem 0 0.5rem; }

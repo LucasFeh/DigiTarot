@@ -30,6 +30,8 @@ export type TarologoPublico = {
   email: string
   foto: string
   personagem: string
+  /** O administrador cria o perfil; o profissional publica a própria carta. */
+  cartaoPublicado?: boolean
   bio: string
   avaliacao: { media: number; total: number }
   /** Plano do catálogo -> preço em reais. Ausência significa não atendido. */
@@ -352,6 +354,7 @@ export interface Backend {
   observarTarologos(cb: (lista: TarologoPublico[]) => void, onError?: (erro: string) => void): Unsubscribe
   observarTarologo(uid: string, cb: (perfil: TarologoPublico | null) => void): Unsubscribe
   salvarTarologo(uid: string, patch: Partial<TarologoPublico>): Promise<void>
+  publicarCartaTarologo(uid: string, foto: string, personagem: string): Promise<void>
   observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe
   salvarPixTarologo(uid: string, pix: TarologoPix): Promise<void>
 

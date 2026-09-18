@@ -38,7 +38,9 @@ const CAMPO =
   'w-full rounded-xl border border-white/20 bg-[#171123] px-4 py-3 text-[16px] text-star outline-none transition placeholder:text-mist/45 focus:border-gold/70'
 
 function fotoDoTarologo(tarologo: { nome: string; foto: string }) {
-  return tarologo.nome.trim().toLocaleLowerCase('pt-BR').includes('rodrigo')
+  const ehRodrigo = tarologo.nome.trim().toLocaleLowerCase('pt-BR').includes('rodrigo')
+  const fotoAntiga = !tarologo.foto || /(?:foto-tarologo-provisoria\.jpg|rodrigo\.(?:png|webp))(?:\?|$)/i.test(tarologo.foto)
+  return ehRodrigo && fotoAntiga
     ? FOTO_RODRIGO
     : tarologo.foto || `${import.meta.env.BASE_URL}foto-tarologo-provisoria.jpg`
 }
@@ -81,7 +83,7 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
   const [enviando, setEnviando] = useState(false)
 
   const item = PLAN_BY_ID.get(planoId)
-  const disponiveis = tarologos.filter((t) => t.ativo && Number(t.modalidades[planoId]) > 0)
+  const disponiveis = tarologos.filter((t) => t.ativo && t.cartaoPublicado !== false && Number(t.modalidades[planoId]) > 0)
   const tarologo = disponiveis.find((t) => t.uid === tarologoId)
 
   useEffect(() => {

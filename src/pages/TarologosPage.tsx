@@ -1,115 +1,20 @@
-import { useState, type CSSProperties, type PointerEvent } from 'react'
+import type { CSSProperties } from 'react'
 import Footer from '../components/Footer'
+import CartaVisual from '../components/tarologos/CartaVisual'
 import { PLAN_BY_ID } from '../data/plans'
 import { useTarologos } from '../lib/tarologos'
 import type { TarologoPublico } from '../lib/backend'
-import { FOTO_RODRIGO } from '../lib/backend/tarologo'
 import './TarologosPage.css'
-
-const FOTO_PROVISORIA = `${import.meta.env.BASE_URL}foto-tarologo-provisoria.jpg`
-const PERSONAGEM_RODRIGO = `${import.meta.env.BASE_URL}rodrigo.webp`
 
 function nomeDaModalidade(id: string) {
   return PLAN_BY_ID.get(id)?.plano.title ?? id.replace(/-/g, ' ')
 }
 
-function notaDoTarologo(tarologo: TarologoPublico) {
-  const total = tarologo.avaliacao?.total ?? 0
-  const media = tarologo.avaliacao?.media ?? 5
-  return {
-    media: total > 0 ? Math.max(0, Math.min(5, media)) : 5,
-    total,
-  }
-}
-
-function Estrelas({ tarologo }: { tarologo: TarologoPublico }) {
-  const { media, total } = notaDoTarologo(tarologo)
-  const preenchidas = Math.round(media)
-
-  return (
-    <span className="tarologo-rating" aria-label={total ? `${media.toFixed(1)} de 5 estrelas em ${total} avaliações` : '5 estrelas ilustrativas; avaliações em breve'}>
-      <span aria-hidden="true" className="tarologo-rating-stars">
-        {Array.from({ length: 5 }, (_, index) => (
-          <span key={index} className={index < preenchidas ? 'is-filled' : ''}>★</span>
-        ))}
-      </span>
-      <span className="tarologo-rating-caption">
-        {total ? `${media.toFixed(1).replace('.', ',')} · ${total} ${total === 1 ? 'avaliação' : 'avaliações'}` : 'Avaliações em breve'}
-      </span>
-    </span>
-  )
-}
-
 function CartaTarologo({ tarologo, indice }: { tarologo: TarologoPublico; indice: number }) {
-  const [revelado, setRevelado] = useState(false)
   const modalidades = Object.keys(tarologo.modalidades ?? {}).filter((id) => Number.isFinite(tarologo.modalidades[id]))
-  const ehRodrigo = tarologo.nome.trim().toLocaleLowerCase('pt-BR').includes('rodrigo')
-  const personagem = tarologo.personagem || (ehRodrigo ? PERSONAGEM_RODRIGO : tarologo.foto || FOTO_PROVISORIA)
-  const fotoProvisoria = !ehRodrigo && !tarologo.foto
-  const foto = ehRodrigo ? FOTO_RODRIGO : tarologo.foto || FOTO_PROVISORIA
-  const estilo = { '--card-index': indice } as CSSProperties
-
-  function acompanharPonteiro(evento: PointerEvent<HTMLButtonElement>) {
-    if (evento.pointerType !== 'mouse') return
-    const carta = evento.currentTarget
-    const limite = carta.getBoundingClientRect()
-    const x = (evento.clientX - limite.left) / limite.width - 0.5
-    const y = (evento.clientY - limite.top) / limite.height - 0.5
-    carta.style.setProperty('--tilt-y', `${(x * 8).toFixed(2)}deg`)
-    carta.style.setProperty('--tilt-x', `${(-y * 8).toFixed(2)}deg`)
-    carta.style.setProperty('--move-x', `${(x * 12).toFixed(2)}px`)
-    carta.style.setProperty('--move-y', `${(y * 12).toFixed(2)}px`)
-  }
-
-  function recentrar(evento: PointerEvent<HTMLButtonElement>) {
-    const carta = evento.currentTarget
-    carta.style.removeProperty('--tilt-y')
-    carta.style.removeProperty('--tilt-x')
-    carta.style.removeProperty('--move-x')
-    carta.style.removeProperty('--move-y')
-  }
-
   return (
-    <article className="tarologo-profile" style={estilo}>
-      <button
-        type="button"
-        className={`tarologo-stage${revelado ? ' is-revealed' : ''}`}
-        aria-label={`${revelado ? 'Ver foto' : 'Revelar personagem'} de ${tarologo.nome}`}
-        aria-pressed={revelado}
-        onClick={() => setRevelado((atual) => !atual)}
-        onPointerMove={acompanharPonteiro}
-        onPointerLeave={recentrar}
-      >
-        <span className="tarologo-rotor">
-          <span className="tarologo-face tarologo-front">
-            <span className="tarologo-photo-wrap">
-              <img src={foto} alt="" className="tarologo-photo" loading="lazy" />
-              <span className="tarologo-photo-shade" aria-hidden="true" />
-            </span>
-            <span className="tarologo-card-topline">
-              <span className="tarologo-card-kicker">DIGITAROT · TARÓLOGO</span>
-              <span className="tarologo-card-symbol" aria-hidden="true">✦</span>
-            </span>
-            <span className="tarologo-card-bottomline">
-              <span className="tarologo-card-name">{tarologo.nome}</span>
-              <Estrelas tarologo={tarologo} />
-              {fotoProvisoria && <span className="tarologo-photo-disclaimer">Foto ilustrativa</span>}
-            </span>
-            <span className="tarologo-card-corner" aria-hidden="true">PERFIL / {String(indice + 1).padStart(2, '0')}</span>
-          </span>
-
-          <span className="tarologo-face tarologo-back" aria-hidden="true">
-            <span className="tarologo-back-aura" />
-            <span className="tarologo-back-orbit tarologo-back-orbit-one" />
-            <span className="tarologo-back-orbit tarologo-back-orbit-two" />
-            <span className="tarologo-back-label">O universo por trás das cartas</span>
-            <img src={personagem} alt="" className={`tarologo-character${!tarologo.personagem && !ehRodrigo ? ' is-photo' : ''}`} loading="lazy" />
-            <span className="tarologo-back-name">{tarologo.nome}</span>
-            <span className="tarologo-back-mark" aria-hidden="true">✧</span>
-          </span>
-        </span>
-      </button>
-
+    <article className="tarologo-profile" style={{ '--card-index': indice } as CSSProperties}>
+      <CartaVisual tarologo={tarologo} indice={indice} />
       <div className="tarologo-profile-copy">
         <div className="tarologo-profile-heading">
           <div>
@@ -138,10 +43,9 @@ function CartaTarologo({ tarologo, indice }: { tarologo: TarologoPublico; indice
     </article>
   )
 }
-
 export default function TarologosPage() {
   const { tarologos, carregando } = useTarologos()
-  const disponiveis = tarologos.filter((tarologo) => tarologo.ativo)
+  const disponiveis = tarologos.filter((tarologo) => tarologo.ativo && tarologo.cartaoPublicado !== false)
 
   return (
     <>
