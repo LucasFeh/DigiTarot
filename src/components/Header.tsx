@@ -4,8 +4,8 @@ import { useAuth } from '../lib/useAuth'
 
 const LINKS = [
   { href: '#/', rotulo: 'Home', combina: (c: string) => c === '/' },
-  { href: '#/tiragem', rotulo: 'Tiragem digital', combina: (c: string) => c.startsWith('/tiragem') },
   { href: '#/tarologos', rotulo: 'Tarólogos', combina: (c: string) => c.startsWith('/tarologos') },
+  { href: '#/mesa-digital', rotulo: 'Tiragem digital', combina: (c: string) => c.startsWith('/mesa-digital') },
 ]
 
 /** Rola ao topo quando já se está na home — o `hashchange` não dispara sozinho
@@ -49,7 +49,7 @@ export default function Header({ caminho }: { caminho: string }) {
 
   return (
     <header className="sticky top-0 z-[70] border-b border-white/10 bg-void/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
+      <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 sm:flex-nowrap sm:px-5 sm:py-0">
         <a
           href="#/"
           onClick={(e) => irParaTopo(e, '#/')}
@@ -61,7 +61,7 @@ export default function Header({ caminho }: { caminho: string }) {
           {site.brand}
         </a>
 
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex w-full items-center justify-between gap-0 overflow-x-auto sm:w-auto sm:gap-2" aria-label="Navegação principal">
           {LINKS.map((l) => {
             const ativo = l.combina(caminho)
             return (
@@ -70,7 +70,7 @@ export default function Header({ caminho }: { caminho: string }) {
                 href={l.href}
                 onClick={(e) => irParaTopo(e, l.href)}
                 aria-current={ativo ? 'page' : undefined}
-                className="rounded-full px-3 py-2 text-[15px] tracking-wide transition sm:px-4"
+                className="shrink-0 rounded-full px-2 py-2 text-[12px] tracking-wide transition sm:px-4 sm:text-[15px]"
                 style={{
                   color: ativo ? '#fff' : '#cbbde8',
                   background: ativo ? '#ffffff14' : 'transparent',
@@ -125,7 +125,7 @@ export default function Header({ caminho }: { caminho: string }) {
                     onClick={() => setMenu(false)}
                     className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star"
                   >
-                    Tiragem digital
+                    Minha tiragem
                   </a>
                   <button
                     type="button"
@@ -149,7 +149,7 @@ export default function Header({ caminho }: { caminho: string }) {
           ) : (
             <a
               href="#/tiragem"
-              className="ml-1 rounded-full px-4 py-2 text-[15px] font-medium tracking-wide text-star transition"
+              className="ml-1 shrink-0 rounded-full px-3 py-2 text-[12px] font-medium tracking-wide text-star transition sm:px-4 sm:text-[15px]"
               style={{
                 background: 'linear-gradient(100deg, #6d3fd4, #c2449d)',
                 boxShadow: '0 10px 30px -12px #c2449d',

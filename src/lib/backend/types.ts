@@ -125,7 +125,8 @@ export const PERFIL_VAZIO: Perfil = {
 export type StatusAgendamento = 'aguardando' | 'pago' | 'confirmado' | 'cancelado'
 
 /** Como a leitura acontece. */
-export type FormatoConsulta = 'chamada' | 'audio' | 'escrito'
+/** Novos formatos e códigos antigos mantidos para ler reservas já existentes. */
+export type FormatoConsulta = 'organica' | 'fotos' | 'digital' | 'chamada' | 'audio' | 'escrito'
 
 export type Agendamento = {
   id: string

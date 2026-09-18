@@ -31,6 +31,7 @@ const AdminPage = lazy(() => import('./pages/AdminPage'))
 const VerificarEmailPage = lazy(() => import('./pages/VerificarEmailPage'))
 const ConcluirCadastroPage = lazy(() => import('./pages/ConcluirCadastroPage'))
 const ArmazenamentoPage = lazy(() => import('./pages/ArmazenamentoPage'))
+const MesaDigitalDemoPage = lazy(() => import('./pages/MesaDigitalDemoPage'))
 
 /** `#/temas/pessoais` e `#/temas/favoritos` abrem o acervo já na aba certa. */
 const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favoritos' }
@@ -39,7 +40,7 @@ function Rotas() {
   const { caminho, partes } = useHashRoute()
   const { usuario, backend } = useAuth()
   const linkEmail = haLinkDeEmailNaUrl() || partes[0] === 'confirmar-cadastro'
-  const paginaPublica = linkEmail || !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento'].includes(partes[0])
+  const paginaPublica = linkEmail || !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento', 'mesa-digital'].includes(partes[0])
   const aguardaEmail = backend?.modo === 'firebase' && Boolean(usuario?.email) && usuario?.emailVerificado === false && !paginaPublica
 
   /**
@@ -76,6 +77,8 @@ function Rotas() {
       <PerfilPage />
     ) : partes[0] === 'tarologos' ? (
       <TarologosPage />
+    ) : partes[0] === 'mesa-digital' ? (
+      <MesaDigitalDemoPage />
     ) : partes[0] === 'admin' ? (
       <AdminPage />
     ) : partes[0] === 'historico' ? (

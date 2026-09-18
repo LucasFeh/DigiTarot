@@ -12,6 +12,9 @@ import type { Agendamento } from '../lib/backend'
 import type { DadosPix } from '../lib/pix'
 
 const FORMATO: Record<string, string> = {
+  organica: 'Orgânica · vídeo da mesa',
+  fotos: 'Fotos com descrição',
+  digital: 'Tiragem digital · mesa 3D',
   chamada: 'Chamada de vídeo',
   audio: 'Áudio',
   escrito: 'Por escrito',

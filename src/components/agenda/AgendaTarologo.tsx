@@ -8,6 +8,9 @@ import SeloStatus from './SeloStatus'
 import type { Agendamento, Perfil } from '../../lib/backend'
 
 const FORMATO: Record<string, string> = {
+  organica: 'orgânica · vídeo da mesa',
+  fotos: 'fotos com descrição',
+  digital: 'tiragem digital · mesa 3D',
   chamada: 'chamada de vídeo',
   audio: 'áudio',
   escrito: 'por escrito',

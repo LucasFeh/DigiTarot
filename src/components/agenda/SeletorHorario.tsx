@@ -5,32 +5,26 @@ import {
   diaTemVaga,
   diasDisponiveis,
   rotuloCompleto,
-  rotuloDia,
   slotId,
+  ultimoDiaAgendavel,
 } from '../../data/agenda'
 
-/**
- * O calendário da reserva: quatro semanas à frente, todos os dias, e os seis
- * encaixes de cada dia — 16h às 21h.
- *
- * O "agora" fica em estado e é revisto de minuto em minuto. Sem isso, uma aba
- * deixada aberta das 15h50 continuaria oferecendo as 16h de hoje muito depois
- * de o horário ter passado, e a reserva só falharia lá na frente.
- */
+const CAMPO =
+  'w-full appearance-none rounded-xl border border-white/20 bg-[#171123] px-4 py-3 text-[15px] text-star outline-none transition focus:border-gold/70'
+
+/** Seleção compacta de mês, dia e horário; dias sem vaga não aparecem. */
 export default function SeletorHorario({
   ocupados,
   dia,
   hora,
   onDia,
   onHora,
-  accent,
 }: {
   ocupados: Set<string>
   dia: string | null
   hora: string | null
-  onDia: (d: string) => void
-  onHora: (h: string) => void
-  accent: string
+  onDia: (d: string | null) => void
+  onHora: (h: string | null) => void
 }) {
   const [agora, setAgora] = useState(() => new Date())
 
@@ -39,83 +33,81 @@ export default function SeletorHorario({
     return () => clearInterval(t)
   }, [])
 
-  const dias = diasDisponiveis(agora)
+  const disponiveis = diasDisponiveis(agora).filter((d) => diaTemVaga(d, ocupados, agora))
+  const meses = [...new Set(disponiveis.map((d) => d.slice(0, 7)))]
+  const [mes, setMes] = useState(() => meses[0] ?? '')
+  const mesAtual = meses.includes(mes) ? mes : (meses[0] ?? '')
+  const diasDoMes = disponiveis.filter((d) => d.startsWith(mesAtual))
+  const horasDoDia = dia
+    ? HORARIOS.filter((h) => !ocupados.has(slotId(dia, h)) && !cedoDemais(dia, h, agora))
+    : []
 
   return (
     <div>
-      <h3 className="font-display text-[17px] text-star">Escolha o dia</h3>
-      <p className="mt-1 text-[14px] text-mist/70">
-        Atendimento todos os dias, das 16h às 21h.
-      </p>
-
-      <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
-        {dias.map((d) => {
-          const livre = diaTemVaga(d, ocupados, agora)
-          const on = d === dia
-          const r = rotuloDia(d)
-          return (
-            <button
-              key={d}
-              type="button"
-              disabled={!livre}
-              onClick={() => onDia(d)}
-              aria-pressed={on}
-              className="rounded-xl border px-2 py-2.5 text-center transition disabled:cursor-not-allowed disabled:opacity-30"
-              style={{
-                borderColor: on ? accent : '#ffffff1f',
-                background: on ? `${accent}26` : '#ffffff08',
-                boxShadow: on ? `0 0 24px -8px ${accent}` : 'none',
-              }}
-            >
-              <span className="block text-[11px] uppercase tracking-[0.14em] text-mist/70">
-                {r.semana}
-              </span>
-              <span className="block font-display text-[18px] text-star">{r.numero}</span>
-              <span className="block text-[11px] text-mist/55">{r.mes}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ------------------------------ horários ------------------------------ */}
-      <div className="mt-8">
-        <h3 className="font-display text-[17px] text-star">Escolha o horário</h3>
-        <p className="mt-1 text-[14px] text-mist/70">
-          {dia ? rotuloCompleto(dia) : 'Selecione um dia acima primeiro.'}
-        </p>
-
-        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {HORARIOS.map((h) => {
-            const indisponivel =
-              !dia || ocupados.has(slotId(dia, h)) || cedoDemais(dia, h, agora)
-            const on = h === hora && !indisponivel
-            return (
-              <button
-                key={h}
-                type="button"
-                disabled={indisponivel}
-                onClick={() => onHora(h)}
-                aria-pressed={on}
-                className="rounded-xl border py-3 text-center font-display text-[16px] transition disabled:cursor-not-allowed disabled:opacity-25"
-                style={{
-                  borderColor: on ? accent : '#ffffff1f',
-                  background: on ? `${accent}26` : '#ffffff08',
-                  color: on ? '#fff' : '#cbbde8',
-                  boxShadow: on ? `0 0 24px -8px ${accent}` : 'none',
-                }}
-              >
-                {h}
-              </button>
-            )
-          })}
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="font-display text-xl text-star">Escolha quando conversar</h2>
+          <p className="mt-1 text-[14px] text-mist/70">Atendimentos das 16h às 21h, conforme disponibilidade.</p>
         </div>
-
-        {dia && HORARIOS.every((h) => ocupados.has(slotId(dia, h)) || cedoDemais(dia, h, agora)) && (
-          <p className="mt-3 text-[14px] text-gold/90">
-            Não há mais horários livres neste dia. Escolha outro.
-          </p>
-        )}
+        <p className="text-[12px] text-gold/85">Até {ultimoDiaAgendavel(agora).toLocaleDateString('pt-BR')}</p>
       </div>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <label className="block">
+          <span className="mb-2 block text-[12px] uppercase tracking-[0.16em] text-mist/70">Mês</span>
+          <select
+            value={mesAtual}
+            onChange={(e) => {
+              setMes(e.target.value)
+              onDia(null)
+              onHora(null)
+            }}
+            className={CAMPO}
+            aria-label="Mês do atendimento"
+          >
+            {meses.map((m) => (
+              <option key={m} value={m}>
+                {new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-[12px] uppercase tracking-[0.16em] text-mist/70">Dia</span>
+          <select
+            value={dia && diasDoMes.includes(dia) ? dia : ''}
+            onChange={(e) => {
+              onDia(e.target.value || null)
+              onHora(null)
+            }}
+            disabled={!diasDoMes.length}
+            className={CAMPO}
+            aria-label="Dia do atendimento"
+          >
+            <option value="">Selecione o dia</option>
+            {diasDoMes.map((d) => <option key={d} value={d}>{rotuloCompleto(d)}</option>)}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-[12px] uppercase tracking-[0.16em] text-mist/70">Horário</span>
+          <select
+            value={hora && horasDoDia.includes(hora as typeof HORARIOS[number]) ? hora : ''}
+            onChange={(e) => onHora(e.target.value || null)}
+            disabled={!dia || !horasDoDia.length}
+            className={CAMPO}
+            aria-label="Horário do atendimento"
+          >
+            <option value="">Selecione a hora</option>
+            {horasDoDia.map((h) => <option key={h} value={h}>{h}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {!disponiveis.length && (
+        <p className="mt-5 text-[14px] text-gold">Não há horários livres neste período. Consulte novamente em breve.</p>
+      )}
     </div>
   )
 }

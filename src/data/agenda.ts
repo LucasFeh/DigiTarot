@@ -11,8 +11,15 @@
 
 export const HORARIOS = ['16:00', '17:00', '18:00', '19:00', '20:00', '21:00'] as const
 
-/** Quantos dias o calendário mostra à frente. Quatro semanas cheias. */
-export const DIAS_VISIVEIS = 28
+/** Limite da reserva: até a mesma data do mês seguinte, inclusive. */
+export function ultimoDiaAgendavel(agora = new Date()): Date {
+  const ultimoDoMesSeguinte = new Date(agora.getFullYear(), agora.getMonth() + 2, 0).getDate()
+  return new Date(
+    agora.getFullYear(),
+    agora.getMonth() + 1,
+    Math.min(agora.getDate(), ultimoDoMesSeguinte),
+  )
+}
 
 /**
  * Antecedência mínima, em minutos. Sem isso alguém reservaria as 16h às 15h58 e
@@ -56,11 +63,15 @@ export function partesDoSlot(id: string): { dia: string; hora: string } {
   return { dia, hora: hora ?? '' }
 }
 
-/** Os próximos `DIAS_VISIVEIS` dias, hoje incluído. */
+/** De hoje até a mesma data do próximo mês, respeitando meses curtos. */
 export function diasDisponiveis(agora = new Date()): string[] {
   const dias: string[] = []
-  for (let i = 0; i < DIAS_VISIVEIS; i++) {
-    const d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + i)
+  const fim = ultimoDiaAgendavel(agora)
+  for (
+    let d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    d <= fim;
+    d.setDate(d.getDate() + 1)
+  ) {
     dias.push(chaveDia(d))
   }
   return dias
