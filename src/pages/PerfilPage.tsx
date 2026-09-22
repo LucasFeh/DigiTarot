@@ -7,6 +7,8 @@ import AvatarEditavel from '../components/temas/AvatarEditavel'
 import SeletorDesempenho from '../components/SeletorDesempenho'
 import SecaoConta from '../components/perfil/SecaoConta'
 import EditorCartaTarologo from '../components/perfil/EditorCartaTarologo'
+import CartaArcanoPessoal from '../components/perfil/CartaArcanoPessoal'
+import { calcularArcanoPessoal, calcularIdade } from '../data/arcanosPessoais'
 import LoginPage from './LoginPage'
 
 /**
@@ -72,6 +74,9 @@ export default function PerfilPage() {
   // a pessoa decidiu. Enquanto ela não escolher nenhuma, vale a do Google —
   // ninguém precisa procurar uma foto para não ficar com uma inicial genérica.
   const foto = perfil.foto || usuario.foto || ''
+  const arcanoPessoal = calcularArcanoPessoal(perfil.dataNascimento)
+  const idade = calcularIdade(perfil.dataNascimento)
+  const hoje = new Date().toLocaleDateString('en-CA')
   const secoes: ItemMenu<Secao>[] = usuario.papel === 'tarologo'
     ? [SECOES[0], { id: 'carta', rotulo: 'Minha carta', icone: '✦' }, SECOES[1]]
     : SECOES
@@ -94,74 +99,115 @@ export default function PerfilPage() {
       aoEscolher={setSecao}
     >
       {secao === 'geral' && (
-        <div className="glass max-w-3xl rounded-2xl p-7">
-          <h2 className="mb-1 font-display text-xl text-star">Seus dados</h2>
-          <p className="mb-6 text-[14px] text-mist/70">
-            É o que aparece para quem estiver do outro lado da mesa.
-          </p>
-
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <AvatarEditavel
-              foto={foto}
-              inicial={nomeExibido.slice(0, 1).toUpperCase()}
-              onFoto={(dataUrl) => salvar({ foto: dataUrl })}
-            />
-
-            <div className="flex min-w-0 flex-1 flex-col gap-5">
-              <Campo
-                rotulo="Nome"
-                valor={perfil.nome}
-                onChange={(v) => salvar({ nome: v })}
-                placeholder={usuario.nome}
-                dica="Como você quer ser chamada aqui."
-              />
-              <Campo
-                rotulo="Contato"
-                valor={perfil.contato}
-                onChange={(v) => salvar({ contato: v })}
-                placeholder="WhatsApp, telefone, e-mail…"
-              />
-              <Campo
-                rotulo="Instagram"
-                valor={perfil.instagram}
-                onChange={(v) => salvar({ instagram: v.replace(/^@+/, '') })}
-                placeholder="seu.perfil"
-                dica="Sem o arroba."
-              />
-            </div>
-          </div>
-
-          {!perfil.foto && usuario.foto && (
-            <p className="mt-6 rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-[13px] leading-relaxed text-mist/70">
-              A foto acima é a da sua conta Google. Clique nela para trocar por outra — a partir daí
-              o site passa a usar a sua, e nunca mais mexe nisso.
+        <div className="grid max-w-6xl items-start gap-8 xl:grid-cols-[minmax(0,1fr)_335px]">
+          <div className="glass rounded-2xl p-7">
+            <h2 className="mb-1 font-display text-xl text-star">Seus dados</h2>
+            <p className="mb-6 text-[14px] text-mist/70">
+              É o que aparece para quem estiver do outro lado da mesa.
             </p>
-          )}
+
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+              <AvatarEditavel
+                foto={foto}
+                inicial={nomeExibido.slice(0, 1).toUpperCase()}
+                onFoto={(dataUrl) => salvar({ foto: dataUrl })}
+              />
+
+              <div className="flex min-w-0 flex-1 flex-col gap-5">
+                <Campo
+                  rotulo="Nome"
+                  valor={perfil.nome}
+                  onChange={(v) => salvar({ nome: v })}
+                  placeholder={usuario.nome}
+                  dica="Como você quer ser chamada aqui."
+                />
+                <Campo
+                  rotulo="Contato"
+                  valor={perfil.contato}
+                  onChange={(v) => salvar({ contato: v })}
+                  placeholder="WhatsApp, telefone, e-mail…"
+                />
+                <Campo
+                  rotulo="Instagram"
+                  valor={perfil.instagram}
+                  onChange={(v) => salvar({ instagram: v.replace(/^@+/, '') })}
+                  placeholder="seu.perfil"
+                  dica="Sem o arroba."
+                />
+              </div>
+            </div>
+
+            {!perfil.foto && usuario.foto && (
+              <p className="mt-6 rounded-xl border border-white/12 bg-white/5 px-4 py-3 text-[13px] leading-relaxed text-mist/70">
+                A foto acima é a da sua conta Google. Clique nela para trocar por outra — a partir daí
+                o site passa a usar a sua, e nunca mais mexe nisso.
+              </p>
+            )}
 
           {/* Desempenho da mesa. Fica junto dos dados, e não numa seção
               própria, porque é um botão só — uma aba inteira para ele faria a
               pessoa procurar mais do que decidir. */}
-          <div className="mt-7 border-t border-white/10 pt-6">
-            <h3 className="font-display text-[17px] text-star">A mesa no seu aparelho</h3>
-            <p className="mb-3 mt-1 text-[14px] leading-relaxed text-mist/70">
-              A sala é 3D: velas com luz de verdade, sombra e o pano em textura. Em aparelho mais
-              modesto isso pode engasgar — aqui você escolhe o quanto ela gasta.
-            </p>
-            <SeletorDesempenho
-              modo={desempenho.modo}
-              leve={desempenho.leve}
-              onModo={desempenho.definir}
-            />
-            <p className="mt-2 text-[13px] leading-relaxed text-mist/55">
-              Vale para ESTE aparelho na hora, e vira o padrão dos próximos — quem escolheu “leve”
-              no celular não quer “leve” no computador.
+            <div className="mt-7 border-t border-white/10 pt-6">
+              <h3 className="font-display text-[17px] text-star">A mesa no seu aparelho</h3>
+              <p className="mb-3 mt-1 text-[14px] leading-relaxed text-mist/70">
+                A sala é 3D: velas com luz de verdade, sombra e o pano em textura. Em aparelho mais
+                modesto isso pode engasgar — aqui você escolhe o quanto ela gasta.
+              </p>
+              <SeletorDesempenho
+                modo={desempenho.modo}
+                leve={desempenho.leve}
+                onModo={desempenho.definir}
+              />
+              <p className="mt-2 text-[13px] leading-relaxed text-mist/55">
+                Vale para ESTE aparelho na hora, e vira o padrão dos próximos — quem escolheu “leve”
+                no celular não quer “leve” no computador.
+              </p>
+            </div>
+
+            <p className="mt-7 border-t border-white/10 pt-5 text-[13px] leading-relaxed text-mist/55">
+              Salva sozinho, e fica guardado na sua conta. Quem entra ({usuario.email || 'sem e-mail'})
+              você muda em “Conta e acessos”.
             </p>
           </div>
 
-          <p className="mt-7 border-t border-white/10 pt-5 text-[13px] leading-relaxed text-mist/55">
-            Salva sozinho, e fica guardado na sua conta. Quem entra ({usuario.email || 'sem e-mail'})
-            você muda em “Conta e acessos”.
-          </p>
+          <aside className="xl:sticky xl:top-24">
+            <div className="glass rounded-2xl p-5">
+              <label className="block">
+                <span className="block text-[12px] uppercase tracking-[0.16em] text-gold">Sua data de nascimento</span>
+                <input
+                  type="date"
+                  value={perfil.dataNascimento}
+                  min="1900-01-01"
+                  max={hoje}
+                  onChange={(evento) => salvar({ dataNascimento: evento.target.value })}
+                  className="mt-3 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] text-star outline-none transition focus:border-lilac/60"
+                />
+              </label>
+              <p className="mt-3 text-[12px] leading-relaxed text-mist/55">
+                A data completa permite calcular um arcano fixo. Ela fica privada no seu perfil.
+              </p>
+              {idade !== null && (
+                <p className="mt-3 text-[13px] text-mist/75">Sua idade: <strong className="font-medium text-star">{idade} anos</strong></p>
+              )}
+            </div>
+
+            {arcanoPessoal ? (
+              <div className="mt-8">
+                <CartaArcanoPessoal arcano={arcanoPessoal} />
+                <p className="mx-auto mt-5 max-w-[315px] text-center text-[12px] leading-relaxed text-mist/50">
+                  Leitura simbólica para autoconhecimento. Escolas diferentes podem usar outros cálculos.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-8 grid aspect-[.72] w-full max-w-[315px] place-items-center rounded-[20px] border border-dashed border-gold/30 bg-white/[0.025] p-8 text-center">
+                <div>
+                  <span aria-hidden className="text-4xl text-gold/70">✦</span>
+                  <p className="mt-4 font-display text-lg text-star">Sua carta espera por você</p>
+                  <p className="mt-2 text-[13px] leading-relaxed text-mist/60">Preencha sua data para revelar o arcano pessoal.</p>
+                </div>
+              </div>
+            )}
+          </aside>
         </div>
       )}
 

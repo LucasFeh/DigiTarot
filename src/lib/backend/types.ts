@@ -84,6 +84,8 @@ export type ModoDesempenho = 'auto' | 'leve' | 'completo'
 
 export type Perfil = {
   nome: string
+  /** YYYY-MM-DD. Privada; usada para idade e arcano pessoal. */
+  dataNascimento: string
   /** Telefone, WhatsApp, o que a pessoa quiser deixar. Livre de propósito. */
   contato: string
   /** @ do Instagram, sem o arroba. */
@@ -110,6 +112,7 @@ export type Perfil = {
 
 export const PERFIL_VAZIO: Perfil = {
   nome: '',
+  dataNascimento: '',
   contato: '',
   instagram: '',
   foto: '',
