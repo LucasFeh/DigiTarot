@@ -190,7 +190,7 @@ export default function CarrosselPlanos({ destino }: { destino: (planoId: string
                 onClick={() => setModo(id)}
                 aria-pressed={on}
                 title={
-                  id === 'circulo' ? 'Uma carta por vez, girando' : 'Todas abertas, com os valores'
+                  id === 'circulo' ? 'Uma carta por vez, girando' : 'Todas as cartas abertas'
                 }
                 className="rounded-full px-3.5 py-1.5 text-[14px] transition"
                 style={{ color: on ? '#fff' : '#cbbde8', background: on ? '#ffffff1a' : 'transparent' }}

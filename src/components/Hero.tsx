@@ -191,10 +191,10 @@ export default function Hero() {
             </a>
 
             <a
-              href="#tabela"
+              href="#/mesa-digital"
               className="rounded-full border border-white/20 px-7 py-3.5 text-base tracking-wide text-mist transition hover:border-gold/50 hover:text-star"
             >
-              Tabela de preços
+              Conheça a mesa digital
             </a>
           </motion.div>
         </div>

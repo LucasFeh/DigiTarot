@@ -1,5 +1,5 @@
 import CardBackArt from './CardBackArt'
-import { formatPrice, type Plan } from '../data/plans'
+import type { Plan } from '../data/plans'
 
 export const CARD_W = 168
 export const CARD_H = 268
@@ -81,7 +81,7 @@ export default function CardVisual({
           </p>
 
           <div className="flex w-full flex-col items-center gap-1.5">
-            {/* Filete ornamental separando o valor */}
+            {/* Filete ornamental no rodapé da carta */}
             <span aria-hidden className="mb-1 flex w-full items-center gap-2 px-2">
               <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, transparent, ${accent})` }} />
               <span className="text-[11px] text-gold/70">✦</span>
@@ -93,9 +93,6 @@ export default function CardVisual({
                 {plan.duration}
               </span>
             )}
-            <span className="font-display text-[24px] font-bold text-gold drop-shadow-[0_0_14px_rgba(242,212,146,.45)]">
-              {formatPrice(plan.price)}
-            </span>
           </div>
         </div>
       </div>
