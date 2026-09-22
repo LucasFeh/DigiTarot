@@ -1,4 +1,21 @@
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useState } from 'react'
+import demonstracaoMesa from '../assets/demonstracao-da-mesa.mp4'
+
+const VIDEOS = [
+  {
+    src: demonstracaoMesa,
+    titulo: 'Demonstração na prática',
+    descricao: 'Veja a mesa digital em uso, com as cartas sendo abertas e interpretadas durante a tiragem.',
+    aria: 'Demonstração real da mesa digital do DigiTarot em funcionamento',
+  },
+  {
+    src: `${import.meta.env.BASE_URL}mesa-digital-demo.mp4`,
+    titulo: 'Prévia ilustrada',
+    descricao: 'Uma visão rápida da chegada das cartas e da conversa pelo chat da mesa.',
+    aria: 'Vídeo ilustrativo: três cartas aparecem na mesa digital e uma mensagem chega pelo chat',
+  },
+]
 
 const PASSOS = [
   {
@@ -19,6 +36,17 @@ const PASSOS = [
 ]
 
 export default function MesaDigitalDemoPage() {
+  const [videoAtivo, setVideoAtivo] = useState(0)
+  const [direcao, setDirecao] = useState(1)
+
+  function selecionarVideo(indice: number) {
+    const destino = (indice + VIDEOS.length) % VIDEOS.length
+    setDirecao(destino > videoAtivo || (videoAtivo === VIDEOS.length - 1 && destino === 0) ? 1 : -1)
+    setVideoAtivo(destino)
+  }
+
+  const video = VIDEOS[videoAtivo]
+
   return (
     <main className="relative min-h-[calc(100vh-4rem)] bg-[#09070f] pb-24">
       <section className="mx-auto max-w-6xl px-5 pb-8 pt-14 sm:pt-20">
@@ -32,21 +60,91 @@ export default function MesaDigitalDemoPage() {
           </p>
         </motion.div>
 
-        <div className="mt-11 overflow-hidden rounded-[24px] border border-gold/25 bg-[#130d20] shadow-[0_30px_80px_-40px_#8e64aa66]">
-          <video
-            src={`${import.meta.env.BASE_URL}mesa-digital-demo.mp4`}
-            autoPlay
-            muted
-            loop
-            playsInline
-            controls
-            aria-label="Vídeo ilustrativo: três cartas aparecem na mesa digital e uma mensagem chega pelo chat"
-            className="aspect-video w-full bg-[#090612] object-contain"
-          >
-            Seu navegador não consegue reproduzir o vídeo de demonstração.
-          </video>
+        <div
+          className="relative mt-11 overflow-hidden rounded-[24px] border border-gold/25 bg-[#130d20] shadow-[0_30px_80px_-40px_#8e64aa66]"
+          aria-roledescription="carrossel"
+          aria-label="Demonstrações da mesa digital"
+          onKeyDown={(evento) => {
+            if (evento.key === 'ArrowLeft') selecionarVideo(videoAtivo - 1)
+            if (evento.key === 'ArrowRight') selecionarVideo(videoAtivo + 1)
+          }}
+        >
+          <div className="relative aspect-video overflow-hidden bg-[#090612]">
+            <AnimatePresence initial={false} custom={direcao} mode="popLayout">
+              <motion.div
+                key={video.src}
+                custom={direcao}
+                initial={{ opacity: 0, x: direcao * 80 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: direcao * -80 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.16}
+                onDragEnd={(_, info) => {
+                  if (info.offset.x < -55) selecionarVideo(videoAtivo + 1)
+                  if (info.offset.x > 55) selecionarVideo(videoAtivo - 1)
+                }}
+                className="absolute inset-0 cursor-grab active:cursor-grabbing"
+              >
+                <video
+                  src={video.src}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  controls
+                  preload="metadata"
+                  aria-label={video.aria}
+                  className="h-full w-full bg-[#090612] object-contain"
+                >
+                  Seu navegador não consegue reproduzir o vídeo de demonstração.
+                </video>
+              </motion.div>
+            </AnimatePresence>
+
+            <button
+              type="button"
+              onClick={() => selecionarVideo(videoAtivo - 1)}
+              aria-label="Mostrar vídeo anterior"
+              className="absolute left-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[#0b0714]/80 text-xl text-star backdrop-blur-md transition hover:border-gold/60 hover:bg-[#1b1129] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:left-5"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              onClick={() => selecionarVideo(videoAtivo + 1)}
+              aria-label="Mostrar próximo vídeo"
+              className="absolute right-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[#0b0714]/80 text-xl text-star backdrop-blur-md transition hover:border-gold/60 hover:bg-[#1b1129] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:right-5"
+            >
+              →
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-white/10 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <div aria-live="polite">
+              <p className="font-display text-lg text-star">{video.titulo}</p>
+              <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-mist/65">{video.descricao}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2" role="tablist" aria-label="Escolher demonstração">
+              {VIDEOS.map((item, indice) => (
+                <button
+                  key={item.titulo}
+                  type="button"
+                  role="tab"
+                  aria-selected={indice === videoAtivo}
+                  aria-label={`Abrir ${item.titulo}`}
+                  onClick={() => selecionarVideo(indice)}
+                  className={`h-2.5 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold ${
+                    indice === videoAtivo ? 'w-9 bg-gold' : 'w-2.5 bg-white/30 hover:bg-white/55'
+                  }`}
+                />
+              ))}
+              <span className="ml-2 text-[12px] tabular-nums text-mist/55">{videoAtivo + 1} / {VIDEOS.length}</span>
+            </div>
+          </div>
         </div>
-        <p className="mt-3 text-right text-[12px] text-mist/55">Prévia ilustrativa; as cartas e o tema da mesa podem variar.</p>
+        <p className="mt-3 text-right text-[12px] text-mist/55">Arraste para o lado ou use as setas. As cartas e o tema da mesa podem variar.</p>
       </section>
 
       <section className="mx-auto max-w-6xl px-5 pt-14 sm:pt-20">
