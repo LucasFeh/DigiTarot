@@ -53,6 +53,7 @@ import {
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
+  ApresentacaoTarologo,
   Backend,
   ConfirmacaoSms,
   Convite,
@@ -537,6 +538,10 @@ export class FirebaseBackend implements Backend {
       personagem,
       cartaoPublicado: true,
     })
+  }
+
+  async salvarApresentacaoTarologo(uid: string, dados: ApresentacaoTarologo) {
+    await updateDoc(doc(this.db, 'tarologos', idTarologo(uid)), dados)
   }
 
   observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe {

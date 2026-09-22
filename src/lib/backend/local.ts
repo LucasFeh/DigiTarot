@@ -4,6 +4,7 @@ import { guardarCadastroPendente, lerCadastroPendente, limparCadastroPendente } 
 import { PERFIL_VAZIO } from './types'
 import type {
   Agendamento,
+  ApresentacaoTarologo,
   Backend,
   ConfirmacaoSms,
   Convite,
@@ -559,6 +560,10 @@ export class LocalBackend implements Backend {
 
   async publicarCartaTarologo(uid: string, foto: string, personagem: string) {
     await this.salvarTarologo(uid, { foto, personagem, cartaoPublicado: true })
+  }
+
+  async salvarApresentacaoTarologo(uid: string, dados: ApresentacaoTarologo) {
+    await this.salvarTarologo(uid, dados)
   }
 
   observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe {

@@ -33,11 +33,16 @@ export type TarologoPublico = {
   /** O administrador cria o perfil; o profissional publica a própria carta. */
   cartaoPublicado?: boolean
   bio: string
+  anosExperiencia?: number | null
+  especializacoes?: string[]
+  abordagem?: string
   avaliacao: { media: number; total: number }
   /** Plano do catálogo -> preço em reais. Ausência significa não atendido. */
   modalidades: Record<string, number>
   ativo: boolean
 }
+
+export type ApresentacaoTarologo = Pick<TarologoPublico, 'bio' | 'abordagem' | 'especializacoes' | 'anosExperiencia'>
 
 export type TarologoPix = { chave: string; nome: string; cidade: string }
 
@@ -358,6 +363,7 @@ export interface Backend {
   observarTarologo(uid: string, cb: (perfil: TarologoPublico | null) => void): Unsubscribe
   salvarTarologo(uid: string, patch: Partial<TarologoPublico>): Promise<void>
   publicarCartaTarologo(uid: string, foto: string, personagem: string): Promise<void>
+  salvarApresentacaoTarologo(uid: string, dados: ApresentacaoTarologo): Promise<void>
   observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe
   salvarPixTarologo(uid: string, pix: TarologoPix): Promise<void>
 

@@ -1,6 +1,7 @@
-import type { CSSProperties } from 'react'
+import { useCallback, useState, type CSSProperties } from 'react'
 import Footer from '../components/Footer'
 import CartaVisual from '../components/tarologos/CartaVisual'
+import ModalTarologo from '../components/tarologos/ModalTarologo'
 import { PLAN_BY_ID } from '../data/plans'
 import { useTarologos } from '../lib/tarologos'
 import type { TarologoPublico } from '../lib/backend'
@@ -10,11 +11,11 @@ function nomeDaModalidade(id: string) {
   return PLAN_BY_ID.get(id)?.plano.title ?? id.replace(/-/g, ' ')
 }
 
-function CartaTarologo({ tarologo, indice }: { tarologo: TarologoPublico; indice: number }) {
+function CartaTarologo({ tarologo, indice, onOpen }: { tarologo: TarologoPublico; indice: number; onOpen: () => void }) {
   const modalidades = Object.keys(tarologo.modalidades ?? {}).filter((id) => Number.isFinite(tarologo.modalidades[id]))
   return (
     <article className="tarologo-profile" style={{ '--card-index': indice } as CSSProperties}>
-      <CartaVisual tarologo={tarologo} indice={indice} />
+      <CartaVisual tarologo={tarologo} indice={indice} onOpen={onOpen} />
       <div className="tarologo-profile-copy">
         <div className="tarologo-profile-heading">
           <div>
@@ -45,6 +46,8 @@ function CartaTarologo({ tarologo, indice }: { tarologo: TarologoPublico; indice
 }
 export default function TarologosPage() {
   const { tarologos, carregando } = useTarologos()
+  const [selecionado, setSelecionado] = useState<TarologoPublico | null>(null)
+  const fecharModal = useCallback(() => setSelecionado(null), [])
   const disponiveis = tarologos.filter((tarologo) => tarologo.ativo && tarologo.cartaoPublicado !== false)
 
   return (
@@ -74,7 +77,7 @@ export default function TarologosPage() {
             <div className="tarologos-status" role="status">As cartas estão chegando…</div>
           ) : disponiveis.length ? (
             <div className="tarologos-grid">
-              {disponiveis.map((tarologo, indice) => <CartaTarologo key={tarologo.uid} tarologo={tarologo} indice={indice} />)}
+              {disponiveis.map((tarologo, indice) => <CartaTarologo key={tarologo.uid} tarologo={tarologo} indice={indice} onOpen={() => setSelecionado(tarologo)} />)}
             </div>
           ) : (
             <div className="tarologos-status">
@@ -84,6 +87,7 @@ export default function TarologosPage() {
           )}
         </section>
       </main>
+      {selecionado && <ModalTarologo tarologo={tarologos.find((item) => item.uid === selecionado.uid) ?? selecionado} onClose={fecharModal} />}
       <Footer />
     </>
   )

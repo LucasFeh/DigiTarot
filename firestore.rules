@@ -108,6 +108,32 @@ service cloud.firestore {
              && (!campos.hasAny(['personagem']) || chibiDaCartaValido());
     }
 
+    function especializacoesValidas(lista) {
+      return lista is list && lista.size() <= 8
+             && (lista.size() < 1 || (lista[0] is string && lista[0].size() > 0 && lista[0].size() <= 40))
+             && (lista.size() < 2 || (lista[1] is string && lista[1].size() > 0 && lista[1].size() <= 40))
+             && (lista.size() < 3 || (lista[2] is string && lista[2].size() > 0 && lista[2].size() <= 40))
+             && (lista.size() < 4 || (lista[3] is string && lista[3].size() > 0 && lista[3].size() <= 40))
+             && (lista.size() < 5 || (lista[4] is string && lista[4].size() > 0 && lista[4].size() <= 40))
+             && (lista.size() < 6 || (lista[5] is string && lista[5].size() > 0 && lista[5].size() <= 40))
+             && (lista.size() < 7 || (lista[6] is string && lista[6].size() > 0 && lista[6].size() <= 40))
+             && (lista.size() < 8 || (lista[7] is string && lista[7].size() > 0 && lista[7].size() <= 40));
+    }
+
+    function edicaoDaApresentacaoPeloDono(id) {
+      let campos = request.resource.data.diff(resource.data).affectedKeys();
+      let anos = request.resource.data.get('anosExperiencia', null);
+      let bio = request.resource.data.get('bio', '');
+      let abordagem = request.resource.data.get('abordagem', '');
+      let tags = request.resource.data.get('especializacoes', []);
+      return donoTarologo(id)
+             && campos.hasOnly(['anosExperiencia', 'especializacoes', 'bio', 'abordagem'])
+             && (!campos.hasAny(['anosExperiencia']) || (anos == null || (anos is int && anos >= 0 && anos <= 80)))
+             && (!campos.hasAny(['bio']) || (bio is string && bio.size() <= 1000))
+             && (!campos.hasAny(['abordagem']) || (abordagem is string && abordagem.size() <= 300))
+             && (!campos.hasAny(['especializacoes']) || especializacoesValidas(tags));
+    }
+
     // ------------------------------- perfis -------------------------------
     // O registro de cada pessoa. É dela, e só dela; o atendimento usa os dados
     // mínimos já copiados no agendamento.
@@ -124,7 +150,7 @@ service cloud.firestore {
                     && request.resource.data.uid == tarologoId
                     && request.resource.data.email == tarologoId
                     && request.resource.data.modalidades is map;
-      allow update: if (ehAdmin() || edicaoDaCartaPeloDono(tarologoId))
+      allow update: if (ehAdmin() || edicaoDaCartaPeloDono(tarologoId) || edicaoDaApresentacaoPeloDono(tarologoId))
                     && request.resource.data.uid == tarologoId
                     && request.resource.data.email == tarologoId
                     && request.resource.data.modalidades is map;

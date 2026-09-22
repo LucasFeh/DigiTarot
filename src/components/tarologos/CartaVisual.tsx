@@ -5,13 +5,13 @@ import '../../pages/TarologosPage.css'
 
 const FOTO_PROVISORIA = `${import.meta.env.BASE_URL}foto-tarologo-provisoria.jpg`
 
-function fotoDaCarta(tarologo: TarologoPublico): string {
+export function fotoDaCarta(tarologo: TarologoPublico): string {
   const ehRodrigo = tarologo.nome.trim().toLocaleLowerCase('pt-BR').includes('rodrigo')
   const fotoAntiga = !tarologo.foto || /(?:foto-tarologo-provisoria\.jpg|rodrigo\.(?:png|webp))(?:\?|$)/i.test(tarologo.foto)
   return ehRodrigo && fotoAntiga ? FOTO_RODRIGO : tarologo.foto || FOTO_PROVISORIA
 }
 
-function Estrelas({ tarologo }: { tarologo: TarologoPublico }) {
+export function Estrelas({ tarologo }: { tarologo: TarologoPublico }) {
   const total = tarologo.avaliacao?.total ?? 0
   const media = total ? Math.max(0, Math.min(5, tarologo.avaliacao.media)) : 5
   return (
@@ -27,7 +27,7 @@ function Estrelas({ tarologo }: { tarologo: TarologoPublico }) {
 }
 
 /** Mesma carta usada na vitrine e na prévia do perfil. */
-export default function CartaVisual({ tarologo, indice = 0 }: { tarologo: TarologoPublico; indice?: number }) {
+export default function CartaVisual({ tarologo, indice = 0, onOpen }: { tarologo: TarologoPublico; indice?: number; onOpen?: () => void }) {
   const [revelado, setRevelado] = useState(false)
   const foto = fotoDaCarta(tarologo)
   const temChibi = Boolean(tarologo.personagem)
@@ -56,9 +56,9 @@ export default function CartaVisual({ tarologo, indice = 0 }: { tarologo: Tarolo
       type="button"
       className={`tarologo-stage${revelado ? ' is-revealed' : ''}`}
       style={estilo}
-      aria-label={`${revelado ? 'Ver foto' : 'Revelar verso'} de ${tarologo.nome}`}
-      aria-pressed={revelado}
-      onClick={() => setRevelado((atual) => !atual)}
+      aria-label={onOpen ? `Conhecer o perfil de ${tarologo.nome}` : `${revelado ? 'Ver foto' : 'Revelar verso'} de ${tarologo.nome}`}
+      aria-pressed={onOpen ? undefined : revelado}
+      onClick={() => onOpen ? onOpen() : setRevelado((atual) => !atual)}
       onPointerMove={acompanharPonteiro}
       onPointerLeave={recentrar}
     >

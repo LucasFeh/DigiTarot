@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
 import CartaVisual from '../tarologos/CartaVisual'
+import EditorApresentacaoTarologo from './EditorApresentacaoTarologo'
 import { useAuth } from '../../lib/useAuth'
 import { prepararImagemCarta } from '../../lib/imagemCartaTarologo'
 import { TAROLOGO_RODRIGO } from '../../lib/backend/tarologo'
@@ -152,6 +153,7 @@ export default function EditorCartaTarologo() {
           <p className="mt-3 text-center text-[12px] leading-relaxed text-mist/55">Só a foto e o chibi serão alterados. Suas modalidades e valores continuam sob gestão do administrador.</p>
         </div>
       </div>
+      <EditorApresentacaoTarologo perfil={publicado} />
     </div>
   )
 }
