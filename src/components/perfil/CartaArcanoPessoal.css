@@ -45,13 +45,11 @@
   background: linear-gradient(180deg, #05010fbd 0%, transparent 25%, transparent 51%, #05010ff2 88%), linear-gradient(90deg, #05010f4d, transparent 28%, transparent 72%, #05010f4d);
 }
 
-.arcano-pessoal-kicker,
 .arcano-pessoal-number,
 .arcano-pessoal-title,
 .arcano-pessoal-hint { position: absolute; z-index: 2; left: 24px; right: 24px; }
 
-.arcano-pessoal-kicker { top: 25px; color: #f2d492; font-size: .62rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
-.arcano-pessoal-number { top: 48px; color: #f6f2ffcc; font-family: var(--font-display); font-size: .9rem; letter-spacing: .15em; }
+.arcano-pessoal-number { top: 25px; color: #f6f2ffcc; font-family: var(--font-display); font-size: .9rem; letter-spacing: .15em; }
 .arcano-pessoal-title { bottom: 46px; color: #fff; font-family: var(--font-display); font-size: clamp(1.75rem, 5vw, 2.25rem); line-height: 1.05; text-shadow: 0 3px 20px #000; }
 .arcano-pessoal-hint { bottom: 20px; color: #cbbde8a6; font-size: .65rem; letter-spacing: .08em; }
 

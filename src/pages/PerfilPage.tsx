@@ -193,6 +193,7 @@ export default function PerfilPage() {
 
             {arcanoPessoal ? (
               <div className="mt-8">
+                <p className="mb-5 text-center font-display text-lg text-gold">Seu arcano pessoal é:</p>
                 <CartaArcanoPessoal arcano={arcanoPessoal} />
                 <p className="mx-auto mt-5 max-w-[315px] text-center text-[12px] leading-relaxed text-mist/50">
                   Leitura simbólica para autoconhecimento. Escolas diferentes podem usar outros cálculos.

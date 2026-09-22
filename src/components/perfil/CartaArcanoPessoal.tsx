@@ -18,7 +18,6 @@ export default function CartaArcanoPessoal({ arcano }: { arcano: ArcanoPessoal }
         <span className="arcano-pessoal-face arcano-pessoal-front">
           <img src={arteDoArcano(arcano.numeroCarta)} alt="" draggable={false} />
           <span className="arcano-pessoal-vignette" aria-hidden="true" />
-          <span className="arcano-pessoal-kicker">Seu arcano pessoal é:</span>
           <span className="arcano-pessoal-number">{arcano.romano}</span>
           <span className="arcano-pessoal-title">{arcano.nome}</span>
           <span className="arcano-pessoal-hint">Toque para revelar sua leitura</span>
