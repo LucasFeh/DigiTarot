@@ -7,6 +7,8 @@
 }
 
 .booking-journey {
+  --booking-avatar-center: 98px;
+  --booking-flight-bottom: 119px;
   position: relative;
   min-height: 316px;
   overflow: hidden;
@@ -46,7 +48,39 @@
 .booking-person--cliente { left: 32px; }
 .booking-person--tarologo { right: 32px; }
 
+.booking-avatar-shell {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  width: 78px;
+  height: 78px;
+}
+
+.booking-person--tarologo .booking-avatar-shell::before,
+.booking-person--tarologo .booking-avatar-shell::after {
+  position: absolute;
+  z-index: -1;
+  inset: -8px;
+  border-radius: 28px;
+  content: '';
+  pointer-events: none;
+}
+
+.booking-person--tarologo .booking-avatar-shell::before {
+  background: radial-gradient(circle, #fff4d9b0 0%, #b785f393 36%, transparent 73%);
+  filter: blur(11px);
+  animation: booking-arrival-aura 1.15s ease-out 1.65s both;
+}
+
+.booking-person--tarologo .booking-avatar-shell::after {
+  border: 2px solid #ffeac1;
+  box-shadow: 0 0 18px #f2d492, inset 0 0 16px #b785f3;
+  animation: booking-arrival-ring 950ms ease-out 1.65s both;
+}
+
 .booking-avatar {
+  position: relative;
+  z-index: 1;
   display: grid;
   width: 78px;
   height: 78px;
@@ -56,6 +90,10 @@
   background: #332247;
   object-fit: cover;
   box-shadow: 0 0 0 5px #f2d4920d, 0 9px 25px #0009;
+}
+
+.booking-person--tarologo .booking-avatar {
+  animation: booking-arrival-photo 1.15s ease-out 1.65s both;
 }
 
 .booking-avatar--initial {
@@ -83,73 +121,94 @@
   text-transform: uppercase;
 }
 
-.booking-flight { position: absolute; inset: 0; }
+.booking-flight { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
 
 .booking-flight-track {
   position: absolute;
-  top: 53%;
-  right: 16%;
-  left: 16%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #a87cf066 35%, #f2d49288 60%, transparent);
-  box-shadow: 0 0 20px #a87cf077;
+  right: var(--booking-avatar-center);
+  bottom: var(--booking-flight-bottom);
+  left: var(--booking-avatar-center);
+  height: 1px;
+  background: linear-gradient(90deg, #c0a2e008, #ac8ade4d 45%, #f2d49257);
+  box-shadow: 0 0 16px #a87cf049;
 }
 
 .booking-flight-track::after {
   position: absolute;
-  inset: -20px 0;
-  border-top: 1px dashed #ffffff20;
+  inset: -15px 0;
+  border-top: 1px dashed #ffffff17;
   border-radius: 50%;
   content: '';
   transform: rotate(-6deg);
 }
 
-.booking-comet,
-.booking-journey-copy {
+.booking-comet {
   position: absolute;
-  left: 18%;
-  z-index: 3;
-  transform: translateX(-50%);
-  animation: booking-cross 6s ease-in-out infinite alternate;
+  bottom: var(--booking-flight-bottom);
+  left: var(--booking-avatar-center);
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  opacity: 0;
+  animation: booking-shoot 1.55s cubic-bezier(.36, .04, .2, 1) .15s both;
 }
 
-.booking-comet {
-  top: calc(53% - 22px);
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
+.booking-comet-core {
+  position: relative;
+  z-index: 1;
   color: #fff8db;
-  font-size: 42px;
+  font-size: 46px;
   line-height: 1;
   filter: drop-shadow(0 0 12px #f2d492) drop-shadow(0 0 25px #a87cf0);
 }
 
 .booking-comet::before {
   position: absolute;
-  top: 23px;
-  right: 30px;
-  width: 126px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #b896e1, #fff3c8);
-  box-shadow: 0 0 13px #a87cf0;
+  top: 25px;
+  right: 24px;
+  width: clamp(85px, 17vw, 160px);
+  height: 3px;
+  border-radius: 100%;
+  background: linear-gradient(90deg, transparent, #9d74ea7d 35%, #f8e6c7);
+  box-shadow: 0 0 10px #a87cf0, 0 0 22px #a87cf099;
   content: '';
-  transform: rotate(-8deg);
+  transform: rotate(-7deg);
 }
 
+.booking-comet::after {
+  position: absolute;
+  top: 29px;
+  right: 30px;
+  width: 100px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ffffffa8);
+  content: '';
+  transform: rotate(-12deg);
+}
+
+.booking-comet-dust { position: absolute; color: #f6e5ff; filter: drop-shadow(0 0 8px #caa0ff); }
+.booking-comet-dust--one { top: 2px; left: -35px; font-size: 18px; }
+.booking-comet-dust--two { top: 35px; left: -65px; font-size: 10px; }
+.booking-comet-dust--three { top: 15px; left: -100px; font-size: 24px; }
+
 .booking-journey-copy {
-  top: 17%;
+  position: absolute;
+  right: calc(var(--booking-avatar-center) + 58px);
+  bottom: calc(var(--booking-flight-bottom) - 30px);
+  z-index: 3;
+  width: min(220px, 24vw);
+  min-width: 170px;
   display: flex;
-  min-width: 174px;
-  max-width: 220px;
   flex-direction: column;
   gap: 2px;
-  padding: 9px 15px;
+  padding: 12px 16px;
   border: 1px solid #f2d49277;
   border-radius: 12px;
   background: #171020ec;
   box-shadow: 0 9px 28px #0009;
-  text-align: center;
+  text-align: left;
+  animation: booking-summary-arrive .55s ease-out 1.72s both;
 }
 
 .booking-journey-copy p {
@@ -184,6 +243,43 @@
   padding: clamp(22px, 4vw, 38px);
   box-shadow: inset 0 1px #ffffff0a;
 }
+
+.booking-schedule-heading { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+.booking-schedule-heading h2 { margin: 0; color: #f6f2ff; font-family: 'Cinzel', Georgia, serif; font-size: 20px; }
+.booking-schedule-heading p { margin: 6px 0 0; color: #cbbde8b5; font-size: 14px; }
+.booking-schedule-heading > span { padding-top: 4px; color: #f2d492; font-size: 12px; white-space: nowrap; }
+.booking-schedule-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(220px, .75fr); gap: 24px; margin-top: 26px; }
+.booking-calendar { min-width: 0; border: 1px solid #ffffff23; border-radius: 16px; background: #17121e; padding: 20px; }
+.booking-calendar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.booking-calendar-header h3 { margin: 0; color: #f6f2ff; font-family: 'Cinzel', Georgia, serif; font-size: 17px; font-weight: 600; }
+.booking-calendar-controls { display: flex; gap: 6px; }
+.booking-calendar-controls button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #ffffff32; border-radius: 9px; background: #ffffff08; color: #f6f2ff; font-size: 25px; line-height: 1; cursor: pointer; }
+.booking-calendar-controls button:hover:not(:disabled),
+.booking-calendar-controls button:focus-visible { border-color: #f2d492; color: #f2d492; }
+.booking-calendar-controls button:disabled { cursor: not-allowed; opacity: .3; }
+.booking-calendar-days,
+.booking-calendar-dates { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.booking-calendar-days { margin-bottom: 8px; }
+.booking-calendar-days span { color: #cbbde891; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-align: center; text-transform: uppercase; }
+.booking-calendar-date { display: grid; aspect-ratio: 1.15; min-height: 38px; place-items: center; border: 1px solid transparent; border-radius: 10px; background: #ffffff0b; color: #f6f2ff; font-size: 14px; cursor: pointer; transition: border-color .18s, background .18s, transform .18s; }
+.booking-calendar-date:hover:not(:disabled),
+.booking-calendar-date:focus-visible { border-color: #f2d492; background: #f2d4921b; transform: translateY(-2px); }
+.booking-calendar-date.is-today:not(.is-selected) { border-color: #a87cf075; }
+.booking-calendar-date.is-selected { border-color: #f2d492; background: #d9b979; color: #171020; font-weight: 700; box-shadow: 0 0 18px #f2d49233; }
+.booking-calendar-date:disabled { background: transparent; color: #cbbde84a; cursor: not-allowed; }
+.booking-calendar-hint { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; color: #cbbde88f; font-size: 11px; }
+.booking-calendar-hint span { width: 8px; height: 8px; border-radius: 50%; background: #d9b979; }
+.booking-times { min-width: 0; border: 1px solid #ffffff23; border-radius: 16px; background: #17121e; padding: 22px; }
+.booking-times-eyebrow { margin: 0; color: #d5a5e9; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
+.booking-times h3 { margin: 9px 0 20px; color: #f6f2ff; font-family: 'Cinzel', Georgia, serif; font-size: 18px; font-weight: 600; }
+.booking-times-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.booking-time { min-height: 44px; border: 1px solid #ffffff34; border-radius: 9px; background: #ffffff0a; color: #f6f2ff; font-size: 14px; font-weight: 600; cursor: pointer; transition: border-color .18s, background .18s; }
+.booking-time:hover,
+.booking-time:focus-visible { border-color: #f2d492; background: #f2d49217; }
+.booking-time.is-selected { border-color: #f2d492; background: #d9b979; color: #171020; }
+.booking-times-empty { margin: 0; color: #cbbde89c; font-size: 13px; line-height: 1.6; }
+.booking-times-selected { margin: 18px 0 0; color: #f2d492; font-size: 12px; line-height: 1.5; }
+.booking-no-slots { margin: 18px 0 0; color: #f2d492; font-size: 14px; }
 
 .booking-primary {
   display: inline-flex;
@@ -224,27 +320,62 @@
 .booking-format-title { margin-top: 22px; color: #f6f2ff; font-family: 'Cinzel', Georgia, serif; font-size: 17px; font-weight: 600; }
 .booking-format-description { margin-top: 8px; color: #cbbde8ba; font-size: 13px; line-height: 1.5; }
 
-@keyframes booking-cross {
-  from { left: 19%; }
-  to { left: 81%; }
+@keyframes booking-shoot {
+  0% { left: var(--booking-avatar-center); opacity: 0; transform: translate(-50%, 50%) translateY(15px) scale(.4); }
+  12% { opacity: 1; }
+  75% { opacity: 1; transform: translate(-50%, 50%) translateY(-16px) scale(1.08); }
+  96% { opacity: 1; }
+  100% { left: calc(100% - var(--booking-avatar-center)); opacity: 0; transform: translate(-50%, 50%) translateY(0) scale(.25); }
+}
+
+@keyframes booking-arrival-aura {
+  0% { opacity: 0; transform: scale(.6); }
+  35% { opacity: 1; transform: scale(1.85); }
+  100% { opacity: .55; transform: scale(1.4); }
+}
+
+@keyframes booking-arrival-ring {
+  0% { opacity: 0; transform: scale(.75); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: scale(2.25); }
+}
+
+@keyframes booking-arrival-photo {
+  0% { box-shadow: 0 0 0 5px #f2d4920d, 0 9px 25px #0009; }
+  40% { box-shadow: 0 0 0 6px #fff0c8b8, 0 0 32px #f2d492, 0 0 55px #a87cf0; }
+  100% { box-shadow: 0 0 0 5px #f2d4924d, 0 0 21px #a87cf088, 0 9px 25px #0009; }
+}
+
+@keyframes booking-summary-arrive {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 600px) {
-  .booking-journey { min-height: 300px; }
+  .booking-journey { --booking-avatar-center: 54px; --booking-flight-bottom: 104px; min-height: 300px; }
   .booking-person { bottom: 37px; width: 90px; }
   .booking-person--cliente { left: 9px; }
   .booking-person--tarologo { right: 9px; }
+  .booking-avatar-shell { width: 62px; height: 62px; }
   .booking-avatar { width: 62px; height: 62px; border-radius: 18px; }
   .booking-person-name { font-size: 12px; }
   .booking-person-role { font-size: 9px; }
-  .booking-journey-copy { top: 17%; min-width: 124px; max-width: 150px; padding: 7px 9px; }
+  .booking-journey-copy { right: 94px; bottom: 74px; width: 158px; min-width: 0; padding: 9px 11px; }
   .booking-journey-copy p { font-size: 10px; }
   .booking-journey-copy strong { font-size: 13px; }
-  .booking-comet { top: calc(53% - 17px); font-size: 34px; }
-  .booking-comet::before { width: 72px; }
+  .booking-comet-core { font-size: 37px; }
+  .booking-comet::before { width: 75px; }
+  .booking-schedule-heading { flex-direction: column; gap: 8px; }
+  .booking-schedule-grid { grid-template-columns: 1fr; gap: 14px; }
+  .booking-calendar, .booking-times { padding: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .booking-comet, .booking-journey-copy { left: 50%; animation: none; }
+  .booking-comet { display: none; }
+  .booking-journey-copy { animation: none; }
+  .booking-person--tarologo .booking-avatar-shell::before { opacity: .45; transform: scale(1.4); animation: none; }
+  .booking-person--tarologo .booking-avatar-shell::after { display: none; }
+  .booking-person--tarologo .booking-avatar { animation: none; }
+  .booking-calendar-date, .booking-time { transition: none; }
   .booking-primary, .booking-format { transition: none; }
 }

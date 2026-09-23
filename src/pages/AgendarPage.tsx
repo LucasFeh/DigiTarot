@@ -53,13 +53,15 @@ function novoCodigo() {
 function Retrato({ foto, nome, lado }: { foto?: string; nome: string; lado: 'cliente' | 'tarologo' }) {
   return (
     <div className={`booking-person booking-person--${lado}`}>
-      {foto ? (
-        <img src={foto} alt={`Foto de ${nome}`} className="booking-avatar" />
-      ) : (
-        <span className="booking-avatar booking-avatar--initial" aria-label={nome}>
-          {nome.slice(0, 1).toUpperCase()}
-        </span>
-      )}
+      <span className="booking-avatar-shell">
+        {foto ? (
+          <img src={foto} alt={`Foto de ${nome}`} className="booking-avatar" />
+        ) : (
+          <span className="booking-avatar booking-avatar--initial" aria-label={nome}>
+            {nome.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+      </span>
       <span className="booking-person-name">{nome}</span>
       <span className="booking-person-role">{lado === 'cliente' ? 'Você' : 'Seu tarólogo'}</span>
     </div>
@@ -262,7 +264,12 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
           </div>
           <div className="booking-flight" aria-hidden>
             <span className="booking-flight-track" />
-            <span className="booking-comet">✦</span>
+            <span className="booking-comet">
+              <span className="booking-comet-core">✦</span>
+              <span className="booking-comet-dust booking-comet-dust--one">✧</span>
+              <span className="booking-comet-dust booking-comet-dust--two">✦</span>
+              <span className="booking-comet-dust booking-comet-dust--three">·</span>
+            </span>
           </div>
           <Retrato foto={perfil.foto || usuario.foto} nome={nomeExibido} lado="cliente" />
           <Retrato foto={fotoDoTarologo(tarologo)} nome={tarologo.nome} lado="tarologo" />
