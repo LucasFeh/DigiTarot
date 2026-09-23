@@ -60,6 +60,8 @@ export default function BarraFerramentas({
   onRevirarTodas,
   onLuz,
   onCamera,
+  cameraConectada,
+  cameraVisivel,
   onLimpar,
   onMenu,
   onVirar,
@@ -77,6 +79,8 @@ export default function BarraFerramentas({
   onRevirarTodas: () => void
   onLuz: () => void
   onCamera: () => void
+  cameraConectada: boolean
+  cameraVisivel: boolean
   onLimpar: () => void
   onMenu: () => void
   onVirar: (slot: number) => void
@@ -101,10 +105,11 @@ export default function BarraFerramentas({
           <button
             type="button"
             onClick={onCamera}
-            title="Conectar a câmera do celular à mesa"
+            title={cameraConectada ? (cameraVisivel ? 'Ocultar câmera sem desconectar o celular' : 'Mostrar câmera conectada') : 'Conectar a câmera do celular à mesa'}
+            aria-pressed={cameraConectada && cameraVisivel}
             className="shrink-0 whitespace-nowrap rounded-full border border-gold/50 bg-gold/15 px-4 py-1.5 text-[14px] font-semibold text-gold transition hover:bg-gold/25"
           >
-            ◉ Câmera do celular
+            ◉ {cameraConectada ? (cameraVisivel ? 'Ocultar câmera' : 'Mostrar câmera') : 'Câmera do celular'}
           </button>
 
           <Risco />

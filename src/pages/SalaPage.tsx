@@ -87,6 +87,8 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const [acervo, setAcervo] = useState(false)
   const [menuAberto, setMenuAberto] = useState(true)
   const [chat, setChat] = useState(false)
+  const [erroEncerrar, setErroEncerrar] = useState('')
+  const [cameraConectada, setCameraConectada] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
   const cameraRef = useRef<CameraMesaHandle>(null)
   /** Carta viajando na ponta do ponteiro, em coordenadas de cliente. */
@@ -329,6 +331,18 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           >
             Ver minhas consultas
           </a>
+        </div>
+      </main>
+    )
+  }
+
+  if (sessao.encerrada) {
+    return (
+      <main className="grid min-h-[calc(100vh-4rem)] place-items-center px-5">
+        <div className="glass max-w-md rounded-2xl px-8 py-10 text-center">
+          <p className="font-display text-2xl text-star">Esta leitura foi encerrada</p>
+          <p className="mt-3 text-[15px] leading-relaxed text-mist">A sala, a câmera e a conversa foram fechadas para todos os participantes.</p>
+          <a href="#/tiragem" className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60">Voltar</a>
         </div>
       </main>
     )
@@ -627,7 +641,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           que é o que a pessoa realmente precisa ver. */}
       <div data-sala className="relative h-[calc(100vh-4rem)] w-full overflow-hidden">
         {cena}
-        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} />}
+        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} onConexao={setCameraConectada} />}
 
         <BarraFerramentas
           cartas={cartas}
@@ -639,6 +653,8 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           onRevirarTodas={revirarTodas}
           onLuz={() => setLuzAcesa((v) => !v)}
           onCamera={() => cameraRef.current?.conectar()}
+          cameraConectada={cameraConectada}
+          cameraVisivel={sessao.cameraVisivel !== false}
           onLimpar={() => {
             patch({ cartas: [] })
             setSlotAtivo(null)
@@ -651,10 +667,15 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
             setSlotAtivo(null)
           }}
           onEncerrar={() => {
-            patch({ encerrada: true })
-            irPara('/tiragem')
+            if (!backend) return
+            setErroEncerrar('')
+            void Promise.resolve(cameraRef.current?.encerrar()).then(() => backend.atualizarSessao(sessao.id, { encerrada: true, cameraVisivel: false }))
+              .then(() => irPara('/tiragem'))
+              .catch(() => setErroEncerrar('Não foi possível encerrar a leitura. Tente novamente.'))
           }}
         />
+
+        {erroEncerrar && <p role="alert" className="glass absolute left-3 top-20 z-50 rounded-xl px-4 py-2 text-sm text-rose">{erroEncerrar}</p>}
 
         {/* Rodapé de estado, do lado oposto ao menu. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex flex-wrap items-end gap-2 p-3">

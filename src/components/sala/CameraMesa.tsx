@@ -4,13 +4,14 @@ import type { Backend, Sessao, SinalMidia } from '../../lib/backend'
 import { novoToken } from '../../lib/backend/local'
 import { criarPeer, oferecer, receberResposta, responder } from '../../lib/webrtc'
 
-export type CameraMesaHandle = { conectar: () => void }
+export type CameraMesaHandle = { conectar: () => void; encerrar: () => Promise<void> }
 
-export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
+export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onConexao }: {
   backend: Backend
   sessao: Sessao
   ehTarologo: boolean
   cameraRef?: React.Ref<CameraMesaHandle>
+  onConexao?: (conectada: boolean) => void
 }) {
   const [token, setToken] = useState<string | null>(null)
   const [qrAberto, setQrAberto] = useState(false)
@@ -20,16 +21,40 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [recebido, setRecebido] = useState<MediaStream | null>(null)
   const [posicaoLocal, setPosicaoLocal] = useState<{ x: number; y: number } | null>(null)
+  const [tamanhoLocal, setTamanhoLocal] = useState<number | null>(null)
+  const [proporcao, setProporcao] = useState(16 / 9)
+  const [salaTamanho, setSalaTamanho] = useState({ largura: 0, altura: 0 })
   const cameraPc = useRef<RTCPeerConnection | null>(null)
+  const canalControle = useRef<RTCDataChannel | null>(null)
   const videoPc = useRef<RTCPeerConnection | null>(null)
   const videoEl = useRef<HTMLVideoElement>(null)
   const arrastando = useRef<{ dx: number; dy: number } | null>(null)
+  const redimensionando = useRef<{ x: number; largura: number; tamanho: number } | null>(null)
   const processada = useRef('')
   const processadoVideo = useRef('')
   const teveStream = useRef(false)
   const pos = sessao.cameraPosicao ?? { x: 58, y: 20 }
   const posicao = posicaoLocal ?? pos
   const cameraAtiva = ehTarologo ? stream : recebido
+  const visivel = sessao.cameraVisivel !== false
+  const tamanho = tamanhoLocal ?? sessao.cameraTamanho ?? 34
+  const largura = salaTamanho.largura && salaTamanho.altura
+    ? Math.min(tamanho, (salaTamanho.altura - 16) * proporcao / salaTamanho.largura * 100)
+    : tamanho
+  const alturaPercentual = salaTamanho.altura && salaTamanho.largura
+    ? salaTamanho.largura * largura / proporcao / salaTamanho.altura
+    : 0
+
+  useEffect(() => {
+    if (!cameraAtiva || !visivel || !videoEl.current) return
+    const sala = videoEl.current.parentElement?.parentElement
+    if (!sala) return
+    const observar = new ResizeObserver(() => setSalaTamanho({ largura: sala.clientWidth, altura: sala.clientHeight }))
+    observar.observe(sala)
+    return () => observar.disconnect()
+  }, [cameraAtiva, visivel])
+
+  useEffect(() => { onConexao?.(Boolean(stream)) }, [onConexao, stream])
 
   useEffect(() => {
     if (!token || !ehTarologo) return
@@ -37,6 +62,9 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
       setCameraSinal(s)
       if (s && !s.oferta) {
         cameraPc.current?.close()
+        cameraPc.current = null
+        canalControle.current = null
+        processada.current = ''
         setStream(null)
       }
     })
@@ -46,6 +74,8 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
     setVideoSinal(s)
     if (!ehTarologo && s && !s.oferta) {
       videoPc.current?.close()
+      videoPc.current = null
+      processadoVideo.current = ''
       setRecebido(null)
     }
   }), [backend, sessao.id, ehTarologo])
@@ -56,10 +86,14 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
     cameraPc.current?.close()
     const pc = criarPeer()
     cameraPc.current = pc
+    pc.ondatachannel = (e) => { canalControle.current = e.channel }
     pc.ontrack = (e) => {
       const proximo = e.streams[0] ?? new MediaStream([e.track])
       setStream(proximo)
-      e.track.onended = () => setStream(null)
+      e.track.onended = () => { if (cameraPc.current === pc) setStream(null) }
+    }
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed' && cameraPc.current === pc) setStream(null)
     }
     void responder(pc, cameraSinal.oferta)
       .then((resposta) => backend.salvarSinal(sessao.id, `camera-${token}`, { resposta }))
@@ -100,7 +134,10 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
     videoPc.current?.close()
     const pc = criarPeer()
     videoPc.current = pc
-    pc.ontrack = (e) => setRecebido(e.streams[0] ?? new MediaStream([e.track]))
+    pc.ontrack = (e) => {
+      setRecebido(e.streams[0] ?? new MediaStream([e.track]))
+      e.track.onended = () => { if (videoPc.current === pc) setRecebido(null) }
+    }
     void responder(pc, videoSinal.oferta)
       .then((resposta) => backend.salvarSinal(sessao.id, 'video', { resposta }))
       .catch(() => setErro('Não foi possível abrir o vídeo da mesa.'))
@@ -108,7 +145,7 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
 
   useEffect(() => {
     if (videoEl.current) videoEl.current.srcObject = cameraAtiva
-  }, [cameraAtiva, sessao.cameraModo])
+  }, [cameraAtiva, sessao.cameraModo, visivel])
 
   useEffect(() => () => {
     cameraPc.current?.close()
@@ -122,16 +159,32 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
         tipo: 'camera', versao: novo, expiraEm: Date.now() + 10 * 60 * 1000, oferta: '', resposta: '',
       })
       cameraPc.current?.close()
+      cameraPc.current = null
+      canalControle.current = null
+      processada.current = ''
       setStream(null)
       setToken(novo)
       setQrAberto(true)
       setErro('')
+      await backend.atualizarSessao(sessao.id, { cameraVisivel: true, cameraModo: 'sobreposta' })
     } catch {
       setErro('Não foi possível gerar o QR. Confira as regras de acesso do Firebase.')
     }
   }
 
-  useImperativeHandle(cameraRef, () => ({ conectar: () => { void gerarQr() } }))
+  useImperativeHandle(cameraRef, () => ({
+    conectar: () => {
+      if (!stream) { void gerarQr(); return }
+      void backend.atualizarSessao(sessao.id, { cameraVisivel: !visivel })
+        .catch(() => setErro('Não foi possível alterar a visualização da câmera.'))
+    },
+    encerrar: async () => {
+      if (canalControle.current?.readyState === 'open') canalControle.current.send('encerrar')
+      if (token) {
+        await backend.salvarSinal(sessao.id, `camera-${token}`, { resposta: 'encerrar' }).catch(() => {})
+      }
+    },
+  }))
 
   const url = token ? `${window.location.origin}${window.location.pathname}#/camera/${sessao.id}/camera-${token}` : ''
   const modo = sessao.cameraModo ?? 'sobreposta'
@@ -141,10 +194,10 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
 
   return (
     <>
-      {cameraAtiva && (
+      {cameraAtiva && visivel && (
         <div
-          className={`absolute z-20 overflow-hidden border border-gold/50 bg-black shadow-2xl ${modo === 'camera' ? 'inset-0' : 'h-[min(30vh,240px)] w-[min(38vw,360px)] min-w-40 rounded-2xl'}`}
-          style={modo === 'camera' ? undefined : { left: `${posicao.x}%`, top: `${posicao.y}%`, touchAction: ehTarologo ? 'none' : undefined }}
+          className={`absolute z-20 overflow-hidden border border-gold/50 bg-black shadow-2xl ${modo === 'camera' ? 'inset-0' : 'rounded-2xl'}`}
+          style={modo === 'camera' ? undefined : { left: `${Math.max(0, Math.min(posicao.x, 100 - largura))}%`, top: `${Math.max(0, Math.min(posicao.y, 100 - alturaPercentual))}%`, width: `${largura}%`, aspectRatio: proporcao, touchAction: ehTarologo ? 'none' : undefined }}
           onPointerDown={ehTarologo && modo === 'sobreposta' ? (e) => {
             const rect = e.currentTarget.getBoundingClientRect()
             arrastando.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top }
@@ -169,9 +222,63 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
           } : undefined}
           onPointerCancel={() => { arrastando.current = null; setPosicaoLocal(null) }}
         >
-          <video ref={videoEl} autoPlay muted playsInline className="h-full w-full object-contain" />
+          <video
+            ref={videoEl}
+            autoPlay muted playsInline
+            onLoadedMetadata={(e) => {
+              const { videoWidth, videoHeight } = e.currentTarget
+              if (videoWidth && videoHeight) setProporcao(videoWidth / videoHeight)
+            }}
+            className="absolute inset-0 h-full w-full object-contain"
+          />
           {ehTarologo && modo === 'sobreposta' && <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1 text-[11px] text-white">Arraste para mover</span>}
-          {ehTarologo && <button type="button" onClick={alternarModo} className="absolute left-2 top-2 rounded-full border border-gold/50 bg-black/75 px-3 py-1.5 text-xs text-gold">{modo === 'camera' ? 'Voltar à mesa 3D' : 'Ver só câmera'}</button>}
+          {ehTarologo && <div className="absolute left-2 top-2 flex flex-wrap gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
+            <button type="button" onClick={alternarModo} className="rounded-full border border-gold/50 bg-black/80 px-3 py-1.5 text-xs text-gold">{modo === 'camera' ? 'Voltar à mesa 3D' : 'Ver só câmera'}</button>
+            <button type="button" onClick={() => void gerarQr()} className="rounded-full border border-white/30 bg-black/80 px-3 py-1.5 text-xs text-white">Trocar celular</button>
+          </div>}
+          {ehTarologo && modo === 'sobreposta' && <div className="absolute bottom-2 right-2 flex items-end gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
+            <button type="button" aria-label="Diminuir câmera" onClick={() => {
+              const novo = Math.max(18, tamanho - 8)
+              setTamanhoLocal(novo)
+              void backend.atualizarSessao(sessao.id, { cameraTamanho: novo })
+            }} className="rounded-full bg-black/80 px-2.5 py-1 text-lg leading-none text-white">−</button>
+            <button type="button" aria-label="Aumentar câmera" onClick={() => {
+              const novo = Math.min(85, tamanho + 8)
+              setTamanhoLocal(novo)
+              void backend.atualizarSessao(sessao.id, { cameraTamanho: novo })
+            }} className="rounded-full bg-black/80 px-2.5 py-1 text-lg leading-none text-white">+</button>
+            <div
+              role="slider" tabIndex={0} aria-label="Tamanho da câmera" aria-valuemin={18} aria-valuemax={85} aria-valuenow={Math.round(tamanho)}
+              title="Arraste este canto para redimensionar"
+              className="grid h-9 w-9 cursor-nwse-resize place-items-center rounded-lg bg-black/80 text-lg text-gold"
+              onKeyDown={(e) => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+                const novo = Math.max(18, Math.min(85, tamanho + (e.key === 'ArrowRight' ? 5 : -5)))
+                setTamanhoLocal(novo)
+                void backend.atualizarSessao(sessao.id, { cameraTamanho: novo })
+              }}
+              onPointerDown={(e) => {
+                e.stopPropagation()
+                const largura = e.currentTarget.parentElement?.parentElement?.parentElement?.clientWidth ?? window.innerWidth
+                redimensionando.current = { x: e.clientX, largura, tamanho }
+                e.currentTarget.setPointerCapture(e.pointerId)
+              }}
+              onPointerMove={(e) => {
+                e.stopPropagation()
+                if (!redimensionando.current) return
+                const { x, largura, tamanho: inicial } = redimensionando.current
+                setTamanhoLocal(Math.max(18, Math.min(85, inicial + (e.clientX - x) / largura * 100)))
+              }}
+              onPointerUp={(e) => {
+                e.stopPropagation()
+                if (!redimensionando.current) return
+                redimensionando.current = null
+                if (tamanhoLocal !== null) void backend.atualizarSessao(sessao.id, { cameraTamanho: tamanhoLocal })
+                e.currentTarget.releasePointerCapture(e.pointerId)
+              }}
+              onPointerCancel={() => { redimensionando.current = null }}
+            >⤡</div>
+          </div>}
         </div>
       )}
 

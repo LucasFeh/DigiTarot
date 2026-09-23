@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { criarPeer, oferecer, receberResposta } from '../lib/webrtc'
 import type { SinalMidia } from '../lib/backend'
@@ -8,18 +8,39 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
   const { backend } = useAuth()
   const [sinal, setSinal] = useState<SinalMidia | null>(null)
   const [ativo, setAtivo] = useState(false)
+  const [parando, setParando] = useState(false)
   const [estado, setEstado] = useState('Abra a câmera quando estiver pronto para mostrar a mesa.')
   const video = useRef<HTMLVideoElement>(null)
   const stream = useRef<MediaStream | null>(null)
   const peer = useRef<RTCPeerConnection | null>(null)
   const iniciando = useRef(false)
 
-  useEffect(() => {
-    if (!backend) return
-    return backend.observarSinal(sessaoId, token, setSinal)
+  const parar = useCallback(async (avisarSala = true) => {
+    setParando(true)
+    peer.current?.close()
+    peer.current = null
+    stream.current?.getTracks().forEach((t) => t.stop())
+    stream.current = null
+    if (video.current) video.current.srcObject = null
+    setAtivo(false)
+    setEstado('Transmissão parada. Você pode iniciá-la novamente.')
+    if (avisarSala && backend) await backend.salvarSinal(sessaoId, token, { oferta: '' }).catch(() => {})
+    setParando(false)
   }, [backend, sessaoId, token])
 
   useEffect(() => {
+    if (!backend) return
+    return backend.observarSinal(sessaoId, token, (proximo) => {
+      setSinal(proximo)
+      if (proximo?.resposta === 'encerrar' && (peer.current || stream.current)) {
+        void parar(false)
+        setEstado('O tarólogo encerrou esta leitura. A câmera foi desligada.')
+      }
+    })
+  }, [backend, sessaoId, token, parar])
+
+  useEffect(() => {
+    if (sinal?.resposta === 'encerrar') return
     if (!sinal?.resposta || !peer.current) return
     void receberResposta(peer.current, sinal.resposta).then(() => setEstado('Câmera conectada à sala.')).catch(() => setEstado('A conexão falhou. Tente iniciar de novo.'))
   }, [sinal?.resposta])
@@ -29,19 +50,12 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
     stream.current?.getTracks().forEach((t) => t.stop())
   }, [])
 
-  const parar = () => {
-    peer.current?.close()
-    peer.current = null
-    stream.current?.getTracks().forEach((t) => t.stop())
-    stream.current = null
-    if (video.current) video.current.srcObject = null
-    setAtivo(false)
-    setEstado('Transmissão parada. Você pode iniciá-la novamente.')
-    if (backend) void backend.salvarSinal(sessaoId, token, { oferta: '' }).catch(() => {})
-  }
-
   const iniciar = async () => {
-    if (iniciando.current || ativo) return
+    if (iniciando.current || ativo || parando) return
+    if (sinal?.resposta === 'encerrar') {
+      setEstado('Esta leitura foi encerrada pelo tarólogo.')
+      return
+    }
     if (!backend || !sinal || !sinal.expiraEm || Date.now() >= sinal.expiraEm) {
       setEstado('Este QR expirou. Gere outro na sala do tarólogo.')
       return
@@ -54,13 +68,19 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
     try {
       setEstado('Pedindo permissão para a câmera…')
       const capturada = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
       stream.current = capturada
       if (video.current) video.current.srcObject = capturada
       const conexao = criarPeer()
       peer.current = conexao
+      const controle = conexao.createDataChannel('controle')
+      controle.onmessage = (evento) => {
+        if (evento.data !== 'encerrar') return
+        void parar(false)
+        setEstado('O tarólogo encerrou esta leitura. A câmera foi desligada.')
+      }
       capturada.getVideoTracks().forEach((t) => conexao.addTrack(t, capturada))
       conexao.onconnectionstatechange = () => {
         if (conexao.connectionState === 'connected') setEstado('Câmera conectada à sala.')
@@ -72,7 +92,7 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
       setAtivo(true)
       setEstado('Aguardando a sala receber a câmera…')
     } catch {
-      parar()
+      await parar()
       setEstado('Não foi possível iniciar. Confira a permissão da câmera e a conexão.')
     } finally {
       iniciando.current = false
@@ -84,12 +104,12 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
       <p className="text-xs uppercase tracking-[0.2em] text-gold">DigiTarot · câmera da mesa</p>
       <h1 className="font-display text-3xl text-star">Seu celular vira a câmera</h1>
       <p className="text-mist/80">Posicione o celular acima das cartas. Esta página precisa ficar aberta durante a tiragem.</p>
-      <video ref={video} autoPlay muted playsInline className="aspect-video w-full rounded-2xl border border-white/15 bg-black object-cover" />
+      <video ref={video} autoPlay muted playsInline className="max-h-[65svh] w-full rounded-2xl border border-white/15 bg-black object-contain" />
       <p role="status" className="text-sm text-mist">{estado}</p>
-      {ativo ? (
-        <button type="button" onClick={parar} className="rounded-full border border-rose/50 px-6 py-3 text-rose">Parar câmera</button>
+      {sinal?.resposta === 'encerrar' ? null : ativo ? (
+        <button type="button" onClick={() => void parar()} className="rounded-full border border-rose/50 px-6 py-3 text-rose">Parar câmera</button>
       ) : (
-        <button type="button" onClick={() => void iniciar()} className="rounded-full bg-gold px-6 py-3 font-semibold text-void">Iniciar câmera</button>
+        <button type="button" disabled={parando} onClick={() => void iniciar()} className="rounded-full bg-gold px-6 py-3 font-semibold text-void disabled:opacity-50">{parando ? 'Parando câmera…' : 'Iniciar câmera'}</button>
       )}
       <p className="text-xs text-mist/50">A imagem vai para a sala em tempo real. Este link de conexão expira em 10 minutos.</p>
     </main>

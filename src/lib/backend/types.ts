@@ -229,6 +229,9 @@ export type Sessao = {
   /** Visualização compartilhada da câmera do celular do tarólogo. */
   cameraModo?: 'sobreposta' | 'camera'
   cameraPosicao?: { x: number; y: number }
+  cameraVisivel?: boolean
+  /** Largura da câmera sobreposta, em porcentagem da sala. */
+  cameraTamanho?: number
 }
 
 /**
