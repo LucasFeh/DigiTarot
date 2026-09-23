@@ -91,7 +91,7 @@ export type Perfil = {
   nome: string
   /** YYYY-MM-DD. Privada; usada para idade e arcano pessoal. */
   dataNascimento: string
-  /** Telefone, WhatsApp, o que a pessoa quiser deixar. Livre de propósito. */
+  /** WhatsApp ou telefone de contato usado nos agendamentos. */
   contato: string
   /** @ do Instagram, sem o arroba. */
   instagram: string

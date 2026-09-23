@@ -38,6 +38,11 @@ const FORMATOS: { id: FormatoConsulta; rotulo: string; descricao: string; icone:
 const CAMPO =
   'w-full rounded-xl border border-white/20 bg-[#171123] px-4 py-3 text-[16px] text-star outline-none transition placeholder:text-mist/45 focus:border-gold/70'
 
+function ehTelefone(valor: string) {
+  const digitos = valor.replace(/\D/g, '')
+  return /^[+()\d\s.-]+$/.test(valor.trim()) && digitos.length >= 10 && digitos.length <= 15
+}
+
 function fotoDoTarologo(tarologo: { nome: string; foto: string }) {
   const ehRodrigo = tarologo.nome.trim().toLocaleLowerCase('pt-BR').includes('rodrigo')
   const fotoAntiga = !tarologo.foto || /(?:foto-tarologo-provisoria\.jpg|rodrigo\.(?:png|webp))(?:\?|$)/i.test(tarologo.foto)
@@ -71,17 +76,20 @@ function Retrato({ foto, nome, lado }: { foto?: string; nome: string; lado: 'cli
 
 export default function AgendarPage({ planoId }: { planoId: string }) {
   const { usuario, carregando, backend } = useAuth()
-  const { perfil, nomeExibido } = usePerfil(usuario)
+  const { perfil, pronto: perfilPronto, nomeExibido } = usePerfil(usuario)
   const { tarologos, carregando: carregandoTarologos, erro: erroTarologos } = useTarologos()
   const [tarologoId, setTarologoId] = useState<string | null>(null)
   const [etapa, setEtapa] = useState<'data' | 'formato'>('data')
   const [dia, setDia] = useState<string | null>(null)
   const [hora, setHora] = useState<string | null>(null)
   const [ocupados, setOcupados] = useState<string[]>([])
-  const [nome, setNome] = useState('')
-  const [contato, setContato] = useState('')
   const [formato, setFormato] = useState<FormatoConsulta | null>(null)
   const [observacao, setObservacao] = useState('')
+  const [editandoDados, setEditandoDados] = useState(false)
+  const [nomeRascunho, setNomeRascunho] = useState('')
+  const [telefoneRascunho, setTelefoneRascunho] = useState('')
+  const [salvandoDados, setSalvandoDados] = useState(false)
+  const [erroDados, setErroDados] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
@@ -93,14 +101,6 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
     if (!backend || !usuario) return
     return backend.observarHorariosOcupados(setOcupados)
   }, [backend, usuario])
-
-  useEffect(() => {
-    setNome((n) => n || nomeExibido)
-  }, [nomeExibido])
-
-  useEffect(() => {
-    setContato((c) => c || perfil.contato)
-  }, [perfil.contato])
 
   const tomados = useMemo(() => {
     if (!tarologoId) return new Set<string>()
@@ -179,10 +179,37 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
   }
 
   const preco = tarologo.modalidades[planoId]
+  const nomeCliente = perfil.nome.trim() || usuario.nome.trim()
+  const contatoPerfil = perfil.contato.trim()
+  const telefoneConta = usuario.telefone?.trim() ?? ''
+  const telefoneCliente = ehTelefone(contatoPerfil) ? contatoPerfil : ehTelefone(telefoneConta) ? telefoneConta : ''
+  const dadosValidos = Boolean(nomeRascunho.trim() && ehTelefone(telefoneRascunho))
+
+  function abrirEdicaoDados() {
+    setNomeRascunho(nomeCliente)
+    setTelefoneRascunho(telefoneCliente)
+    setErroDados(null)
+    setEditandoDados(true)
+  }
+
+  async function confirmarDados() {
+    if (!dadosValidos || !backend || !usuario || salvandoDados) return
+    setSalvandoDados(true)
+    setErroDados(null)
+    try {
+      await backend.salvarPerfil(usuario.uid, { nome: nomeRascunho.trim(), contato: telefoneRascunho.trim() })
+      setEditandoDados(false)
+    } catch {
+      setErroDados('Não foi possível salvar seus dados. Tente novamente.')
+    } finally {
+      setSalvandoDados(false)
+    }
+  }
+
   const dataValida = Boolean(
     dia && hora && diasDisponiveis().includes(dia) && !tomados.has(slotId(dia, hora)) && !cedoDemais(dia, hora),
   )
-  const pronto = dataValida && Boolean(formato && nome.trim() && contato.trim())
+  const pronto = dataValida && !editandoDados && Boolean(formato && perfilPronto && nomeCliente && telefoneCliente)
 
   const reservar = async () => {
     if (!backend || !dia || !hora || !formato || !pronto || enviando) return
@@ -197,9 +224,9 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
     try {
       const id = await backend.criarAgendamento({
         clienteUid: usuario.uid,
-        clienteNome: nome.trim(),
+        clienteNome: nomeCliente,
         clienteEmail: usuario.email,
-        contato: contato.trim(),
+        contato: telefoneCliente,
         tarologoUid: tarologo.uid,
         tarologoNome: tarologo.nome,
         planoId: plano.id,
@@ -322,15 +349,53 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
               />
             </label>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-[14px] text-star">Seu nome</span>
-                <input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" required className={CAMPO} />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-[14px] text-star">WhatsApp ou telefone</span>
-                <input value={contato} onChange={(e) => setContato(e.target.value)} inputMode="tel" autoComplete="tel" required placeholder="(00) 00000-0000" className={CAMPO} />
-              </label>
+            <div className="mt-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[14px] font-medium text-star">Dados do seu perfil</p>
+                {!editandoDados && (
+                  <button type="button" disabled={!perfilPronto} onClick={abrirEdicaoDados} className="text-[13px] text-gold underline-offset-4 hover:underline disabled:opacity-40">
+                    Editar dados
+                  </button>
+                )}
+              </div>
+              {editandoDados ? (
+                <div>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-[14px] text-star">Seu nome</span>
+                      <input value={nomeRascunho} onChange={(e) => setNomeRascunho(e.target.value)} autoComplete="name" className={CAMPO} />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-[14px] text-star">WhatsApp ou telefone</span>
+                      <input value={telefoneRascunho} onChange={(e) => setTelefoneRascunho(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(00) 00000-0000" className={CAMPO} />
+                    </label>
+                  </div>
+                  <p className="mt-2 text-[12px] text-mist/65">Informe o DDD e o número. As alterações serão salvas no seu perfil.</p>
+                  <div className="mt-3 flex flex-wrap gap-4">
+                    <button type="button" disabled={!dadosValidos || salvandoDados} onClick={() => void confirmarDados()} className="text-[13px] font-semibold text-gold hover:text-star disabled:opacity-40">{salvandoDados ? 'Salvando…' : 'Salvar no perfil'}</button>
+                    <button type="button" disabled={salvandoDados} onClick={() => setEditandoDados(false)} className="text-[13px] text-mist/70 hover:text-star disabled:opacity-40">Cancelar edição</button>
+                  </div>
+                  {erroDados && <p role="alert" className="mt-3 text-[13px] text-rose">{erroDados}</p>}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <span className="mb-2 block text-[14px] text-star">Seu nome</span>
+                      <p className={`${CAMPO} min-h-12`}>{perfilPronto ? nomeCliente || 'Não cadastrado' : 'Carregando…'}</p>
+                    </div>
+                    <div>
+                      <span className="mb-2 block text-[14px] text-star">WhatsApp ou telefone</span>
+                      <p className={`${CAMPO} min-h-12`}>{perfilPronto ? telefoneCliente || 'Não cadastrado' : 'Carregando…'}</p>
+                    </div>
+                  </div>
+                  {perfilPronto && (!nomeCliente || !telefoneCliente) && (
+                    <p className="mt-3 text-[13px] text-gold" role="status">
+                      Complete {nomeCliente ? 'o telefone' : telefoneCliente ? 'o nome' : 'o nome e o telefone'} em “Editar dados” para continuar.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             {erro && <p role="alert" className="mt-5 rounded-xl border border-rose/40 bg-rose/10 p-4 text-[14px] text-rose">{erro}</p>}

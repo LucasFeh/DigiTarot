@@ -32,12 +32,16 @@ function Campo({
   onChange,
   placeholder,
   dica,
+  inputMode,
+  autoComplete,
 }: {
   rotulo: string
   valor: string
   onChange: (v: string) => void
   placeholder?: string
   dica?: string
+  inputMode?: 'tel'
+  autoComplete?: string
 }) {
   return (
     <label className="block">
@@ -48,6 +52,8 @@ function Campo({
         value={valor}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
         className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] text-star outline-none transition placeholder:text-mist/40 focus:border-lilac/60"
       />
       {dica && <span className="mt-1.5 block text-[13px] text-mist/55">{dica}</span>}
@@ -122,10 +128,13 @@ export default function PerfilPage() {
                   dica="Como você quer ser chamada aqui."
                 />
                 <Campo
-                  rotulo="Contato"
+                  rotulo="WhatsApp ou telefone"
                   valor={perfil.contato}
                   onChange={(v) => salvar({ contato: v })}
-                  placeholder="WhatsApp, telefone, e-mail…"
+                  placeholder="(00) 00000-0000"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  dica="Usado para confirmar seus agendamentos."
                 />
                 <Campo
                   rotulo="Instagram"
