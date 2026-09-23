@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../lib/useAuth'
 import { ErroDeImagem, prepararImagemDoChat } from '../../lib/imagemChat'
 import type { Mensagem } from '../../lib/backend'
+import VozMesa from './VozMesa'
 
 function hora(iso: string) {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -96,10 +97,22 @@ export default function ChatMesa({
   const [preparando, setPreparando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [gravando, setGravando] = useState(false)
+  const [preparandoAudio, setPreparandoAudio] = useState(false)
+  const gravador = useRef<MediaRecorder | null>(null)
+  const pressionado = useRef(false)
+  const descartandoAudio = useRef(false)
   const [ampliada, setAmpliada] = useState<string | null>(null)
   const fim = useRef<HTMLDivElement>(null)
   const entrada = useRef<HTMLInputElement>(null)
   const lidasAte = useRef(0)
+
+  useEffect(() => () => {
+    descartandoAudio.current = true
+    pressionado.current = false
+    if (gravador.current?.state === 'recording') gravador.current.stop()
+    gravador.current?.stream.getTracks().forEach((t) => t.stop())
+  }, [])
 
   useEffect(() => {
     if (!backend) return
@@ -146,7 +159,7 @@ export default function ChatMesa({
     try {
       await backend.enviarMensagem(sessaoId, {
         autor,
-        nome,
+        nome: nome.slice(0, 100),
         texto: limpo.slice(0, 2000),
         ...(anexo ? { imagem: anexo } : {}),
       })
@@ -159,11 +172,67 @@ export default function ChatMesa({
     }
   }
 
+  const iniciarAudio = async () => {
+    if (!backend || gravador.current || preparandoAudio) return
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setErro('Este navegador não permite gravar áudio aqui. Abra o site em HTTPS no Chrome, Safari ou Firefox atualizado.')
+      return
+    }
+    pressionado.current = true
+    setErro(null)
+    setPreparandoAudio(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (!pressionado.current) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+      const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((t) => MediaRecorder.isTypeSupported(t))
+      const recorder = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: 32000 })
+      const partes: BlobPart[] = []
+      let limite: number | undefined
+      recorder.ondataavailable = (e) => { if (e.data.size) partes.push(e.data) }
+      recorder.onstop = () => {
+        window.clearTimeout(limite)
+        stream.getTracks().forEach((t) => t.stop())
+        gravador.current = null
+        setGravando(false)
+        if (descartandoAudio.current) return
+        if (!partes.length) return
+        const leitor = new FileReader()
+        leitor.onload = async () => {
+          const audio = leitor.result
+          if (typeof audio !== 'string' || audio.length > 700000) {
+            setErro('O áudio ficou grande demais. Grave uma mensagem mais curta.')
+            return
+          }
+          try {
+            await backend.enviarMensagem(sessaoId, { autor, nome: nome.slice(0, 100), texto: '', audio })
+          } catch {
+            setErro('Não foi possível enviar o áudio. Tente novamente.')
+          }
+        }
+        leitor.readAsDataURL(new Blob(partes, { type: (recorder.mimeType || 'audio/webm').split(';')[0] }))
+      }
+      gravador.current = recorder
+      recorder.start()
+      setGravando(true)
+      limite = window.setTimeout(() => { if (recorder.state === 'recording') recorder.stop() }, 45000)
+    } catch {
+      setErro('Não foi possível abrir o microfone. Confira a permissão do navegador.')
+    } finally {
+      setPreparandoAudio(false)
+    }
+  }
+
+  const pararAudio = () => {
+    pressionado.current = false
+    if (gravador.current?.state === 'recording') gravador.current.stop()
+  }
+
   // A imagem ampliada vive FORA do painel: ela precisa continuar aberta mesmo
   // que a conversa seja fechada, e cobrir a tela inteira em vez do painel.
   const modal = ampliada ? <Ampliada src={ampliada} aoFechar={() => setAmpliada(null)} /> : null
-
-  if (!aberto) return modal
 
   /*
    * O painel vai À ESQUERDA, e não à direita. O painel de cartas do tarólogo e
@@ -174,7 +243,8 @@ export default function ChatMesa({
   return (
     <>
       <aside
-        className="absolute bottom-16 left-3 top-16 z-40 flex w-[min(92vw,340px)] flex-col overflow-hidden rounded-2xl"
+        className={`absolute bottom-16 left-3 top-16 z-40 flex w-[min(92vw,340px)] flex-col overflow-hidden rounded-2xl ${aberto ? '' : 'hidden'}`}
+        inert={!aberto}
         style={{
           background: 'linear-gradient(160deg, #ffffff14, #05010fdd)',
           backdropFilter: 'blur(16px)',
@@ -193,6 +263,7 @@ export default function ChatMesa({
             ×
           </button>
         </header>
+        {backend && <VozMesa backend={backend} sessaoId={sessaoId} autor={autor} />}
 
         <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-3">
           {mensagens.length === 0 ? (
@@ -236,6 +307,15 @@ export default function ChatMesa({
                     >
                       {m.texto}
                     </p>
+                  )}
+                  {m.audio && (
+                    <audio
+                      controls
+                      preload="none"
+                      src={m.audio}
+                      aria-label={`Áudio de ${minha ? 'você' : m.nome}`}
+                      className="mt-1 max-w-[85%]"
+                    />
                   )}
                 </div>
               )
@@ -326,6 +406,22 @@ export default function ChatMesa({
             style={{ background: 'linear-gradient(100deg, #6d3fd4, #c2449d)' }}
           >
             ➤
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId)
+              void iniciarAudio()
+            }}
+            onPointerUp={pararAudio}
+            onPointerCancel={pararAudio}
+            onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); void iniciarAudio() } }}
+            onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') pararAudio() }}
+            aria-label={gravando ? 'Solte para enviar o áudio' : 'Segure para gravar um áudio'}
+            title={gravando ? 'Solte para enviar' : 'Segure para gravar áudio (até 45 segundos)'}
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border text-[18px] transition ${gravando ? 'border-rose bg-rose/20 text-rose' : 'border-white/15 text-mist hover:border-gold/50 hover:text-star'}`}
+          >
+            {preparandoAudio ? '…' : '🎙'}
           </button>
         </form>
       </aside>

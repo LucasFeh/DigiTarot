@@ -216,6 +216,31 @@ com folga (1280px, WebP, e tentativas sucessivas se ainda ficar grande). O
 servidor confere o teto de novo: acima dele a gravação falharia e, do lado de
 cá, pareceria que o chat parou sem motivo.
 
+O botão 🎙 grava enquanto é segurado (até 45 segundos) e envia uma mensagem de
+voz reproduzível no chat. O áudio curto fica no próprio documento da mensagem,
+limitado a 700 mil caracteres; as regras impedem juntar foto e áudio no mesmo
+documento. Ambos também podem abrir a **conversa por voz** no topo do chat. O
+tarólogo inicia, o cliente escolhe entrar e cada um pode silenciar o próprio
+microfone. A chamada não é gravada.
+
+### Câmera do celular na tiragem
+
+Na mesa, o tarólogo clica em **Conectar câmera do celular**. O QR abre uma
+página HTTPS no celular, pede permissão para a câmera traseira e transmite a
+imagem para o computador do tarólogo; dali a mesma faixa chega ao cliente.
+Não precisa instalar APK nem entrar na conta no celular. O QR é aleatório e
+expira em 10 minutos; gere outro para reconectar. A página do celular e a mesa
+do computador precisam continuar abertas. O tarólogo arrasta a imagem para
+posicioná-la ou escolhe **Ver só câmera** para cobrir a mesa 3D; a escolha
+aparece também ao cliente.
+
+O Firestore troca apenas ofertas e respostas em `sessoes/{id}/sinais`. A mídia
+viaja por WebRTC entre navegadores. A configuração atual usa STUN, suficiente
+para muitas redes, mas não para todas: redes móveis ou corporativas com NAT
+restritivo podem exigir um servidor TURN próprio antes de prometer conexão
+universal. Teste com dois aparelhos reais depois de publicar as regras do
+Firestore. O endereço `127.0.0.1` do modo local só funciona no mesmo computador.
+
 No celular em pé, a mesa mostra um convite para girar o aparelho. É dica, não
 barreira — travar até o aparelho girar puniria quem está num tablet preso a um
 suporte, com a rotação bloqueada, ou deitado na cama.

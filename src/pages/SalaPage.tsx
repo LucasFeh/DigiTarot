@@ -19,6 +19,7 @@ import CartaFlutuante from '../components/sala/CartaFlutuante'
 import PainelTarologo from '../components/sala/PainelTarologo'
 import PopupCarta from '../components/sala/PopupCarta'
 import ChatMesa from '../components/sala/ChatMesa'
+import CameraMesa from '../components/sala/CameraMesa'
 import DicaGirar from '../components/sala/DicaGirar'
 import SeletorTema from '../components/temas/SeletorTema'
 import LoginPage from './LoginPage'
@@ -443,6 +444,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     return (
       <div className="fixed inset-0 z-[80] bg-void">
         {cena}
+        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo={false} />}
 
         {/* Faixa de cima. `z-50` porque ela quebra em duas linhas no celular
             — cinco pílulas não cabem em 390px — e o painel de conversa é z-40:
@@ -624,6 +626,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           que é o que a pessoa realmente precisa ver. */}
       <div data-sala className="relative h-[calc(100vh-4rem)] w-full overflow-hidden">
         {cena}
+        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo />}
 
         <BarraFerramentas
           cartas={cartas}
@@ -652,7 +655,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
         />
 
         {/* Rodapé de estado, do lado oposto ao menu. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-end gap-2 p-3">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex flex-wrap items-end gap-2 p-3">
           <span className="glass rounded-full px-3 py-1.5 text-[13px] text-mist">
             {sessao.titulo} · Você conduz{sessao.encerrada && ' · encerrada'}
           </span>

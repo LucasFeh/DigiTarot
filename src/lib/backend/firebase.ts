@@ -62,6 +62,7 @@ import type {
   Perfil,
   Provedor,
   Sessao,
+  SinalMidia,
   TarologoPix,
   TarologoPublico,
   Unsubscribe,
@@ -736,6 +737,18 @@ export class FirebaseBackend implements Backend {
       ...dados,
       em: new Date().toISOString(),
     })
+  }
+
+  observarSinal(sessaoId: string, sinalId: string, cb: (s: SinalMidia | null) => void): Unsubscribe {
+    return onSnapshot(
+      doc(this.db, 'sessoes', sessaoId, 'sinais', sinalId),
+      (d) => cb(d.exists() ? d.data() as SinalMidia : null),
+      () => cb(null),
+    )
+  }
+
+  async salvarSinal(sessaoId: string, sinalId: string, patch: Partial<SinalMidia>) {
+    await setDoc(doc(this.db, 'sessoes', sessaoId, 'sinais', sinalId), semVazios(patch), { merge: true })
   }
 
   observarSessoesAbertas(cb: (s: Sessao[]) => void): Unsubscribe {

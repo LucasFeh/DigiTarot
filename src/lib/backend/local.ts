@@ -13,6 +13,7 @@ import type {
   Perfil,
   Provedor,
   Sessao,
+  SinalMidia,
   TarologoPix,
   TarologoPublico,
   Unsubscribe,
@@ -28,6 +29,7 @@ const CHAVE_AGENDA = 'tarot.agendamentos'
 const CHAVE_HORARIOS = 'tarot.horarios'
 const CHAVE_CONVITES = 'tarot.convites'
 const CHAVE_MENSAGENS = 'tarot.mensagens'
+const CHAVE_SINAIS = 'digitarot.sinais'
 const CHAVE_TAROLOGOS = 'digitarot.tarologos'
 const CHAVE_PIX_TAROLOGOS = 'digitarot.pixTarologos'
 const CANAL = 'tarot.sync'
@@ -731,6 +733,21 @@ export class LocalBackend implements Backend {
     const nova: Mensagem = { ...dados, id: novoId('m'), em: new Date().toISOString() }
     mapa[sessaoId] = [...(mapa[sessaoId] ?? []), nova]
     gravar(CHAVE_MENSAGENS, mapa)
+    this.avisar('sessoes')
+  }
+
+  observarSinal(sessaoId: string, sinalId: string, cb: (s: SinalMidia | null) => void): Unsubscribe {
+    const emitir = () => cb(ler<Record<string, SinalMidia>>(CHAVE_SINAIS, {})[`${sessaoId}/${sinalId}`] ?? null)
+    this.ouvintesSessoes.add(emitir)
+    emitir()
+    return () => this.ouvintesSessoes.delete(emitir)
+  }
+
+  async salvarSinal(sessaoId: string, sinalId: string, patch: Partial<SinalMidia>) {
+    const dados = ler<Record<string, SinalMidia>>(CHAVE_SINAIS, {})
+    const chave = `${sessaoId}/${sinalId}`
+    dados[chave] = { ...dados[chave], ...patch } as SinalMidia
+    gravar(CHAVE_SINAIS, dados)
     this.avisar('sessoes')
   }
 

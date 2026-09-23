@@ -32,6 +32,7 @@ const VerificarEmailPage = lazy(() => import('./pages/VerificarEmailPage'))
 const ConcluirCadastroPage = lazy(() => import('./pages/ConcluirCadastroPage'))
 const ArmazenamentoPage = lazy(() => import('./pages/ArmazenamentoPage'))
 const MesaDigitalDemoPage = lazy(() => import('./pages/MesaDigitalDemoPage'))
+const CameraCelularPage = lazy(() => import('./pages/CameraCelularPage'))
 
 /** `#/temas/pessoais` e `#/temas/favoritos` abrem o acervo já na aba certa. */
 const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favoritos' }
@@ -40,7 +41,7 @@ function Rotas() {
   const { caminho, partes } = useHashRoute()
   const { usuario, backend } = useAuth()
   const linkEmail = haLinkDeEmailNaUrl() || partes[0] === 'confirmar-cadastro'
-  const paginaPublica = linkEmail || !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento', 'mesa-digital'].includes(partes[0])
+  const paginaPublica = linkEmail || !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento', 'mesa-digital', 'camera'].includes(partes[0])
   const aguardaEmail = backend?.modo === 'firebase' && Boolean(usuario?.email) && usuario?.emailVerificado === false && !paginaPublica
 
   /**
@@ -57,6 +58,8 @@ function Rotas() {
   const conteudo =
     linkEmail ? (
       <ConcluirCadastroPage />
+    ) : partes[0] === 'camera' && partes[1] && partes[2] ? (
+      <CameraCelularPage sessaoId={partes[1]} token={partes[2]} />
     ) : partes[0] === 'tiragem' && partes[1] ? (
       <SalaPage sessaoId={partes[1]} />
     ) : partes[0] === 'tiragem' ? (

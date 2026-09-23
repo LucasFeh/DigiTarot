@@ -395,11 +395,18 @@ service cloud.firestore {
         // disso a gravação falharia no servidor, e do lado de cá pareceria que
         // o chat parou de funcionar sem motivo.
         allow create: if participa()
+                      && request.resource.data.keys().hasOnly(['autor', 'nome', 'texto', 'imagem', 'audio', 'em'])
+                      && request.resource.data.autor in ['tarologo', 'cliente']
+                      && request.resource.data.nome is string
+                      && request.resource.data.nome.size() <= 100
+                      && request.resource.data.em is string
+                      && request.resource.data.em.size() <= 50
                       && request.resource.data.texto is string
                       && request.resource.data.texto.size() <= 2000
                       && (
                         request.resource.data.texto.size() > 0
                         || 'imagem' in request.resource.data
+                        || 'audio' in request.resource.data
                       )
                       && (
                         !('imagem' in request.resource.data)
@@ -408,11 +415,74 @@ service cloud.firestore {
                           && request.resource.data.imagem.size() > 0
                           && request.resource.data.imagem.size() <= 700000
                         )
-                      );
+                      )
+                      && (
+                        !('audio' in request.resource.data)
+                        || (
+                          request.resource.data.audio is string
+                          && request.resource.data.audio.matches('^data:audio/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=]+$')
+                          && request.resource.data.audio.size() <= 700000
+                        )
+                      )
+                      && !('imagem' in request.resource.data && 'audio' in request.resource.data);
 
         // Mensagem dita não se desdiz: sem edição e sem apagar, a conversa que
         // as duas pessoas leram continua sendo a mesma para as duas.
         allow update, delete: if false;
+      }
+
+      // SDP de WebRTC: só troca endereços de conexão. Vídeo e áudio seguem
+      // diretamente entre os navegadores; nenhum fluxo fica no Firestore.
+      // O id aleatório da câmera é uma capacidade temporária para o celular
+      // do tarólogo, que pode abrir o QR sem fazer login nesse segundo aparelho.
+      match /sinais/{sinalId} {
+        function mesa() {
+          return get(/databases/$(database)/documents/sessoes/$(sessaoId)).data;
+        }
+        function dono() {
+          return contaConfirmada() && mesa().tarologoUid == uid();
+        }
+        function cliente() {
+          return mesa().get('publica', false) == true
+                 || (contaConfirmada() && mesa().get('clienteUid', null) == uid());
+        }
+        function camera() {
+          return sinalId.matches('^camera-[0-9a-f]{32}$');
+        }
+        function valido() {
+          return request.resource.data.keys().hasOnly(['tipo', 'versao', 'oferta', 'resposta', 'expiraEm'])
+                 && request.resource.data.tipo in ['camera', 'video', 'voz']
+                 && ((camera() && request.resource.data.tipo == 'camera')
+                     || (sinalId in ['video', 'voz'] && request.resource.data.tipo == sinalId))
+                 && request.resource.data.versao is string
+                 && request.resource.data.versao.size() <= 50
+                 && request.resource.data.get('oferta', '') is string
+                 && request.resource.data.get('oferta', '').size() <= 50000
+                 && request.resource.data.get('resposta', '') is string
+                 && request.resource.data.get('resposta', '').size() <= 50000;
+        }
+
+        allow get: if (camera()
+                       && resource.data.tipo == 'camera'
+                       && request.time < timestamp.value(resource.data.expiraEm))
+                      || (!camera() && (dono() || cliente()));
+        allow list: if false;
+        allow create: if dono() && valido()
+                      && ((camera() && request.resource.data.tipo == 'camera'
+                           && request.resource.data.expiraEm is int
+                           && request.time < timestamp.value(request.resource.data.expiraEm)
+                           && request.resource.data.expiraEm < request.time.toMillis() + 660000)
+                          || (sinalId in ['video', 'voz']
+                              && request.resource.data.tipo == sinalId));
+        allow update: if valido() && (
+          dono()
+          || (camera() && resource.data.tipo == 'camera'
+              && request.time < timestamp.value(resource.data.expiraEm)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['oferta']))
+          || (!camera() && cliente()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resposta']))
+        );
+        allow delete: if false;
       }
     }
   }

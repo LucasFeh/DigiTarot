@@ -226,6 +226,9 @@ export type Sessao = {
   visualTarologo?: EscolhaVisual
   /** Escolha do cliente. Replicada só para o tarólogo poder espelhar. */
   visualCliente?: EscolhaVisual
+  /** Visualização compartilhada da câmera do celular do tarólogo. */
+  cameraModo?: 'sobreposta' | 'camera'
+  cameraPosicao?: { x: number; y: number }
 }
 
 /**
@@ -298,11 +301,23 @@ export type Mensagem = {
    * `lib/imagemChat.ts` reduz até caber com folga no teto de 1 MiB do documento.
    */
   imagem?: string
+  /** Áudio curto gravado no navegador, como data URL compacta. */
+  audio?: string
   /** ISO. */
   em: string
 }
 
 export type Unsubscribe = () => void
+
+/** SDP completo (com candidatos ICE) trocado pela sala antes da conexão WebRTC. */
+export type SinalMidia = {
+  tipo: 'camera' | 'video' | 'voz'
+  versao: string
+  oferta?: string
+  resposta?: string
+  /** Milissegundos Unix: o QR da câmera expira mesmo se for fotografado. */
+  expiraEm?: number
+}
 
 /**
  * Tudo que o app precisa de um servidor. Existem duas implementações — uma
@@ -404,6 +419,8 @@ export interface Backend {
   /** A conversa daquela mesa, em ordem de chegada. */
   observarMensagens(sessaoId: string, cb: (m: Mensagem[]) => void): Unsubscribe
   enviarMensagem(sessaoId: string, dados: Omit<Mensagem, 'id' | 'em'>): Promise<void>
+  observarSinal(sessaoId: string, sinalId: string, cb: (s: SinalMidia | null) => void): Unsubscribe
+  salvarSinal(sessaoId: string, sinalId: string, patch: Partial<SinalMidia>): Promise<void>
 
   /** Sessões abertas de qualquer tarólogo — é por onde o cliente entra. */
   observarSessoesAbertas(cb: (s: Sessao[]) => void): Unsubscribe
