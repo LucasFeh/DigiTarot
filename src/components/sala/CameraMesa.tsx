@@ -3,6 +3,18 @@ import { QRCodeSVG } from 'qrcode.react'
 import type { Backend, Sessao, SinalMidia } from '../../lib/backend'
 import { novoToken } from '../../lib/backend/local'
 import { criarPeer, oferecer, receberResposta, responder } from '../../lib/webrtc'
+import { limitarQuadro, redimensionarQuadro, type DirecaoAjuste, type QuadroCamera } from '../../lib/posicaoCamera'
+
+const ALCAS: { direcao: DirecaoAjuste; posicao: string; cursor: string }[] = [
+  { direcao: 'nw', posicao: 'left-1 top-1', cursor: 'cursor-nwse-resize' },
+  { direcao: 'n', posicao: 'left-1/2 top-1 -translate-x-1/2', cursor: 'cursor-ns-resize' },
+  { direcao: 'ne', posicao: 'right-1 top-1', cursor: 'cursor-nesw-resize' },
+  { direcao: 'e', posicao: 'right-1 top-1/2 -translate-y-1/2', cursor: 'cursor-ew-resize' },
+  { direcao: 'se', posicao: 'bottom-1 right-1', cursor: 'cursor-nwse-resize' },
+  { direcao: 's', posicao: 'bottom-1 left-1/2 -translate-x-1/2', cursor: 'cursor-ns-resize' },
+  { direcao: 'sw', posicao: 'bottom-1 left-1', cursor: 'cursor-nesw-resize' },
+  { direcao: 'w', posicao: 'left-1 top-1/2 -translate-y-1/2', cursor: 'cursor-ew-resize' },
+]
 
 export type CameraMesaHandle = { conectar: () => void; encerrar: () => Promise<void> }
 
@@ -28,8 +40,8 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   const canalControle = useRef<RTCDataChannel | null>(null)
   const videoPc = useRef<RTCPeerConnection | null>(null)
   const videoEl = useRef<HTMLVideoElement>(null)
-  const arrastando = useRef<{ dx: number; dy: number } | null>(null)
-  const redimensionando = useRef<{ x: number; largura: number; tamanho: number } | null>(null)
+  const arrastando = useRef<{ dx: number; dy: number; ultimo: { x: number; y: number } | null } | null>(null)
+  const redimensionando = useRef<{ x: number; y: number; direcao: DirecaoAjuste; area: { largura: number; altura: number }; inicial: QuadroCamera; ultimo: QuadroCamera } | null>(null)
   const processada = useRef('')
   const processadoVideo = useRef('')
   const teveStream = useRef(false)
@@ -38,12 +50,7 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   const cameraAtiva = ehTarologo ? stream : recebido
   const visivel = sessao.cameraVisivel !== false
   const tamanho = tamanhoLocal ?? sessao.cameraTamanho ?? 34
-  const largura = salaTamanho.largura && salaTamanho.altura
-    ? Math.min(tamanho, (salaTamanho.altura - 16) * proporcao / salaTamanho.largura * 100)
-    : tamanho
-  const alturaPercentual = salaTamanho.altura && salaTamanho.largura
-    ? salaTamanho.largura * largura / proporcao / salaTamanho.altura
-    : 0
+  const quadro = limitarQuadro({ ...posicao, largura: tamanho }, salaTamanho, proporcao)
 
   useEffect(() => {
     if (!cameraAtiva || !visivel || !videoEl.current) return
@@ -192,15 +199,46 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
     cameraModo: modo === 'camera' ? 'sobreposta' : 'camera',
   }).catch(() => setErro('Não foi possível trocar a visualização.'))
 
+  const iniciarRedimensionamento = (e: React.PointerEvent<HTMLButtonElement>, direcao: DirecaoAjuste) => {
+    e.stopPropagation()
+    const sala = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect()
+    if (!sala) return
+    const area = { largura: sala.width, altura: sala.height }
+    const inicial = limitarQuadro({ ...posicao, largura: tamanho }, area, proporcao)
+    redimensionando.current = { x: e.clientX, y: e.clientY, direcao, area, inicial, ultimo: inicial }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const moverRedimensionamento = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    const gesto = redimensionando.current
+    if (!gesto) return
+    gesto.ultimo = redimensionarQuadro(gesto.inicial, gesto.direcao, e.clientX - gesto.x, e.clientY - gesto.y, gesto.area, proporcao)
+    setPosicaoLocal({ x: gesto.ultimo.x, y: gesto.ultimo.y })
+    setTamanhoLocal(gesto.ultimo.largura)
+  }
+
+  const terminarRedimensionamento = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    const gesto = redimensionando.current
+    if (!gesto) return
+    redimensionando.current = null
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    void backend.atualizarSessao(sessao.id, {
+      cameraPosicao: { x: gesto.ultimo.x, y: gesto.ultimo.y },
+      cameraTamanho: gesto.ultimo.largura,
+    }).catch(() => setErro('Não foi possível salvar o tamanho da câmera.'))
+  }
+
   return (
     <>
       {cameraAtiva && visivel && (
         <div
           className={`absolute z-20 overflow-hidden border border-gold/50 bg-black shadow-2xl ${modo === 'camera' ? 'inset-0' : 'rounded-2xl'}`}
-          style={modo === 'camera' ? undefined : { left: `${Math.max(0, Math.min(posicao.x, 100 - largura))}%`, top: `${Math.max(0, Math.min(posicao.y, 100 - alturaPercentual))}%`, width: `${largura}%`, aspectRatio: proporcao, touchAction: ehTarologo ? 'none' : undefined }}
+          style={modo === 'camera' ? undefined : { left: `${quadro.x}%`, top: `${quadro.y}%`, width: `${quadro.largura}%`, aspectRatio: proporcao, touchAction: ehTarologo ? 'none' : undefined }}
           onPointerDown={ehTarologo && modo === 'sobreposta' ? (e) => {
             const rect = e.currentTarget.getBoundingClientRect()
-            arrastando.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top }
+            arrastando.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top, ultimo: null }
             e.currentTarget.setPointerCapture(e.pointerId)
           } : undefined}
           onPointerMove={ehTarologo && modo === 'sobreposta' ? (e) => {
@@ -209,15 +247,18 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
             if (!deslocamento || !caixa) return
             const maxX = (caixa.width - e.currentTarget.offsetWidth) / caixa.width * 100
             const maxY = (caixa.height - e.currentTarget.offsetHeight) / caixa.height * 100
-            setPosicaoLocal({
+            const proxima = {
               x: Math.max(0, Math.min(maxX, (e.clientX - deslocamento.dx - caixa.left) / caixa.width * 100)),
               y: Math.max(0, Math.min(maxY, (e.clientY - deslocamento.dy - caixa.top) / caixa.height * 100)),
-            })
+            }
+            deslocamento.ultimo = proxima
+            setPosicaoLocal(proxima)
           } : undefined}
           onPointerUp={ehTarologo && modo === 'sobreposta' ? (e) => {
+            const ultimo = arrastando.current?.ultimo
             if (!arrastando.current) return
             arrastando.current = null
-            if (posicaoLocal) void backend.atualizarSessao(sessao.id, { cameraPosicao: posicaoLocal })
+            if (ultimo) void backend.atualizarSessao(sessao.id, { cameraPosicao: ultimo })
             e.currentTarget.releasePointerCapture(e.pointerId)
           } : undefined}
           onPointerCancel={() => { arrastando.current = null; setPosicaoLocal(null) }}
@@ -236,7 +277,7 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
             <button type="button" onClick={alternarModo} className="rounded-full border border-gold/50 bg-black/80 px-3 py-1.5 text-xs text-gold">{modo === 'camera' ? 'Voltar à mesa 3D' : 'Ver só câmera'}</button>
             <button type="button" onClick={() => void gerarQr()} className="rounded-full border border-white/30 bg-black/80 px-3 py-1.5 text-xs text-white">Trocar celular</button>
           </div>}
-          {ehTarologo && modo === 'sobreposta' && <div className="absolute bottom-2 right-2 flex items-end gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
+          {ehTarologo && modo === 'sobreposta' && <div className="absolute bottom-2 right-9 flex items-end gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
             <button type="button" aria-label="Diminuir câmera" onClick={() => {
               const novo = Math.max(18, tamanho - 8)
               setTamanhoLocal(novo)
@@ -247,38 +288,17 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
               setTamanhoLocal(novo)
               void backend.atualizarSessao(sessao.id, { cameraTamanho: novo })
             }} className="rounded-full bg-black/80 px-2.5 py-1 text-lg leading-none text-white">+</button>
-            <div
-              role="slider" tabIndex={0} aria-label="Tamanho da câmera" aria-valuemin={18} aria-valuemax={85} aria-valuenow={Math.round(tamanho)}
-              title="Arraste este canto para redimensionar"
-              className="grid h-9 w-9 cursor-nwse-resize place-items-center rounded-lg bg-black/80 text-lg text-gold"
-              onKeyDown={(e) => {
-                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-                const novo = Math.max(18, Math.min(85, tamanho + (e.key === 'ArrowRight' ? 5 : -5)))
-                setTamanhoLocal(novo)
-                void backend.atualizarSessao(sessao.id, { cameraTamanho: novo })
-              }}
-              onPointerDown={(e) => {
-                e.stopPropagation()
-                const largura = e.currentTarget.parentElement?.parentElement?.parentElement?.clientWidth ?? window.innerWidth
-                redimensionando.current = { x: e.clientX, largura, tamanho }
-                e.currentTarget.setPointerCapture(e.pointerId)
-              }}
-              onPointerMove={(e) => {
-                e.stopPropagation()
-                if (!redimensionando.current) return
-                const { x, largura, tamanho: inicial } = redimensionando.current
-                setTamanhoLocal(Math.max(18, Math.min(85, inicial + (e.clientX - x) / largura * 100)))
-              }}
-              onPointerUp={(e) => {
-                e.stopPropagation()
-                if (!redimensionando.current) return
-                redimensionando.current = null
-                if (tamanhoLocal !== null) void backend.atualizarSessao(sessao.id, { cameraTamanho: tamanhoLocal })
-                e.currentTarget.releasePointerCapture(e.pointerId)
-              }}
-              onPointerCancel={() => { redimensionando.current = null }}
-            >⤡</div>
           </div>}
+          {ehTarologo && modo === 'sobreposta' && ALCAS.map(({ direcao, posicao: alcaPosicao, cursor }) => (
+            <button key={direcao} type="button" aria-label={`Redimensionar câmera pelo lado ${direcao}`} title="Arraste para redimensionar"
+              className={`absolute z-10 h-4 w-4 rounded-full border-2 border-void bg-gold shadow-lg ${alcaPosicao} ${cursor}`}
+              style={{ touchAction: 'none' }}
+              onPointerDown={(e) => iniciarRedimensionamento(e, direcao)}
+              onPointerMove={moverRedimensionamento}
+              onPointerUp={terminarRedimensionamento}
+              onPointerCancel={() => { redimensionando.current = null; setPosicaoLocal(null); setTamanhoLocal(null) }}
+            />
+          ))}
         </div>
       )}
 

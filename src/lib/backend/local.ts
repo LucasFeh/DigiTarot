@@ -508,7 +508,7 @@ export class LocalBackend implements Backend {
       // Espalhado sobre o vazio: perfil gravado por uma versão anterior pode
       // não ter todos os campos, e `undefined` num input faz o React reclamar
       // de campo não controlado.
-      cb({ ...PERFIL_VAZIO, ...(p ?? {}), padrao: { ...PERFIL_VAZIO.padrao, ...(p?.padrao ?? {}) } })
+      cb({ ...PERFIL_VAZIO, ...(p ?? {}), padrao: { ...PERFIL_VAZIO.padrao, ...(p?.padrao ?? {}) }, configuracaoMesa: { ...PERFIL_VAZIO.configuracaoMesa, ...(p?.configuracaoMesa ?? {}) } })
     }
     this.ouvintesPerfil.add(emitir)
     emitir()

@@ -427,6 +427,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
       aberto={chat}
       aoFechar={() => setChat(false)}
       aoNaoLidas={setNaoLidas}
+      lado={ehTarologo ? sessao.chatLado : 'esquerda'}
     />
   )
 
@@ -655,6 +656,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           onCamera={() => cameraRef.current?.conectar()}
           cameraConectada={cameraConectada}
           cameraVisivel={sessao.cameraVisivel !== false}
+          lado={sessao.barraLado}
           onLimpar={() => {
             patch({ cartas: [] })
             setSlotAtivo(null)
@@ -678,7 +680,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
         {erroEncerrar && <p role="alert" className="glass absolute left-3 top-20 z-50 rounded-xl px-4 py-2 text-sm text-rose">{erroEncerrar}</p>}
 
         {/* Rodapé de estado, do lado oposto ao menu. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex flex-wrap items-end gap-2 p-3">
+        <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-40 flex flex-wrap items-end gap-2 p-3 ${sessao.chatLado === 'direita' ? 'justify-end' : ''}`}>
           <span className="glass rounded-full px-3 py-1.5 text-[13px] text-mist">
             {sessao.titulo} · Você conduz{sessao.encerrada && ' · encerrada'}
           </span>
@@ -696,7 +698,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
             elementos focáveis é a violação que o próprio Chrome acusa. `inert`
             tira do foco, do ponteiro e do leitor de tela de uma vez. */}
         <div
-          className="absolute bottom-3 right-3 top-28 z-30 w-[min(94vw,400px)] transition-[opacity,transform] duration-200 sm:top-16"
+          className={`absolute bottom-3 top-28 z-30 w-[min(94vw,400px)] transition-[opacity,transform] duration-200 sm:top-16 ${sessao.painelLado === 'esquerda' ? 'left-3' : 'right-3'}`}
           style={{
             opacity: menuAberto ? 1 : 0,
             transform: menuAberto ? 'translateX(0)' : 'translateX(12px)',

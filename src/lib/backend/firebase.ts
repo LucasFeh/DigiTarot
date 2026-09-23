@@ -479,7 +479,7 @@ export class FirebaseBackend implements Backend {
   observarPerfil(uid: string, cb: (p: Perfil) => void): Unsubscribe {
     return onSnapshot(doc(this.db, 'perfis', uid), (d) => {
       const p = (d.data() ?? {}) as Partial<Perfil>
-      cb({ ...PERFIL_VAZIO, ...p, padrao: { ...PERFIL_VAZIO.padrao, ...(p.padrao ?? {}) } })
+      cb({ ...PERFIL_VAZIO, ...p, padrao: { ...PERFIL_VAZIO.padrao, ...(p.padrao ?? {}) }, configuracaoMesa: { ...PERFIL_VAZIO.configuracaoMesa, ...(p.configuracaoMesa ?? {}) } })
     })
   }
 

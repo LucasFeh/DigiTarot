@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../lib/useAuth'
+import { usePerfil } from '../../lib/perfil'
 import { irPara } from '../../lib/useHashRoute'
 import { SPREADS } from '../../data/spreads'
 import { formatPriceFull } from '../../data/plans'
@@ -58,6 +59,7 @@ function Rosto({ nome, foto, tamanho = 46 }: { nome: string; foto?: string; tama
  */
 export default function AgendaTarologo() {
   const { usuario, backend } = useAuth()
+  const { perfil, pronto: perfilPronto } = usePerfil(usuario)
   const [lista, setLista] = useState<Agendamento[]>([])
   const [perfis, setPerfis] = useState<Record<string, Perfil>>({})
   const [filtro, setFiltro] = useState<Filtro>('proximas')
@@ -119,7 +121,7 @@ export default function AgendaTarologo() {
   if (!usuario) return null
 
   const abrirMesa = async (a: Agendamento) => {
-    if (!backend || ocupado) return
+    if (!backend || ocupado || !perfilPronto) return
     setErro(null)
     setOcupado(a.id)
     try {
@@ -133,6 +135,11 @@ export default function AgendaTarologo() {
         spreadId: SPREADS[0].id,
         visualTarologo: { baralhoId: null, panoId: null },
         cartas: [],
+        cameraPosicao: perfil.configuracaoMesa.cameraPosicao,
+        cameraTamanho: perfil.configuracaoMesa.cameraTamanho,
+        chatLado: perfil.configuracaoMesa.chatLado,
+        painelLado: perfil.configuracaoMesa.painelLado,
+        barraLado: perfil.configuracaoMesa.barraLado,
         encerrada: false,
         titulo: `${a.planoTitulo} — ${a.clienteNome}`,
         agendamentoId: a.id,
@@ -190,7 +197,7 @@ export default function AgendaTarologo() {
         ) : (
           <button
             type="button"
-            disabled={!podeAbrir || ocupado === a.id}
+            disabled={!podeAbrir || ocupado === a.id || !perfilPronto}
             onClick={() => void abrirMesa(a)}
             title={
               a.status !== 'confirmado'

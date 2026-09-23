@@ -87,6 +87,25 @@ export type EscolhaVisual = {
  */
 export type ModoDesempenho = 'auto' | 'leve' | 'completo'
 
+export type LadoMesa = 'esquerda' | 'direita'
+
+/** Posições iniciais da sala do tarólogo, guardadas no perfil. */
+export type ConfiguracaoMesa = {
+  cameraPosicao: { x: number; y: number }
+  cameraTamanho: number
+  chatLado: LadoMesa
+  painelLado: LadoMesa
+  barraLado: LadoMesa
+}
+
+export const CONFIGURACAO_MESA_PADRAO: ConfiguracaoMesa = {
+  cameraPosicao: { x: 31, y: 20 },
+  cameraTamanho: 34,
+  chatLado: 'esquerda',
+  painelLado: 'direita',
+  barraLado: 'esquerda',
+}
+
 export type Perfil = {
   nome: string
   /** YYYY-MM-DD. Privada; usada para idade e arcano pessoal. */
@@ -107,6 +126,8 @@ export type Perfil = {
    * escolha gravada no aparelho — ver `lib/desempenho.ts`.
    */
   desempenho: ModoDesempenho
+  /** Prévia que o tarólogo monta antes de abrir uma nova sessão. */
+  configuracaoMesa: ConfiguracaoMesa
   /**
    * O tema com que a pessoa entra em toda sala. A escolha feita DENTRO de uma
    * sala vale só para aquela leitura e não mexe aqui — é o que separa
@@ -122,6 +143,7 @@ export const PERFIL_VAZIO: Perfil = {
   instagram: '',
   foto: '',
   desempenho: 'auto',
+  configuracaoMesa: CONFIGURACAO_MESA_PADRAO,
   padrao: { baralhoId: null, panoId: null },
 }
 
@@ -232,6 +254,9 @@ export type Sessao = {
   cameraVisivel?: boolean
   /** Largura da câmera sobreposta, em porcentagem da sala. */
   cameraTamanho?: number
+  chatLado?: LadoMesa
+  painelLado?: LadoMesa
+  barraLado?: LadoMesa
 }
 
 /**

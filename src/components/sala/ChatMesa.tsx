@@ -81,6 +81,7 @@ export default function ChatMesa({
   aberto,
   aoFechar,
   aoNaoLidas,
+  lado = 'esquerda',
 }: {
   sessaoId: string
   autor: 'tarologo' | 'cliente'
@@ -89,6 +90,7 @@ export default function ChatMesa({
   aoFechar: () => void
   /** Avisa a sala quantas mensagens chegaram enquanto estava fechado. */
   aoNaoLidas: (n: number) => void
+  lado?: 'esquerda' | 'direita'
 }) {
   const { backend } = useAuth()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
@@ -243,7 +245,7 @@ export default function ChatMesa({
   return (
     <>
       <aside
-        className={`absolute bottom-16 left-3 top-16 z-40 flex w-[min(92vw,340px)] flex-col overflow-hidden rounded-2xl ${aberto ? '' : 'hidden'}`}
+        className={`absolute bottom-16 top-16 z-40 flex w-[min(92vw,340px)] flex-col overflow-hidden rounded-2xl ${lado === 'direita' ? 'right-3' : 'left-3'} ${aberto ? '' : 'hidden'}`}
         inert={!aberto}
         style={{
           background: 'linear-gradient(160deg, #ffffff14, #05010fdd)',

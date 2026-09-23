@@ -8,8 +8,10 @@ import SeletorDesempenho from '../components/SeletorDesempenho'
 import SecaoConta from '../components/perfil/SecaoConta'
 import EditorCartaTarologo from '../components/perfil/EditorCartaTarologo'
 import CartaArcanoPessoal from '../components/perfil/CartaArcanoPessoal'
+import ConfigurarMesa from '../components/perfil/ConfigurarMesa'
 import { calcularArcanoPessoal, calcularIdade } from '../data/arcanosPessoais'
 import LoginPage from './LoginPage'
+import { CONFIGURACAO_MESA_PADRAO } from '../lib/backend'
 
 /**
  * O perfil ficou com duas seções: quem você é, e por onde você entra.
@@ -19,7 +21,7 @@ import LoginPage from './LoginPage'
  * obrigava a pessoa a sair da tiragem para escolher o baralho que ela ia usar
  * na tiragem.
  */
-type Secao = 'geral' | 'carta' | 'conta'
+type Secao = 'geral' | 'carta' | 'mesa' | 'conta'
 
 const SECOES: ItemMenu<Secao>[] = [
   { id: 'geral', rotulo: 'Geral', icone: '☾' },
@@ -84,7 +86,7 @@ export default function PerfilPage() {
   const idade = calcularIdade(perfil.dataNascimento)
   const hoje = new Date().toLocaleDateString('en-CA')
   const secoes: ItemMenu<Secao>[] = usuario.papel === 'tarologo'
-    ? [SECOES[0], { id: 'carta', rotulo: 'Minha carta', icone: '✦' }, SECOES[1]]
+    ? [SECOES[0], { id: 'carta', rotulo: 'Minha carta', icone: '✦' }, { id: 'mesa', rotulo: 'Configurar a mesa', icone: '▣' }, SECOES[1]]
     : SECOES
 
   const avatar = foto ? (
@@ -223,6 +225,7 @@ export default function PerfilPage() {
 
       {secao === 'conta' && <SecaoConta />}
       {secao === 'carta' && usuario.papel === 'tarologo' && <EditorCartaTarologo />}
+      {secao === 'mesa' && usuario.papel === 'tarologo' && <ConfigurarMesa valor={perfil.configuracaoMesa ?? CONFIGURACAO_MESA_PADRAO} salvar={(configuracaoMesa) => salvar({ configuracaoMesa })} />}
     </LayoutPainel>
   )
 }

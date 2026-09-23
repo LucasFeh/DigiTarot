@@ -53,6 +53,7 @@ function Rotas() {
    * imagem e é a economia mais barata que a sala tem.
    */
   const naSala = partes[0] === 'tiragem' && Boolean(partes[1])
+  const naCamera = partes[0] === 'camera' && Boolean(partes[1]) && Boolean(partes[2])
 
   // `#/tiragem/<id>` abre a sala daquela sessão; `#/tiragem` é o lobby.
   const conteudo =
@@ -99,11 +100,11 @@ function Rotas() {
 
   return (
     <>
-      {!naSala && <NebulaBackdrop />}
-      <Header caminho={caminho} />
+      {!naSala && !naCamera && <NebulaBackdrop />}
+      {!naCamera && <Header caminho={caminho} />}
       <Suspense
         fallback={
-          <main className="grid min-h-[calc(100vh-4rem)] place-items-center">
+          <main className="grid min-h-screen place-items-center">
             <p className="text-[15px] text-mist/70">Abrindo…</p>
           </main>
         }
@@ -111,7 +112,7 @@ function Rotas() {
         {aguardaEmail ? <VerificarEmailPage /> : conteudo}
       </Suspense>
       {/* Ponteiro-estrela com rastro — por cima de tudo, sem capturar clique. */}
-      {!naSala && <StarCursor />}
+      {!naSala && !naCamera && <StarCursor />}
     </>
   )
 }

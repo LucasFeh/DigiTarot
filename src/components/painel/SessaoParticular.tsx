@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../lib/useAuth'
+import { usePerfil } from '../../lib/perfil'
 import { SPREADS } from '../../data/spreads'
 import { formatPriceFull } from '../../data/plans'
 import SeloStatus from '../agenda/SeloStatus'
@@ -145,6 +146,7 @@ function JanelaNovaSessao({
  */
 export default function SessaoParticular() {
   const { usuario, backend } = useAuth()
+  const { perfil, pronto: perfilPronto } = usePerfil(usuario)
   const [convites, setConvites] = useState<Convite[]>([])
   const [janela, setJanela] = useState(false)
   const [criando, setCriando] = useState(false)
@@ -202,7 +204,7 @@ export default function SessaoParticular() {
    * as duas ações só criava uma espera que ninguém entendia.
    */
   const confirmar = async (c: Convite) => {
-    if (!backend || ocupado) return
+    if (!backend || ocupado || !perfilPronto) return
     setErro(null)
     setOcupado(c.token)
     try {
@@ -215,6 +217,11 @@ export default function SessaoParticular() {
           spreadId: SPREADS[0].id,
           visualTarologo: { baralhoId: null, panoId: null },
           cartas: [],
+          cameraPosicao: perfil.configuracaoMesa.cameraPosicao,
+          cameraTamanho: perfil.configuracaoMesa.cameraTamanho,
+          chatLado: perfil.configuracaoMesa.chatLado,
+          painelLado: perfil.configuracaoMesa.painelLado,
+          barraLado: perfil.configuracaoMesa.barraLado,
           encerrada: false,
           titulo: `${c.titulo} — ${c.convidadoNome || 'convidado'}`,
           // Sem `clienteUid`: quem entra não tem conta. É o id imprevisível da
@@ -345,7 +352,7 @@ export default function SessaoParticular() {
                   ) : (
                     <button
                       type="button"
-                      disabled={ocupado === c.token || c.status === 'cancelado'}
+                      disabled={ocupado === c.token || c.status === 'cancelado' || !perfilPronto}
                       onClick={() => void confirmar(c)}
                       className="rounded-full border border-gold/50 bg-gold/10 px-4 py-1.5 text-[14px] text-gold transition hover:bg-gold/20 disabled:opacity-40"
                     >

@@ -100,7 +100,7 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100svh-4rem)] max-w-xl flex-col justify-center gap-5 px-5 py-8 text-center">
+    <main className="mx-auto flex min-h-svh max-w-xl flex-col justify-center gap-5 px-5 py-8 text-center">
       <p className="text-xs uppercase tracking-[0.2em] text-gold">DigiTarot · câmera da mesa</p>
       <h1 className="font-display text-3xl text-star">Seu celular vira a câmera</h1>
       <p className="text-mist/80">Posicione o celular acima das cartas. Esta página precisa ficar aberta durante a tiragem.</p>

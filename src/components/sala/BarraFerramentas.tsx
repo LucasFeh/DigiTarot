@@ -62,6 +62,7 @@ export default function BarraFerramentas({
   onCamera,
   cameraConectada,
   cameraVisivel,
+  lado = 'esquerda',
   onLimpar,
   onMenu,
   onVirar,
@@ -81,6 +82,7 @@ export default function BarraFerramentas({
   onCamera: () => void
   cameraConectada: boolean
   cameraVisivel: boolean
+  lado?: 'esquerda' | 'direita'
   onLimpar: () => void
   onMenu: () => void
   onVirar: (slot: number) => void
@@ -95,7 +97,7 @@ export default function BarraFerramentas({
   const vaiRevelar = cobertas > 0
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-8 z-40 flex items-start justify-between gap-2 p-3 sm:top-0">
+    <div className={`pointer-events-none absolute inset-x-0 top-8 z-40 flex items-start justify-between gap-2 p-3 sm:top-0 ${lado === 'direita' ? 'flex-row-reverse' : ''}`}>
       <div className="flex min-w-0 flex-wrap items-start gap-2">
         {/* --------------------- ações sobre a mesa --------------------- */}
         {/* Uma linha só, rolando na horizontal se faltar espaço. Com
