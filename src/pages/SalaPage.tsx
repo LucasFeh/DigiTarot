@@ -19,7 +19,7 @@ import CartaFlutuante from '../components/sala/CartaFlutuante'
 import PainelTarologo from '../components/sala/PainelTarologo'
 import PopupCarta from '../components/sala/PopupCarta'
 import ChatMesa from '../components/sala/ChatMesa'
-import CameraMesa from '../components/sala/CameraMesa'
+import CameraMesa, { type CameraMesaHandle } from '../components/sala/CameraMesa'
 import DicaGirar from '../components/sala/DicaGirar'
 import SeletorTema from '../components/temas/SeletorTema'
 import LoginPage from './LoginPage'
@@ -88,6 +88,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const [menuAberto, setMenuAberto] = useState(true)
   const [chat, setChat] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
+  const cameraRef = useRef<CameraMesaHandle>(null)
   /** Carta viajando na ponta do ponteiro, em coordenadas de cliente. */
   const [arraste, setArraste] = useState<{ cardId: string; x: number; y: number } | null>(null)
   const [slotAlvo, setSlotAlvo] = useState<number | null>(null)
@@ -626,7 +627,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           que é o que a pessoa realmente precisa ver. */}
       <div data-sala className="relative h-[calc(100vh-4rem)] w-full overflow-hidden">
         {cena}
-        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo />}
+        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} />}
 
         <BarraFerramentas
           cartas={cartas}
@@ -637,6 +638,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           rotuloSlot={slotAtivo !== null ? spread?.slots[slotAtivo]?.rotulo : undefined}
           onRevirarTodas={revirarTodas}
           onLuz={() => setLuzAcesa((v) => !v)}
+          onCamera={() => cameraRef.current?.conectar()}
           onLimpar={() => {
             patch({ cartas: [] })
             setSlotAtivo(null)

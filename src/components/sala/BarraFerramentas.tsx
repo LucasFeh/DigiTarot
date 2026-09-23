@@ -59,6 +59,7 @@ export default function BarraFerramentas({
   rotuloSlot,
   onRevirarTodas,
   onLuz,
+  onCamera,
   onLimpar,
   onMenu,
   onVirar,
@@ -75,6 +76,7 @@ export default function BarraFerramentas({
   rotuloSlot?: string
   onRevirarTodas: () => void
   onLuz: () => void
+  onCamera: () => void
   onLimpar: () => void
   onMenu: () => void
   onVirar: (slot: number) => void
@@ -89,13 +91,24 @@ export default function BarraFerramentas({
   const vaiRevelar = cobertas > 0
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex items-start justify-between gap-2 p-3">
+    <div className="pointer-events-none absolute inset-x-0 top-8 z-40 flex items-start justify-between gap-2 p-3 sm:top-0">
       <div className="flex min-w-0 flex-wrap items-start gap-2">
         {/* --------------------- ações sobre a mesa --------------------- */}
         {/* Uma linha só, rolando na horizontal se faltar espaço. Com
             `flex-wrap` ela quebrava em duas no celular e a segunda linha ia
             parar embaixo do painel, que começa em top-16 — o clique morria. */}
         <div className="glass pointer-events-auto flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto rounded-full px-1.5 py-1">
+          <button
+            type="button"
+            onClick={onCamera}
+            title="Conectar a câmera do celular à mesa"
+            className="shrink-0 whitespace-nowrap rounded-full border border-gold/50 bg-gold/15 px-4 py-1.5 text-[14px] font-semibold text-gold transition hover:bg-gold/25"
+          >
+            ◉ Câmera do celular
+          </button>
+
+          <Risco />
+
           <button
             type="button"
             onClick={onRevirarTodas}

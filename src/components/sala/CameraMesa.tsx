@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { Backend, Sessao, SinalMidia } from '../../lib/backend'
 import { novoToken } from '../../lib/backend/local'
 import { criarPeer, oferecer, receberResposta, responder } from '../../lib/webrtc'
 
-export default function CameraMesa({ backend, sessao, ehTarologo }: {
+export type CameraMesaHandle = { conectar: () => void }
+
+export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef }: {
   backend: Backend
   sessao: Sessao
   ehTarologo: boolean
+  cameraRef?: React.Ref<CameraMesaHandle>
 }) {
   const [token, setToken] = useState<string | null>(null)
   const [qrAberto, setQrAberto] = useState(false)
@@ -128,6 +131,8 @@ export default function CameraMesa({ backend, sessao, ehTarologo }: {
     }
   }
 
+  useImperativeHandle(cameraRef, () => ({ conectar: () => { void gerarQr() } }))
+
   const url = token ? `${window.location.origin}${window.location.pathname}#/camera/${sessao.id}/camera-${token}` : ''
   const modo = sessao.cameraModo ?? 'sobreposta'
   const alternarModo = () => void backend.atualizarSessao(sessao.id, {
@@ -166,20 +171,11 @@ export default function CameraMesa({ backend, sessao, ehTarologo }: {
         >
           <video ref={videoEl} autoPlay muted playsInline className="h-full w-full object-contain" />
           {ehTarologo && modo === 'sobreposta' && <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1 text-[11px] text-white">Arraste para mover</span>}
+          {ehTarologo && <button type="button" onClick={alternarModo} className="absolute left-2 top-2 rounded-full border border-gold/50 bg-black/75 px-3 py-1.5 text-xs text-gold">{modo === 'camera' ? 'Voltar à mesa 3D' : 'Ver só câmera'}</button>}
         </div>
       )}
 
       <div className="pointer-events-auto absolute left-3 top-16 z-30 flex max-w-[calc(100vw-1.5rem)] flex-wrap gap-2">
-        {ehTarologo && (
-          <button type="button" onClick={() => void gerarQr()} className="glass rounded-full px-3 py-1.5 text-[13px] text-mist hover:text-star">
-            {cameraAtiva ? 'Trocar celular' : 'Conectar câmera do celular'}
-          </button>
-        )}
-        {ehTarologo && cameraAtiva && (
-          <button type="button" onClick={alternarModo} className="glass rounded-full px-3 py-1.5 text-[13px] text-mist hover:text-star">
-            {modo === 'camera' ? 'Ver mesa 3D' : 'Ver só câmera'}
-          </button>
-        )}
         {!ehTarologo && !cameraAtiva && videoSinal?.oferta && <span className="glass rounded-full px-3 py-1.5 text-xs text-mist">Conectando câmera…</span>}
         {erro && <span role="alert" className="glass rounded-xl px-3 py-2 text-xs text-rose">{erro}</span>}
       </div>
