@@ -7,6 +7,7 @@ import { PLAN_BY_ID, formatPriceFull } from '../data/plans'
 import { useTarologos } from '../lib/tarologos'
 import { cedoDemais, diasDisponiveis, rotuloCompleto, slotId } from '../data/agenda'
 import SeletorHorario from '../components/agenda/SeletorHorario'
+import CometaAgendamento from '../components/agenda/CometaAgendamento'
 import AvisoModoLocal from '../components/AvisoModoLocal'
 import LoginPage from './LoginPage'
 import type { FormatoConsulta } from '../lib/backend'
@@ -263,13 +264,7 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
             <strong>{formatPriceFull(preco)}</strong>
           </div>
           <div className="booking-flight" aria-hidden>
-            <span className="booking-flight-track" />
-            <span className="booking-comet">
-              <span className="booking-comet-core">✦</span>
-              <span className="booking-comet-dust booking-comet-dust--one">✧</span>
-              <span className="booking-comet-dust booking-comet-dust--two">✦</span>
-              <span className="booking-comet-dust booking-comet-dust--three">·</span>
-            </span>
+            <CometaAgendamento />
           </div>
           <Retrato foto={perfil.foto || usuario.foto} nome={nomeExibido} lado="cliente" />
           <Retrato foto={fotoDoTarologo(tarologo)} nome={tarologo.nome} lado="tarologo" />

@@ -69,13 +69,13 @@
 .booking-person--tarologo .booking-avatar-shell::before {
   background: radial-gradient(circle, #fff4d9b0 0%, #b785f393 36%, transparent 73%);
   filter: blur(11px);
-  animation: booking-arrival-aura 1.15s ease-out 1.65s both;
+  animation: booking-arrival-aura 1.15s ease-out 2.12s both;
 }
 
 .booking-person--tarologo .booking-avatar-shell::after {
   border: 2px solid #ffeac1;
   box-shadow: 0 0 18px #f2d492, inset 0 0 16px #b785f3;
-  animation: booking-arrival-ring 950ms ease-out 1.65s both;
+  animation: booking-arrival-ring 950ms ease-out 2.12s both;
 }
 
 .booking-avatar {
@@ -93,7 +93,7 @@
 }
 
 .booking-person--tarologo .booking-avatar {
-  animation: booking-arrival-photo 1.15s ease-out 1.65s both;
+  animation: booking-arrival-photo 1.15s ease-out 2.12s both;
 }
 
 .booking-avatar--initial {
@@ -122,75 +122,7 @@
 }
 
 .booking-flight { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
-
-.booking-flight-track {
-  position: absolute;
-  right: var(--booking-avatar-center);
-  bottom: var(--booking-flight-bottom);
-  left: var(--booking-avatar-center);
-  height: 1px;
-  background: linear-gradient(90deg, #c0a2e008, #ac8ade4d 45%, #f2d49257);
-  box-shadow: 0 0 16px #a87cf049;
-}
-
-.booking-flight-track::after {
-  position: absolute;
-  inset: -15px 0;
-  border-top: 1px dashed #ffffff17;
-  border-radius: 50%;
-  content: '';
-  transform: rotate(-6deg);
-}
-
-.booking-comet {
-  position: absolute;
-  bottom: var(--booking-flight-bottom);
-  left: var(--booking-avatar-center);
-  display: grid;
-  width: 50px;
-  height: 50px;
-  place-items: center;
-  opacity: 0;
-  animation: booking-shoot 1.55s cubic-bezier(.36, .04, .2, 1) .15s both;
-}
-
-.booking-comet-core {
-  position: relative;
-  z-index: 1;
-  color: #fff8db;
-  font-size: 46px;
-  line-height: 1;
-  filter: drop-shadow(0 0 12px #f2d492) drop-shadow(0 0 25px #a87cf0);
-}
-
-.booking-comet::before {
-  position: absolute;
-  top: 25px;
-  right: 24px;
-  width: clamp(85px, 17vw, 160px);
-  height: 3px;
-  border-radius: 100%;
-  background: linear-gradient(90deg, transparent, #9d74ea7d 35%, #f8e6c7);
-  box-shadow: 0 0 10px #a87cf0, 0 0 22px #a87cf099;
-  content: '';
-  transform: rotate(-7deg);
-}
-
-.booking-comet::after {
-  position: absolute;
-  top: 29px;
-  right: 30px;
-  width: 100px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #ffffffa8);
-  content: '';
-  transform: rotate(-12deg);
-}
-
-.booking-comet-dust { position: absolute; color: #f6e5ff; filter: drop-shadow(0 0 8px #caa0ff); }
-.booking-comet-dust--one { top: 2px; left: -35px; font-size: 18px; }
-.booking-comet-dust--two { top: 35px; left: -65px; font-size: 10px; }
-.booking-comet-dust--three { top: 15px; left: -100px; font-size: 24px; }
+.booking-comet-canvas { display: block; width: 100%; height: 100%; }
 
 .booking-journey-copy {
   position: absolute;
@@ -208,7 +140,7 @@
   background: #171020ec;
   box-shadow: 0 9px 28px #0009;
   text-align: left;
-  animation: booking-summary-arrive .55s ease-out 1.72s both;
+  animation: booking-summary-arrive .55s ease-out 2.22s both;
 }
 
 .booking-journey-copy p {
@@ -320,14 +252,6 @@
 .booking-format-title { margin-top: 22px; color: #f6f2ff; font-family: 'Cinzel', Georgia, serif; font-size: 17px; font-weight: 600; }
 .booking-format-description { margin-top: 8px; color: #cbbde8ba; font-size: 13px; line-height: 1.5; }
 
-@keyframes booking-shoot {
-  0% { left: var(--booking-avatar-center); opacity: 0; transform: translate(-50%, 50%) translateY(15px) scale(.4); }
-  12% { opacity: 1; }
-  75% { opacity: 1; transform: translate(-50%, 50%) translateY(-16px) scale(1.08); }
-  96% { opacity: 1; }
-  100% { left: calc(100% - var(--booking-avatar-center)); opacity: 0; transform: translate(-50%, 50%) translateY(0) scale(.25); }
-}
-
 @keyframes booking-arrival-aura {
   0% { opacity: 0; transform: scale(.6); }
   35% { opacity: 1; transform: scale(1.85); }
@@ -363,15 +287,13 @@
   .booking-journey-copy { right: 94px; bottom: 74px; width: 158px; min-width: 0; padding: 9px 11px; }
   .booking-journey-copy p { font-size: 10px; }
   .booking-journey-copy strong { font-size: 13px; }
-  .booking-comet-core { font-size: 37px; }
-  .booking-comet::before { width: 75px; }
   .booking-schedule-heading { flex-direction: column; gap: 8px; }
   .booking-schedule-grid { grid-template-columns: 1fr; gap: 14px; }
   .booking-calendar, .booking-times { padding: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .booking-comet { display: none; }
+  .booking-comet-canvas { display: none; }
   .booking-journey-copy { animation: none; }
   .booking-person--tarologo .booking-avatar-shell::before { opacity: .45; transform: scale(1.4); animation: none; }
   .booking-person--tarologo .booking-avatar-shell::after { display: none; }
