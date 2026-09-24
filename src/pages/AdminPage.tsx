@@ -61,7 +61,7 @@ function CardNumero({ rotulo, numero, detalhe }: { rotulo: string; numero: strin
   )
 }
 
-export default function AdminPage() {
+export default function AdminPage({ embutido = false }: { embutido?: boolean }) {
   const { usuario, backend, carregando: carregandoConta } = useAuth()
   const { tarologos, carregando: carregandoTarologos, erro: erroTarologos } = useTarologos()
   const [secao, setSecao] = useState<Secao>('resumo')
@@ -263,8 +263,9 @@ export default function AdminPage() {
     )
   }
 
+  const Container = embutido ? 'div' : 'main'
   return (
-    <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-5 py-10 sm:px-8">
+    <Container className={embutido ? 'mx-auto max-w-7xl' : 'mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-5 py-10 sm:px-8'}>
       <div className="mb-8 flex flex-col justify-between gap-5 border-b border-white/10 pb-7 sm:flex-row sm:items-end">
         <div>
           <p className="text-[12px] uppercase tracking-[0.24em] text-gold">DigiTarot · Administração</p>
@@ -429,6 +430,6 @@ export default function AdminPage() {
           </div>
         </section>
       )}
-    </main>
+    </Container>
   )
 }

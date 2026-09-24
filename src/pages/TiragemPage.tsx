@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { usePerfil } from '../lib/perfil'
 import LayoutPainel, { type ItemMenu } from '../components/painel/LayoutPainel'
@@ -18,6 +18,55 @@ import type { Aba, Tema, TemaBaralho, TemaPano, TipoTema } from '../lib/temas/ti
 
 type Secao = 'agendas' | 'particular' | 'temas'
 type SubAgenda = 'agendar' | 'conferir'
+
+function PainelTiragem({
+  embutido,
+  titulo,
+  subtitulo,
+  avatar,
+  itens,
+  atual,
+  aoEscolher,
+  children,
+}: {
+  embutido: boolean
+  titulo: string
+  subtitulo: string
+  avatar: ReactNode
+  itens: ItemMenu<Secao>[]
+  atual: Secao
+  aoEscolher: (secao: Secao) => void
+  children: ReactNode
+}) {
+  if (embutido) {
+    return (
+      <div>
+        <div className="mb-7 flex flex-wrap gap-2 border-b border-white/10 pb-5" aria-label="Seções da tiragem">
+          {itens.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => aoEscolher(item.id)}
+              aria-current={atual === item.id ? 'page' : undefined}
+              className={`rounded-full border px-4 py-2 text-[14px] transition ${atual === item.id ? 'border-gold/60 bg-gold/15 text-star' : 'border-white/15 text-mist hover:border-gold/40 hover:text-star'}`}
+            >
+              <span aria-hidden className="mr-2 text-gold">{item.icone}</span>
+              {item.rotulo}
+              {Boolean(item.contagem) && <span className="ml-2 text-gold">{item.contagem}</span>}
+            </button>
+          ))}
+        </div>
+        {children}
+      </div>
+    )
+  }
+
+  return (
+    <LayoutPainel titulo={titulo} subtitulo={subtitulo} avatar={avatar} itens={itens} atual={atual} aoEscolher={aoEscolher}>
+      {children}
+    </LayoutPainel>
+  )
+}
 
 /** Avatar do menu: foto do perfil, ou a inicial do nome. */
 function Avatar({ nome, foto }: { nome: string; foto?: string }) {
@@ -165,7 +214,7 @@ function SecaoTemas() {
   )
 }
 
-export default function TiragemPage() {
+export default function TiragemPage({ embutido = false }: { embutido?: boolean }) {
   const { usuario, carregando, backend } = useAuth()
   const { perfil, nomeExibido } = usePerfil(usuario)
   const [secao, setSecao] = useState<Secao>('agendas')
@@ -207,7 +256,8 @@ export default function TiragemPage() {
     ]
 
     return (
-      <LayoutPainel
+      <PainelTiragem
+        embutido={embutido}
         titulo={nomeExibido}
         subtitulo="sua mesa digital"
         avatar={avatar}
@@ -261,7 +311,7 @@ export default function TiragemPage() {
 
         {secao === 'particular' && <SessaoParticular />}
         {secao === 'temas' && <SecaoTemas />}
-      </LayoutPainel>
+      </PainelTiragem>
     )
   }
 
@@ -273,7 +323,8 @@ export default function TiragemPage() {
   ]
 
   return (
-    <LayoutPainel
+    <PainelTiragem
+      embutido={embutido}
       titulo={nomeExibido}
       subtitulo="tiragem digital"
       avatar={avatar}
@@ -338,6 +389,6 @@ export default function TiragemPage() {
       ) : (
         <SecaoTemas />
       )}
-    </LayoutPainel>
+    </PainelTiragem>
   )
 }

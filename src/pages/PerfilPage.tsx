@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, lazy } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { usePerfil } from '../lib/perfil'
 import { useDesempenho } from '../lib/desempenho'
@@ -12,16 +12,12 @@ import ConfigurarMesa from '../components/perfil/ConfigurarMesa'
 import { calcularArcanoPessoal, calcularIdade } from '../data/arcanosPessoais'
 import LoginPage from './LoginPage'
 import { CONFIGURACAO_MESA_PADRAO } from '../lib/backend'
+import { useHashRoute } from '../lib/useHashRoute'
 
-/**
- * O perfil ficou com duas seções: quem você é, e por onde você entra.
- *
- * Temas e consultas saíram daqui para a Tiragem digital. Os dois pertencem ao
- * momento de usar a mesa, não ao de configurar a conta — e mantê-los no perfil
- * obrigava a pessoa a sair da tiragem para escolher o baralho que ela ia usar
- * na tiragem.
- */
-type Secao = 'geral' | 'carta' | 'mesa' | 'conta'
+const TiragemPage = lazy(() => import('./TiragemPage'))
+const AdminPage = lazy(() => import('./AdminPage'))
+
+type Secao = 'geral' | 'carta' | 'mesa' | 'conta' | 'tiragem' | 'gestao'
 
 const SECOES: ItemMenu<Secao>[] = [
   { id: 'geral', rotulo: 'Geral', icone: '☾' },
@@ -64,10 +60,10 @@ function Campo({
 }
 
 export default function PerfilPage() {
+  const { partes } = useHashRoute()
   const { usuario, carregando } = useAuth()
   const { perfil, salvar, nomeExibido } = usePerfil(usuario)
   const desempenho = useDesempenho(usuario)
-  const [secao, setSecao] = useState<Secao>('geral')
 
   if (carregando) {
     return (
@@ -85,9 +81,17 @@ export default function PerfilPage() {
   const arcanoPessoal = calcularArcanoPessoal(perfil.dataNascimento)
   const idade = calcularIdade(perfil.dataNascimento)
   const hoje = new Date().toLocaleDateString('en-CA')
-  const secoes: ItemMenu<Secao>[] = usuario.papel === 'tarologo'
-    ? [SECOES[0], { id: 'carta', rotulo: 'Minha carta', icone: '✦' }, { id: 'mesa', rotulo: 'Configurar a mesa', icone: '▣' }, SECOES[1]]
-    : SECOES
+  const secoes: ItemMenu<Secao>[] = [
+    SECOES[0],
+    ...(usuario.papel === 'tarologo' ? [
+      { id: 'carta' as const, rotulo: 'Minha carta', icone: '✦' },
+      { id: 'mesa' as const, rotulo: 'Configurar a mesa', icone: '▣' },
+    ] : []),
+    { id: 'tiragem', rotulo: 'Minha tiragem', icone: '☷' },
+    ...(usuario.admin ? [{ id: 'gestao' as const, rotulo: 'Gestão DigiTarot', icone: '✧' }] : []),
+    SECOES[1],
+  ]
+  const secao = secoes.find((item) => item.id === partes[1])?.id ?? 'geral'
 
   const avatar = foto ? (
     <img src={foto} alt="" className="h-11 w-11 rounded-full object-cover" />
@@ -104,7 +108,7 @@ export default function PerfilPage() {
       avatar={avatar}
       itens={secoes}
       atual={secao}
-      aoEscolher={setSecao}
+      aoEscolher={(id) => { window.location.hash = id === 'geral' ? '#/perfil' : `#/perfil/${id}` }}
     >
       {secao === 'geral' && (
         <div className="grid max-w-6xl items-start gap-8 xl:grid-cols-[minmax(0,1fr)_335px]">
@@ -226,6 +230,8 @@ export default function PerfilPage() {
       {secao === 'conta' && <SecaoConta />}
       {secao === 'carta' && usuario.papel === 'tarologo' && <EditorCartaTarologo />}
       {secao === 'mesa' && usuario.papel === 'tarologo' && <ConfigurarMesa valor={perfil.configuracaoMesa ?? CONFIGURACAO_MESA_PADRAO} salvar={(configuracaoMesa) => salvar({ configuracaoMesa })} />}
+      {secao === 'tiragem' && <Suspense fallback={<p className="text-mist/70">Abrindo tiragem…</p>}><TiragemPage embutido /></Suspense>}
+      {secao === 'gestao' && usuario.admin && <Suspense fallback={<p className="text-mist/70">Abrindo gestão…</p>}><AdminPage embutido /></Suspense>}
     </LayoutPainel>
   )
 }

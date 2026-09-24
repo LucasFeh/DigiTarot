@@ -148,21 +148,6 @@ export default function Header({ caminho }: { caminho: string }) {
                   >
                     Meu perfil
                   </a>
-                  {usuario.admin && (
-                    <a href="#/admin" role="menuitem" onClick={() => setMenu(false)} className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star">
-                      Gestão DigiTarot
-                    </a>
-                  )}
-                  <a
-                    href="#/tiragem"
-                    role="menuitem"
-                    onPointerEnter={() => prepararRota(() => import('../pages/TiragemPage'))}
-                    onFocus={() => prepararRota(() => import('../pages/TiragemPage'))}
-                    onClick={() => setMenu(false)}
-                    className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star"
-                  >
-                    Minha tiragem
-                  </a>
                   <button
                     type="button"
                     role="menuitem"
