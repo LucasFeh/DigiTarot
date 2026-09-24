@@ -34,11 +34,17 @@ export default function Starfield({ density = 1 }: { density?: number }) {
     let raf = 0
     let w = 0
     let h = 0
+    let pixelRatio = 0
+    let lastFrame = 0
 
     const build = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
-      w = canvas.clientWidth
-      h = canvas.clientHeight
+      const width = canvas.clientWidth
+      const height = canvas.clientHeight
+      if (width === w && height === h && dpr === pixelRatio) return
+      w = width
+      h = height
+      pixelRatio = dpr
       canvas.width = Math.floor(w * dpr)
       canvas.height = Math.floor(h * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -62,6 +68,13 @@ export default function Starfield({ density = 1 }: { density?: number }) {
     }
 
     const draw = (t: number) => {
+      if (!reduced) {
+        raf = requestAnimationFrame(draw)
+        // The stars move only a few pixels per second. Updating at 30 fps
+        // looks the same while halving full-screen canvas work.
+        if (t - lastFrame < 1000 / 30 - 1) return
+        lastFrame = t
+      }
       ctx.clearRect(0, 0, w, h)
       for (const s of stars) {
         const twinkle = reduced ? 1 : 0.55 + 0.45 * Math.sin(t * s.tw + s.phase)
@@ -87,18 +100,31 @@ export default function Starfield({ density = 1 }: { density?: number }) {
         ctx.fill()
       }
       ctx.globalAlpha = 1
-      raf = requestAnimationFrame(draw)
     }
 
     build()
-    raf = requestAnimationFrame(draw)
+    const onVisibility = () => {
+      cancelAnimationFrame(raf)
+      if (document.hidden) return
+      lastFrame = 0
+      raf = requestAnimationFrame(draw)
+    }
+    onVisibility()
 
-    const ro = new ResizeObserver(build)
+    const ro = new ResizeObserver(() => {
+      const oldW = w
+      const oldH = h
+      const oldDpr = pixelRatio
+      build()
+      if (reduced && (oldW !== w || oldH !== h || oldDpr !== pixelRatio)) draw(0)
+    })
     ro.observe(canvas)
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [density])
 

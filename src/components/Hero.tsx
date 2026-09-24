@@ -102,6 +102,10 @@ export default function Hero() {
                 <img
                   src={site.avatar}
                   alt={site.avatarAlt}
+                  width={1000}
+                  height={710}
+                  fetchPriority="high"
+                  decoding="async"
                   onError={() => setHasAvatar(false)}
                   className="relative z-10 block w-full select-none transition-[filter] duration-500 ease-out"
                   style={{ ...portraitMask, filter: glow ? PORTRAIT_GLOW : PORTRAIT_SHADOW }}

@@ -14,59 +14,6 @@ const SWIRL = 0.4
 /** Pontos amostrados na órbita. 12 já não se distingue de um círculo. */
 const ORBIT_STEPS = 12
 
-type FilterSpec = { id: string; freq: number; soften: number; displace: number }
-
-const FILTERS: FilterSpec[] = [
-  { id: 'smoke-f1', freq: 0.05, soften: 3.2, displace: 34 },
-  { id: 'smoke-f2', freq: 0.036, soften: 4, displace: 42 },
-  { id: 'smoke-f3', freq: 0.066, soften: 2.6, displace: 28 },
-  { id: 'smoke-f4', freq: 0.028, soften: 4.8, displace: 48 },
-  { id: 'smoke-f5', freq: 0.044, soften: 3.6, displace: 38 },
-  { id: 'smoke-f6', freq: 0.058, soften: 2.9, displace: 31 },
-]
-
-/**
- * Os filtros ficam num SVG só, montado uma vez na página. Elipses amaciadas e
- * depois rasgadas por ruído fractal: é o deslocamento que dá a silhueta de
- * nuvem — gradiente nenhum imita isso. A ordem importa: borrar depois do
- * deslocamento alisaria justamente as pontas recém-criadas.
- */
-export function SmokeFilters() {
-  return (
-    <svg width="0" height="0" className="pointer-events-none absolute" aria-hidden>
-      <defs>
-        {FILTERS.map((f, i) => (
-          <filter
-            key={f.id}
-            id={f.id}
-            x="-90%"
-            y="-90%"
-            width="280%"
-            height="280%"
-            colorInterpolationFilters="sRGB"
-          >
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency={f.freq}
-              numOctaves={3}
-              seed={7 + i * 13}
-              result="noise"
-            />
-            <feGaussianBlur in="SourceGraphic" stdDeviation={f.soften} result="soft" />
-            <feDisplacementMap
-              in="soft"
-              in2="noise"
-              scale={f.displace}
-              xChannelSelector="R"
-              yChannelSelector="G"
-            />
-          </filter>
-        ))}
-      </defs>
-    </svg>
-  )
-}
-
 type Puff = {
   id: string
   /** Centro em % da caixa do retrato. */

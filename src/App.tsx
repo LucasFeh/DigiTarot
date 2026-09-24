@@ -1,8 +1,7 @@
 import NebulaBackdrop from './components/NebulaBackdrop'
 import StarCursor from './components/StarCursor'
-import { SmokeFilters } from './components/SmokeCloud'
+import SmokeFilters from './components/SmokeFilters'
 import Header from './components/Header'
-import HomePage from './pages/HomePage'
 import { Suspense, lazy } from 'react'
 import { useHashRoute } from './lib/useHashRoute'
 import { AuthProvider } from './lib/AuthProvider'
@@ -10,12 +9,9 @@ import { useAuth } from './lib/useAuth'
 import { haLinkDeEmailNaUrl } from './lib/cadastroPorLink'
 import type { Aba } from './lib/temas/tipos'
 
-/**
- * Só a home entra no bundle inicial. As outras rotas vêm sob demanda — e isso
- * importa de verdade aqui: `SalaPage` e `PreviaTemaPage` puxam o registro de
- * texturas, que importa o three inteiro. Estáticas, elas levavam meio megabyte
- * de motor 3D para quem só abriu a página inicial.
- */
+/** Each route loads its own interface; public inner pages need neither the
+ * home animations nor the 3D table before someone navigates to them. */
+const HomePage = lazy(() => import('./pages/HomePage'))
 const SobrePage = lazy(() => import('./pages/SobrePage'))
 const TiragemPage = lazy(() => import('./pages/TiragemPage'))
 const SalaPage = lazy(() => import('./pages/SalaPage'))

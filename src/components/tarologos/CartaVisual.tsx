@@ -65,7 +65,7 @@ export default function CartaVisual({ tarologo, indice = 0, onOpen }: { tarologo
       <span className="tarologo-rotor">
         <span className="tarologo-face tarologo-front">
           <span className="tarologo-photo-wrap">
-            <img src={foto} alt="" className="tarologo-photo" loading="lazy" />
+            <img src={foto} alt="" className="tarologo-photo" loading={indice === 0 ? 'eager' : 'lazy'} fetchPriority={indice === 0 ? 'high' : 'auto'} decoding="async" />
             <span className="tarologo-photo-shade" aria-hidden="true" />
           </span>
           <span className="tarologo-card-topline">

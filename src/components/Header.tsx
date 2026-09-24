@@ -4,10 +4,16 @@ import { site } from '../data/site'
 import { useAuth } from '../lib/useAuth'
 
 const LINKS = [
-  { href: '#/', rotulo: 'Home', combina: (c: string) => c === '/' },
-  { href: '#/tarologos', rotulo: 'Tarólogos', combina: (c: string) => c.startsWith('/tarologos') },
-  { href: '#/mesa-digital', rotulo: 'Tiragem digital', combina: (c: string) => c.startsWith('/mesa-digital') },
+  { href: '#/', rotulo: 'Home', combina: (c: string) => c === '/', preparar: () => import('../pages/HomePage') },
+  { href: '#/tarologos', rotulo: 'Tarólogos', combina: (c: string) => c.startsWith('/tarologos'), preparar: () => import('../pages/TarologosPage') },
+  { href: '#/mesa-digital', rotulo: 'Tiragem digital', combina: (c: string) => c.startsWith('/mesa-digital'), preparar: () => import('../pages/MesaDigitalDemoPage') },
 ]
+
+function prepararRota(carregar: () => Promise<unknown>) {
+  void carregar().catch(() => {
+    // A navegação normal ainda poderá tentar carregar a página de novo.
+  })
+}
 
 /** Rola ao topo quando já se está na home — o `hashchange` não dispara sozinho
  *  se o hash não muda (clicar em "Home" estando em `#/`). */
@@ -70,6 +76,8 @@ export default function Header({ caminho }: { caminho: string }) {
         <a
           href="#/"
           onClick={(e) => irParaTopo(e, '#/')}
+          onPointerEnter={() => prepararRota(LINKS[0].preparar)}
+          onFocus={() => prepararRota(LINKS[0].preparar)}
           className="font-display text-lg tracking-[0.18em] text-star transition hover:text-gold"
         >
           <span aria-hidden className="mr-1.5 text-gold">
@@ -86,6 +94,8 @@ export default function Header({ caminho }: { caminho: string }) {
                 key={l.href}
                 href={l.href}
                 onClick={(e) => irParaTopo(e, l.href)}
+                onPointerEnter={() => prepararRota(l.preparar)}
+                onFocus={() => prepararRota(l.preparar)}
                 aria-current={ativo ? 'page' : undefined}
                 className="shrink-0 rounded-full px-2 py-2 text-[12px] tracking-wide transition sm:px-4 sm:text-[15px]"
                 style={{
@@ -131,6 +141,8 @@ export default function Header({ caminho }: { caminho: string }) {
                   <a
                     href="#/perfil"
                     role="menuitem"
+                    onPointerEnter={() => prepararRota(() => import('../pages/PerfilPage'))}
+                    onFocus={() => prepararRota(() => import('../pages/PerfilPage'))}
                     onClick={() => setMenu(false)}
                     className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star"
                   >
@@ -144,6 +156,8 @@ export default function Header({ caminho }: { caminho: string }) {
                   <a
                     href="#/tiragem"
                     role="menuitem"
+                    onPointerEnter={() => prepararRota(() => import('../pages/TiragemPage'))}
+                    onFocus={() => prepararRota(() => import('../pages/TiragemPage'))}
                     onClick={() => setMenu(false)}
                     className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star"
                   >
@@ -171,6 +185,8 @@ export default function Header({ caminho }: { caminho: string }) {
           ) : (
             <a
               href="#/tiragem"
+              onPointerEnter={() => prepararRota(() => import('../pages/TiragemPage'))}
+              onFocus={() => prepararRota(() => import('../pages/TiragemPage'))}
               className="ml-1 shrink-0 rounded-full px-3 py-2 text-[12px] font-medium tracking-wide text-star transition sm:px-4 sm:text-[15px]"
               style={{
                 background: 'linear-gradient(100deg, #6d3fd4, #c2449d)',

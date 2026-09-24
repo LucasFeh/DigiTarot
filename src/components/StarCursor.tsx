@@ -126,6 +126,10 @@ export default function StarCursor() {
     /** `ativo` do quadro anterior, para detectar a volta ao estado ativo. */
     let ativoPrev = false
 
+    const schedule = () => {
+      if (!raf && !document.hidden) raf = requestAnimationFrame(draw)
+    }
+
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
       // Medir o elemento, nunca a janela: o canvas é `fixed inset-0`, então a
@@ -175,6 +179,7 @@ export default function StarCursor() {
       const el = e.target instanceof Element ? e.target : null
       overField = !!el?.closest(TEXT_FIELDS)
       hoverTarget = el?.closest(CLICKABLE) ? 1 : 0
+      schedule()
     }
 
     const onDown = () => {
@@ -189,13 +194,16 @@ export default function StarCursor() {
         const sp = 0.05 + Math.random() * 0.12
         spawn(pos.x, pos.y, Math.cos(a) * sp, Math.sin(a) * sp, 0.8)
       }
+      schedule()
     }
 
     const onLeave = () => {
       inside = false
+      schedule()
     }
     const onEnter = () => {
       inside = true
+      schedule()
     }
 
     // Drag nativo (arrastar uma imagem ou link): o Chrome para de emitir
@@ -203,9 +211,11 @@ export default function StarCursor() {
     // página. Nenhuma imagem do site tem `draggable={false}`.
     const onDragStart = () => {
       inside = false
+      schedule()
     }
     const onDragEnd = () => {
       inside = true
+      schedule()
     }
 
     /** Estrela de quatro pontas com as laterais côncavas. */
@@ -245,7 +255,7 @@ export default function StarCursor() {
     }
 
     const draw = (t: number) => {
-      raf = requestAnimationFrame(draw)
+      raf = 0
       // Primeiro quadro (e volta de aba parada) não pode render dt gigante.
       const dt = Math.min(prevT ? t - prevT : 16, 48)
       prevT = t
@@ -442,10 +452,22 @@ export default function StarCursor() {
 
       ctx.globalAlpha = 1
       ctx.globalCompositeOperation = 'source-over'
+      // Keep the pulse fluid while the star is visible, then stop the canvas
+      // entirely once its fade and particles have finished.
+      if ((seen && inside && !overField) || vis > 0.01 || motes.length || pontos.length) schedule()
     }
 
     resize()
-    raf = requestAnimationFrame(draw)
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(raf)
+        raf = 0
+        ctx.clearRect(0, 0, w, h)
+      } else {
+        prevT = 0
+        schedule()
+      }
+    }
     // ResizeObserver e não `window.resize`: a barra de rolagem aparece e some
     // conforme o conteúdo da rota muda, e isso não dispara resize de janela.
     const ro = new ResizeObserver(resize)
@@ -457,6 +479,7 @@ export default function StarCursor() {
     document.addEventListener('dragstart', onDragStart)
     document.addEventListener('dragend', onDragEnd)
     document.addEventListener('drop', onDragEnd)
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       cancelAnimationFrame(raf)
@@ -468,6 +491,7 @@ export default function StarCursor() {
       document.removeEventListener('dragstart', onDragStart)
       document.removeEventListener('dragend', onDragEnd)
       document.removeEventListener('drop', onDragEnd)
+      document.removeEventListener('visibilitychange', onVisibility)
       root.classList.remove('star-cursor')
     }
   }, [])
