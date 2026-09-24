@@ -8,6 +8,7 @@ import { AuthProvider } from './lib/AuthProvider'
 import { useAuth } from './lib/useAuth'
 import { haLinkDeEmailNaUrl } from './lib/cadastroPorLink'
 import type { Aba } from './lib/temas/tipos'
+import { useMobileLayout } from './lib/useMobileLayout'
 
 /** Each route loads its own interface; public inner pages need neither the
  * home animations nor the 3D table before someone navigates to them. */
@@ -35,6 +36,7 @@ const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favo
 
 function Rotas() {
   const { caminho, partes } = useHashRoute()
+  const mobile = useMobileLayout()
   const { usuario, backend } = useAuth()
   const linkEmail = haLinkDeEmailNaUrl() || partes[0] === 'confirmar-cadastro'
   const paginaPublica = linkEmail || !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento', 'mesa-digital', 'camera'].includes(partes[0])
@@ -96,6 +98,7 @@ function Rotas() {
 
   return (
     <>
+      {!mobile && (!partes[0] || partes[0] === 'sobre') && <SmokeFilters />}
       {!naSala && !naCamera && <NebulaBackdrop />}
       {!naCamera && <Header caminho={caminho} />}
       <Suspense
@@ -108,7 +111,7 @@ function Rotas() {
         {aguardaEmail ? <VerificarEmailPage /> : conteudo}
       </Suspense>
       {/* Ponteiro-estrela com rastro — por cima de tudo, sem capturar clique. */}
-      {!naSala && !naCamera && <StarCursor />}
+      {!mobile && !naSala && !naCamera && <StarCursor />}
     </>
   )
 }
@@ -116,8 +119,6 @@ function Rotas() {
 export default function App() {
   return (
     <AuthProvider>
-      {/* Definições dos filtros de fumaça — montadas uma vez para a página toda. */}
-      <SmokeFilters />
       <Rotas />
     </AuthProvider>
   )

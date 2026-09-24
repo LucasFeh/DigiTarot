@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
 import demonstracaoMesa from '../assets/demonstracao-da-mesa.mp4'
+import { useMobileLayout } from '../lib/useMobileLayout'
 
 const VIDEOS = [
   {
@@ -36,7 +37,9 @@ const PASSOS = [
 ]
 
 export default function MesaDigitalDemoPage() {
-  const [videoAtivo, setVideoAtivo] = useState(0)
+  const mobile = useMobileLayout()
+  // No celular, a prévia curta abre primeiro. O vídeo completo continua no carrossel.
+  const [videoAtivo, setVideoAtivo] = useState(mobile ? 1 : 0)
   const [direcao, setDirecao] = useState(1)
 
   function selecionarVideo(indice: number) {

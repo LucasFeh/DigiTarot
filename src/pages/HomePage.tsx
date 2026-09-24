@@ -1,7 +1,11 @@
+import { lazy, Suspense } from 'react'
 import Hero from '../components/Hero'
-import DeckSection from '../components/DeckSection'
 import HowItWorks from '../components/HowItWorks'
 import Footer from '../components/Footer'
+import { useMobileLayout } from '../lib/useMobileLayout'
+
+const DesktopDeckSection = lazy(() => import('../components/DeckSection'))
+const MobileDeckSection = lazy(() => import('../components/MobileDeckSection'))
 
 /**
  * A vitrine. A tabela comparativa de valores saiu daqui para dentro da Tiragem
@@ -10,6 +14,7 @@ import Footer from '../components/Footer'
  * e cada carta leva direto ao agendamento.
  */
 export default function HomePage() {
+  const mobile = useMobileLayout()
   return (
     <>
       <main className="relative">
@@ -19,7 +24,9 @@ export default function HomePage() {
             Conheça os tarólogos <span aria-hidden>↗</span>
           </a>
         </section>
-        <DeckSection />
+        <Suspense fallback={<section id="planos" className="min-h-[32rem]" />}>
+          {mobile ? <MobileDeckSection /> : <DesktopDeckSection />}
+        </Suspense>
         <HowItWorks />
       </main>
       <Footer />

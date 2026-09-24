@@ -283,6 +283,29 @@ html.star-cursor [contenteditable='true'] {
   overflow-clip-margin: 260px;
 }
 
+@media (max-width: 767px), (max-width: 1023px) and (hover: none) and (pointer: coarse) {
+  .nebula-cloud {
+    animation: none !important;
+    filter: blur(48px) !important;
+  }
+
+  .glass {
+    backdrop-filter: none;
+  }
+
+  .mobile-deck::-webkit-scrollbar {
+    display: none;
+  }
+
+  .site-main-nav {
+    scrollbar-width: none;
+  }
+
+  .site-main-nav::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Clarão do círculo no instante em que a invocação começa. */
 @keyframes summon-flash {
   0% {

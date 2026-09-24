@@ -4,12 +4,14 @@ import SocialLinks from '../components/SocialLinks'
 import Footer from '../components/Footer'
 import SmokeCloud from '../components/SmokeCloud'
 import { portraitMask } from '../lib/portrait'
+import { useMobileLayout } from '../lib/useMobileLayout'
 
 /**
  * Destino do clique no rosto da ilustração. A casca da página já está pronta —
  * só o conteúdo está em manutenção.
  */
 export default function SobrePage() {
+  const mobile = useMobileLayout()
   return (
     <>
       <main className="relative min-h-[92vh]">
@@ -31,9 +33,7 @@ export default function SobrePage() {
               transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
               className="relative mb-8 w-[min(70vw,360px)]"
             >
-              <div className="absolute inset-0 z-0">
-                <SmokeCloud />
-              </div>
+              {mobile ? <div className="absolute inset-0 z-0 rounded-full bg-[radial-gradient(ellipse_at_center,#7b4fd666,transparent_68%)]" /> : <div className="absolute inset-0 z-0"><SmokeCloud /></div>}
               <picture>
                 <source srcSet={site.avatarWebp} type="image/webp" />
                 <img
@@ -43,9 +43,7 @@ export default function SobrePage() {
                   style={{ ...portraitMask, filter: 'drop-shadow(0 22px 40px rgba(0,0,0,.55))' }}
                 />
               </picture>
-              <div className="absolute inset-0 z-20">
-                <SmokeCloud front />
-              </div>
+              {!mobile && <div className="absolute inset-0 z-20"><SmokeCloud front /></div>}
             </motion.div>
           )}
 

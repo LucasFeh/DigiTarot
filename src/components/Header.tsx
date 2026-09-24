@@ -86,7 +86,7 @@ export default function Header({ caminho }: { caminho: string }) {
           {site.brand}
         </a>
 
-        <nav className="flex w-full items-center justify-between gap-0 overflow-x-auto sm:w-auto sm:gap-2" aria-label="Navegação principal">
+        <nav className="site-main-nav flex w-full items-center justify-between gap-0 overflow-x-auto sm:w-auto sm:gap-2" aria-label="Navegação principal">
           {LINKS.map((l) => {
             const ativo = l.combina(caminho)
             return (

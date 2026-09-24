@@ -6,6 +6,7 @@ import SocialLinks from './SocialLinks'
 import SmokeCloud from './SmokeCloud'
 import { useSmokeField } from '../lib/useSmokeField'
 import { portraitMask } from '../lib/portrait'
+import { useMobileLayout } from '../lib/useMobileLayout'
 
 const PORTRAIT_SHADOW = 'drop-shadow(0 22px 40px rgba(0,0,0,.55))'
 /**
@@ -56,6 +57,7 @@ function FloatingCard({ left, top, rot, delay, dur, size }: (typeof FLOATERS)[nu
 }
 
 export default function Hero() {
+  const mobile = useMobileLayout()
   // Some se o arquivo não estiver configurado, ou se estiver configurado e faltar.
   const [hasAvatar, setHasAvatar] = useState(Boolean(site.avatar))
   const [glow, setGlow] = useState(false)
@@ -64,10 +66,10 @@ export default function Hero() {
   return (
     <header
       className="relative flex min-h-[92vh] flex-col overflow-hidden"
-      onPointerMove={onPointerMove}
-      onPointerLeave={onPointerLeave}
+      onPointerMove={mobile ? undefined : onPointerMove}
+      onPointerLeave={mobile ? undefined : onPointerLeave}
     >
-      {FLOATERS.map((f, i) => (
+      {!mobile && FLOATERS.map((f, i) => (
         <FloatingCard key={i} {...f} />
       ))}
 
@@ -86,16 +88,18 @@ export default function Hero() {
           <motion.div
             className="relative -mr-5 w-[min(68vw,540px)] shrink-0 sm:-mr-9"
             initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: [0, -9, 0] }}
+            animate={{ opacity: 1, y: mobile ? 0 : [0, -9, 0] }}
             transition={{
               opacity: { duration: 1, ease: [0.2, 0.8, 0.2, 1] },
-              y: { duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 0.6 },
+              y: mobile ? { duration: 0.6 } : { duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 0.6 },
             }}
           >
             <div className="relative" ref={smokeRef}>
-              <div className="absolute inset-0 z-0">
-                <SmokeCloud field={smokeField} />
-              </div>
+              {mobile ? (
+                <div className="absolute inset-0 z-0 rounded-full bg-[radial-gradient(ellipse_at_center,#7b4fd666,transparent_68%)]" />
+              ) : (
+                <div className="absolute inset-0 z-0"><SmokeCloud field={smokeField} /></div>
+              )}
 
               <picture>
                 <source srcSet={site.avatarWebp} type="image/webp" />
@@ -112,9 +116,7 @@ export default function Hero() {
                 />
               </picture>
 
-              <div className="absolute inset-0 z-20">
-                <SmokeCloud field={smokeField} front />
-              </div>
+              {!mobile && <div className="absolute inset-0 z-20"><SmokeCloud field={smokeField} front /></div>}
 
               {/* A ilustração inteira é o link. Fica por cima da fumaça (que é
                   pointer-events-none) só para capturar o clique — é transparente. */}
@@ -125,11 +127,11 @@ export default function Hero() {
                 onPointerLeave={() => setGlow(false)}
                 onFocus={() => {
                   setGlow(true)
-                  setSmokeActive(true)
+                  if (!mobile) setSmokeActive(true)
                 }}
                 onBlur={() => {
                   setGlow(false)
-                  setSmokeActive(false)
+                  if (!mobile) setSmokeActive(false)
                 }}
                 className="group/face absolute inset-0 z-30 block cursor-pointer rounded-2xl outline-none ring-gold/60 focus-visible:ring-2"
               >
@@ -209,8 +211,8 @@ export default function Hero() {
         aria-hidden
         className="absolute bottom-8 left-1/2 -translate-x-1/2"
         initial={{ opacity: 0 }}
-        animate={{ opacity: [0.25, 0.85, 0.25], y: [0, 9, 0] }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+        animate={{ opacity: mobile ? 0.65 : [0.25, 0.85, 0.25], y: mobile ? 0 : [0, 9, 0] }}
+        transition={mobile ? { duration: 0.3 } : { duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       >
         <svg width="22" height="34" viewBox="0 0 22 34" fill="none">
           <rect x="1" y="1" width="20" height="32" rx="10" stroke="#cbbde8" strokeOpacity="0.5" />

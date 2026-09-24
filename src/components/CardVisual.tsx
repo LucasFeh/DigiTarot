@@ -12,10 +12,12 @@ export default function CardVisual({
   plan,
   accent,
   revealed,
+  lightweight = false,
 }: {
   plan: Plan
   accent: string
   revealed: boolean
+  lightweight?: boolean
 }) {
   return (
     <div
@@ -67,7 +69,7 @@ export default function CardVisual({
           style={{
             background: `linear-gradient(105deg, transparent 38%, ${accent}55 50%, transparent 62%)`,
             backgroundSize: '220% 100%',
-            animation: revealed ? 'shimmer 2.6s ease-in-out infinite' : 'none',
+            animation: revealed && !lightweight ? 'shimmer 2.6s ease-in-out infinite' : 'none',
           }}
         />
 
