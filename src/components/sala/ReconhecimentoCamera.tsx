@@ -24,19 +24,17 @@ async function referenciasDoBaralho(tema: TemaBaralho | null): Promise<Referenci
   }))
 }
 
-/** Reconhecimento opcional: vídeo e artes só são analisados neste aparelho. */
+/** A câmera conectada é analisada continuamente neste aparelho. */
 export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao }: {
   videoRef: RefObject<HTMLVideoElement | null>
   temaBaralho: TemaBaralho | null
   onDeteccao: (carta: CartaReconhecida) => boolean
 }) {
-  const [ativo, setAtivo] = useState(false)
-  const [estado, setEstado] = useState('')
+  const [estado, setEstado] = useState('Preparando reconhecimento automático…')
   const aoDetectar = useRef(onDeteccao)
   useEffect(() => { aoDetectar.current = onDeteccao }, [onDeteccao])
 
   useEffect(() => {
-    if (!ativo) return
     let cancelado = false
     let intervalo: ReturnType<typeof setInterval> | undefined
     let trabalhador: Worker | undefined
@@ -70,7 +68,11 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
         const referencias = await referenciasDoBaralho(temaBaralho)
         if (cancelado) return
         trabalhador = new Worker(new URL('../../workers/reconhecerCartas.worker.ts', import.meta.url), { type: 'module' })
-        trabalhador.onerror = () => { if (!cancelado) setEstado('Não foi possível iniciar o reconhecimento neste navegador.') }
+        trabalhador.onerror = () => {
+          if (cancelado) return
+          if (intervalo) clearInterval(intervalo)
+          setEstado('Não foi possível reconhecer as cartas. Reconecte a câmera para tentar novamente.')
+        }
         trabalhador.onmessage = (evento: MessageEvent<Resposta>) => {
           if (cancelado) return
           const mensagem = evento.data
@@ -104,7 +106,7 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
             }
           } else {
             ocupado = false
-            setEstado('O reconhecimento falhou. Desative e tente novamente.')
+            setEstado('A análise falhou. Reconecte a câmera para tentar novamente.')
           }
         }
         trabalhador.postMessage({ tipo: 'iniciar', referencias })
@@ -118,21 +120,12 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
       if (intervalo) clearInterval(intervalo)
       trabalhador?.terminate()
     }
-  }, [ativo, temaBaralho, videoRef])
+  }, [temaBaralho, videoRef])
 
   return (
-    <div className="absolute right-2 top-2 z-20 flex max-w-[55%] flex-col items-end gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
-      <button
-        type="button"
-        onClick={() => { setAtivo((valor) => !valor); setEstado('') }}
-        aria-pressed={ativo}
-        title="Compare as cartas físicas com as imagens do baralho selecionado e coloque cada uma no lugar mais próximo da mesa digital"
-        className={`rounded-full border bg-black/85 px-3 py-1.5 text-xs ${ativo ? 'border-gold text-gold' : 'border-white/40 text-white'}`}
-      >
-        {ativo ? 'Parar reconhecimento' : 'Reconhecer cartas'}
-      </button>
-      {ativo && <p role="status" className="max-w-56 rounded-lg bg-black/85 px-2 py-1 text-right text-[11px] leading-snug text-white">{estado}</p>}
-      {ativo && <p className="max-w-56 rounded-lg bg-black/85 px-2 py-1 text-right text-[11px] leading-snug text-mist">Use o mesmo baralho das imagens selecionadas e a câmera apontada de cima.</p>}
+    <div className="pointer-events-none absolute right-2 top-2 z-20 flex max-w-[55%] flex-col items-end gap-1.5">
+      <p role="status" className="max-w-56 rounded-lg border border-gold/40 bg-black/85 px-2 py-1 text-right text-[11px] leading-snug text-gold">✦ Reconhecimento automático · {estado}</p>
+      <p className="max-w-56 rounded-lg bg-black/85 px-2 py-1 text-right text-[11px] leading-snug text-mist">Use o mesmo baralho das imagens selecionadas e a câmera apontada de cima.</p>
     </div>
   )
 }

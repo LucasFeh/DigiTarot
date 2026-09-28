@@ -237,9 +237,10 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
 
   return (
     <>
-      {cameraAtiva && visivel && (
+      {cameraAtiva && (visivel || ehTarologo) && (
         <div
-          className={`absolute z-20 overflow-hidden border border-gold/50 bg-black shadow-2xl ${modo === 'camera' ? 'inset-0' : 'rounded-2xl'}`}
+          className={`absolute z-20 overflow-hidden border border-gold/50 bg-black shadow-2xl ${modo === 'camera' ? 'inset-0' : 'rounded-2xl'} ${!visivel ? 'pointer-events-none opacity-0' : ''}`}
+          inert={!visivel}
           style={modo === 'camera' ? undefined : { left: `${quadro.x}%`, top: `${quadro.y}%`, width: `${quadro.largura}%`, aspectRatio: proporcao, touchAction: ehTarologo ? 'none' : undefined }}
           onPointerDown={ehTarologo && modo === 'sobreposta' ? (e) => {
             const rect = e.currentTarget.getBoundingClientRect()
