@@ -563,6 +563,10 @@ export class LocalBackend implements Backend {
     this.avisar('tarologos')
   }
 
+  async salvarModalidadesTarologo(uid: string, modalidades: Record<string, number>) {
+    await this.salvarTarologo(uid, { modalidades })
+  }
+
   async publicarCartaTarologo(uid: string, foto: string, personagem: string) {
     await this.salvarTarologo(uid, { foto, personagem, cartaoPublicado: true })
   }

@@ -1,40 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { categories, formatPriceFull } from '../data/plans'
+import { formatPriceFull } from '../data/plans'
 import { EMAIL_TAROLOGO } from '../lib/backend/tarologo'
 import type { Agendamento } from '../lib/backend'
 import { useAuth } from '../lib/useAuth'
 import { useTarologos } from '../lib/tarologos'
 
 type Secao = 'resumo' | 'profissionais'
-type DadosPix = { chave: string; nome: string; cidade: string }
-type Formulario = {
-  nome: string
-  email: string
-  foto: string
-  personagem: string
-  bio: string
-  modalidades: Record<string, number>
-  ativo: boolean
-}
+type Formulario = { nome: string; email: string }
 
-const PIX_VAZIO: DadosPix = { chave: '', nome: '', cidade: '' }
-const FOTO_RODRIGO = `${import.meta.env.BASE_URL}rodrigo-foto.jpg`
-const PERSONAGEM_RODRIGO = `${import.meta.env.BASE_URL}rodrigo.webp`
-const PLANOS = categories.flatMap((categoria) => categoria.plans)
-const MODALIDADES_RODRIGO = Object.fromEntries(PLANOS.map((plano) => [plano.id, plano.price]))
 const CAMPO =
   'w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[15px] text-star outline-none transition placeholder:text-mist/45 focus:border-gold/60'
 
 function novoFormulario(): Formulario {
-  return {
-    nome: '',
-    email: '',
-    foto: '',
-    personagem: '',
-    bio: '',
-    modalidades: {},
-    ativo: true,
-  }
+  return { nome: '', email: '' }
 }
 
 function inicioDaSemana(data: Date): Date {
@@ -70,8 +48,6 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const [erroAgendamentos, setErroAgendamentos] = useState<string | null>(null)
   const [selecionado, setSelecionado] = useState<string | null>(null)
   const [formulario, setFormulario] = useState<Formulario>(novoFormulario)
-  const [pix, setPix] = useState<DadosPix>(PIX_VAZIO)
-  const [carregandoPix, setCarregandoPix] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [erroEdicao, setErroEdicao] = useState<string | null>(null)
@@ -92,33 +68,8 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     if (!selecionado) return
     const existente = tarologos.find((tarologo) => tarologo.uid === selecionado)
     if (!existente) return
-    setFormulario({
-      nome: existente.nome,
-      email: existente.email,
-      foto: existente.foto,
-      personagem: existente.personagem,
-      bio: existente.bio,
-      modalidades: { ...existente.modalidades },
-      ativo: existente.ativo,
-    })
+    setFormulario({ nome: existente.nome, email: existente.email })
   }, [selecionado, tarologos])
-
-  useEffect(() => {
-    setPix(PIX_VAZIO)
-    if (!backend || !usuario?.admin || !selecionado) {
-      setCarregandoPix(false)
-      return
-    }
-    setCarregandoPix(true)
-    return backend.observarPixTarologo(selecionado, (dados) => {
-      setPix({
-        chave: dados?.chave ?? '',
-        nome: dados?.nome ?? '',
-        cidade: dados?.cidade ?? '',
-      })
-      setCarregandoPix(false)
-    })
-  }, [backend, usuario?.admin, selecionado])
 
   const inicio = useMemo(() => {
     const data = inicioDaSemana(new Date())
@@ -174,7 +125,6 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     setErroEdicao(null)
     if (!uid) {
       setFormulario(novoFormulario())
-      setPix(PIX_VAZIO)
     }
   }
 
@@ -183,17 +133,8 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     setMensagem(null)
   }
 
-  const alternarPlano = (id: string, precoPadrao: number, ativar: boolean) => {
-    setFormulario((atual) => {
-      const modalidades = { ...atual.modalidades }
-      if (ativar) modalidades[id] = precoPadrao
-      else delete modalidades[id]
-      return { ...atual, modalidades }
-    })
-  }
-
   const salvar = async () => {
-    if (!backend || salvando || carregandoPix) return
+    if (!backend || !usuario?.admin || salvando) return
     const email = formulario.email.trim().toLowerCase()
     const nome = formulario.nome.trim()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !nome) {
@@ -204,47 +145,19 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
       setErroEdicao('O e-mail de um perfil existente não pode ser alterado. Crie outro perfil para usar um novo endereço.')
       return
     }
-    if (Object.values(formulario.modalidades).some((preco) => !Number.isFinite(preco) || preco <= 0)) {
-      setErroEdicao('Cada modalidade ativa precisa ter um valor maior que zero.')
-      return
-    }
-    const chave = pix.chave.trim()
-    const titular = pix.nome.trim()
-    const cidade = pix.cidade.trim()
-    if ([chave, titular, cidade].some(Boolean) && ![chave, titular, cidade].every(Boolean)) {
-      setErroEdicao('Preencha chave, nome do recebedor e cidade para configurar o Pix.')
-      return
-    }
-    if (formulario.ativo && ![chave, titular, cidade].every(Boolean)) {
-      setErroEdicao('Configure o Pix antes de ativar o perfil para agendamentos.')
-      return
-    }
     setSalvando(true)
     setErroEdicao(null)
     setMensagem(null)
     const uid = selecionado ?? email
     try {
-      await backend.salvarTarologo(uid, {
-        nome,
-        email,
-        foto: formulario.foto.trim(),
-        personagem: formulario.personagem.trim(),
-        bio: formulario.bio.trim(),
-        modalidades: formulario.modalidades,
-        ativo: formulario.ativo,
-        ...(!selecionado ? { avaliacao: { media: 5, total: 0 } } : {}),
-      })
-      // O cadastro público precisa existir antes de criar o documento Pix privado.
-      if ([chave, titular, cidade].every(Boolean)) {
-        await backend.salvarPixTarologo(uid, { chave, nome: titular, cidade })
-      }
+      await backend.salvarTarologo(uid, { nome, email })
       setSelecionado(uid)
-      setMensagem('Perfil e dados Pix salvos.')
+      setMensagem(selecionado ? 'Nome atualizado.' : 'Acesso cadastrado. O tarólogo pode entrar com este e-mail e preencher o próprio perfil.')
     } catch (erro) {
       setErroEdicao(
         erro instanceof Error
-          ? `Não foi possível concluir: ${erro.message}. Confira também os dados Pix antes de publicar o perfil.`
-          : 'Não foi possível concluir. Confira os dados do perfil e do Pix.',
+          ? `Não foi possível concluir: ${erro.message}`
+          : 'Não foi possível cadastrar o acesso.',
       )
     } finally {
       setSalvando(false)
@@ -271,7 +184,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
           <p className="text-[12px] uppercase tracking-[0.24em] text-gold">DigiTarot · Administração</p>
           <h1 className="mt-2 font-display text-3xl text-star sm:text-4xl">Visão dos atendimentos</h1>
           <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-mist/70">
-            Acompanhe os profissionais e organize os serviços oferecidos no site.
+            Acompanhe os profissionais e cadastre o acesso de novos tarólogos.
           </p>
         </div>
         <div className="flex rounded-full border border-white/15 bg-white/[0.04] p-1" aria-label="Seções da administração">
@@ -364,68 +277,19 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
           <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-2xl text-star">{selecionado ? 'Editar perfil' : 'Novo tarólogo'}</h2>
-                <p className="mt-1 text-[13px] leading-relaxed text-mist/65">O perfil fica associado ao e-mail. O profissional deve entrar no DigiTarot com esse mesmo endereço.</p>
+                <h2 className="font-display text-2xl text-star">{selecionado ? 'Editar nome' : 'Novo tarólogo'}</h2>
+                <p className="mt-1 text-[13px] leading-relaxed text-mist/65">Cadastre apenas nome e e-mail. O profissional entra com esse endereço e configura foto, apresentação, leituras, preços e Pix no próprio perfil.</p>
               </div>
-              <label className="flex items-center gap-2 text-[13px] text-star">
-                <input type="checkbox" checked={formulario.ativo} onChange={(e) => atualizarFormulario('ativo', e.target.checked)} className="h-4 w-4 accent-[#d8b978]" />
-                Perfil ativo
-              </label>
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="block"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">Nome público</span><input className={CAMPO} value={formulario.nome} onChange={(e) => atualizarFormulario('nome', e.target.value)} maxLength={80} autoComplete="name" /></label>
-              <label className="block"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">E-mail de acesso</span><input className={CAMPO} type="email" value={formulario.email} onChange={(e) => {
-                const email = e.target.value
-                atualizarFormulario('email', email)
-                if (!selecionado && email.trim().toLowerCase() === EMAIL_TAROLOGO) {
-                  setFormulario((atual) => ({ ...atual, nome: atual.nome || 'Rodrigo', foto: atual.foto || FOTO_RODRIGO, personagem: atual.personagem || PERSONAGEM_RODRIGO, modalidades: { ...MODALIDADES_RODRIGO, ...atual.modalidades } }))
-                }
-              }} disabled={Boolean(selecionado)} autoComplete="email" /></label>
-              <label className="block"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">URL da foto</span><input className={CAMPO} type="url" value={formulario.foto} onChange={(e) => atualizarFormulario('foto', e.target.value)} placeholder="https://…" /></label>
-              <label className="block"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">URL da imagem do personagem</span><input className={CAMPO} value={formulario.personagem} onChange={(e) => atualizarFormulario('personagem', e.target.value)} placeholder="Imagem PNG ou WebP" /></label>
+              <label className="block"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">E-mail de acesso</span><input className={CAMPO} type="email" value={formulario.email} onChange={(e) => atualizarFormulario('email', e.target.value)} disabled={Boolean(selecionado)} autoComplete="email" /></label>
             </div>
-            <label className="mt-4 block"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">Apresentação</span><textarea className={`${CAMPO} min-h-28 resize-y`} value={formulario.bio} onChange={(e) => atualizarFormulario('bio', e.target.value)} maxLength={1000} placeholder="Conte aos clientes sobre o trabalho deste tarólogo." /></label>
-
-            <div className="mt-8 border-t border-white/10 pt-7">
-              <h3 className="font-display text-xl text-star">Modalidades e preços</h3>
-              <p className="mt-1 text-[13px] text-mist/65">Ative apenas as tiragens que este profissional oferece. Os preços do Rodrigo começam com os valores atuais do catálogo.</p>
-              <div className="mt-5 space-y-5">
-                {categories.map((categoria) => (
-                  <fieldset key={categoria.id} className="rounded-xl border border-white/10 p-4">
-                    <legend className="px-2 font-display text-[16px] text-star">{categoria.icon} {categoria.title}</legend>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {categoria.plans.map((plano) => {
-                        const ativo = Object.hasOwn(formulario.modalidades, plano.id)
-                        return (
-                          <div key={plano.id} className="rounded-xl border border-white/10 bg-void/20 p-3">
-                            <label className="flex items-start gap-2 text-[13px] text-star"><input type="checkbox" checked={ativo} onChange={(e) => alternarPlano(plano.id, plano.price, e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d8b978]" /><span>{plano.title}</span></label>
-                            {ativo && <label className="mt-3 block text-[12px] text-mist/65">Preço (R$)<input className={`${CAMPO} mt-1`} type="number" min="0.01" step="0.01" inputMode="decimal" value={formulario.modalidades[plano.id]} onChange={(e) => setFormulario((atual) => ({ ...atual, modalidades: { ...atual.modalidades, [plano.id]: Number(e.target.value) } }))} /></label>}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </fieldset>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-8 border-t border-white/10 pt-7">
-              <h3 className="font-display text-xl text-star">Pix do profissional</h3>
-              <p className="mt-1 text-[13px] leading-relaxed text-mist/65">Estes dados ficam em uma área privada. A chave Pix e o nome do recebedor aparecem para o cliente após reservar, para ele conferir a cobrança.</p>
-              {carregandoPix ? <p className="mt-4 text-[13px] text-mist/60">Carregando dados Pix…</p> : (
-                <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                  <label className="block sm:col-span-3"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">Chave Pix</span><input className={CAMPO} value={pix.chave} onChange={(e) => setPix((atual) => ({ ...atual, chave: e.target.value }))} autoComplete="off" placeholder="Chave aleatória, e-mail ou telefone" /></label>
-                  <label className="block sm:col-span-2"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">Nome do recebedor</span><input className={CAMPO} value={pix.nome} onChange={(e) => setPix((atual) => ({ ...atual, nome: e.target.value }))} maxLength={25} /></label>
-                  <label className="block"><span className="mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-mist/65">Cidade</span><input className={CAMPO} value={pix.cidade} onChange={(e) => setPix((atual) => ({ ...atual, cidade: e.target.value }))} maxLength={15} /></label>
-                </div>
-              )}
-            </div>
-
             {erroEdicao && <p role="alert" className="mt-5 rounded-xl border border-rose/40 bg-rose/10 p-3 text-[13px] text-rose">{erroEdicao}</p>}
             {mensagem && <p role="status" className="mt-5 rounded-xl border border-gold/35 bg-gold/10 p-3 text-[13px] text-gold">{mensagem}</p>}
             <div className="mt-7 flex justify-end">
-              <button type="button" onClick={() => void salvar()} disabled={salvando || carregandoPix} className="rounded-full bg-gold px-7 py-3 text-[14px] font-medium text-void transition hover:brightness-110 disabled:opacity-50">{salvando ? 'Salvando…' : 'Salvar perfil'}</button>
+              <button type="button" onClick={() => void salvar()} disabled={salvando} className="rounded-full bg-gold px-7 py-3 text-[14px] font-medium text-void transition hover:brightness-110 disabled:opacity-50">{salvando ? 'Salvando…' : selecionado ? 'Salvar nome' : 'Cadastrar acesso'}</button>
             </div>
           </div>
         </section>

@@ -150,7 +150,7 @@ export default function EditorCartaTarologo() {
           <button type="button" disabled={!rascunho.foto || Boolean(processando) || salvando} onClick={() => void publicar()} className="mt-5 w-full rounded-xl bg-gold px-5 py-3.5 text-[14px] font-semibold text-void transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45">
             {salvando ? 'Aplicando…' : 'Aplicar na página de Tarólogos'}
           </button>
-          <p className="mt-3 text-center text-[12px] leading-relaxed text-mist/55">Só a foto e o chibi serão alterados. Suas modalidades e valores continuam sob gestão do administrador.</p>
+          <p className="mt-3 text-center text-[12px] leading-relaxed text-mist/55">Só a foto e o chibi serão alterados. Configure suas leituras, preços e Pix em “Atendimentos e Pix”.</p>
         </div>
       </div>
       <EditorApresentacaoTarologo perfil={publicado} />

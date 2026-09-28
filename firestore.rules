@@ -134,6 +134,74 @@ service cloud.firestore {
              && (!campos.hasAny(['especializacoes']) || especializacoesValidas(tags));
     }
 
+    function precoValido(modalidades, plano) {
+      return !(plano in modalidades)
+             || (modalidades[plano] is number
+                 && modalidades[plano] > 0
+                 && modalidades[plano] <= 10000);
+    }
+
+    function modalidadesValidas(modalidades) {
+      return modalidades is map
+             && modalidades.keys().hasOnly([
+               'avulsa-1', 'avulsa-2', 'avulsa-3', 'avulsa-5',
+               'tema-amor', 'tema-complexa', 'tema-sentimentos', 'tema-futuro',
+               'tema-trabalho', 'tema-financas', 'tema-espiritual', 'tema-auto', 'tema-caminhos',
+               'tempo-express', 'tempo-completa', 'tempo-profunda', 'tempo-premium',
+               'esp-cruz', 'esp-mandala', 'esp-ano', 'esp-mes', 'esp-3meses', 'esp-6meses', 'esp-proposito'
+             ])
+             && precoValido(modalidades, 'avulsa-1')
+             && precoValido(modalidades, 'avulsa-2')
+             && precoValido(modalidades, 'avulsa-3')
+             && precoValido(modalidades, 'avulsa-5')
+             && precoValido(modalidades, 'tema-amor')
+             && precoValido(modalidades, 'tema-complexa')
+             && precoValido(modalidades, 'tema-sentimentos')
+             && precoValido(modalidades, 'tema-futuro')
+             && precoValido(modalidades, 'tema-trabalho')
+             && precoValido(modalidades, 'tema-financas')
+             && precoValido(modalidades, 'tema-espiritual')
+             && precoValido(modalidades, 'tema-auto')
+             && precoValido(modalidades, 'tema-caminhos')
+             && precoValido(modalidades, 'tempo-express')
+             && precoValido(modalidades, 'tempo-completa')
+             && precoValido(modalidades, 'tempo-profunda')
+             && precoValido(modalidades, 'tempo-premium')
+             && precoValido(modalidades, 'esp-cruz')
+             && precoValido(modalidades, 'esp-mandala')
+             && precoValido(modalidades, 'esp-ano')
+             && precoValido(modalidades, 'esp-mes')
+             && precoValido(modalidades, 'esp-3meses')
+             && precoValido(modalidades, 'esp-6meses')
+             && precoValido(modalidades, 'esp-proposito');
+    }
+
+    function edicaoDasModalidadesPeloDono(id) {
+      return donoTarologo(id)
+             && mexeuSoEm(['modalidades'])
+             && modalidadesValidas(request.resource.data.modalidades);
+    }
+
+    function novoAcessoTarologoValido(id) {
+      let dados = request.resource.data;
+      return dados.keys().hasOnly([
+               'uid', 'email', 'nome', 'foto', 'personagem', 'cartaoPublicado',
+               'bio', 'avaliacao', 'modalidades', 'ativo'
+             ])
+             && dados.uid == id
+             && dados.email == id
+             && dados.nome is string
+             && dados.nome.size() > 0
+             && dados.nome.size() <= 80
+             && dados.foto == ''
+             && dados.personagem == ''
+             && dados.cartaoPublicado == false
+             && dados.bio == ''
+             && dados.avaliacao == { 'media': 5, 'total': 0 }
+             && dados.modalidades == {}
+             && dados.ativo == true;
+    }
+
     // ------------------------------- perfis -------------------------------
     // O registro de cada pessoa. É dela, e só dela; o atendimento usa os dados
     // mínimos já copiados no agendamento.
@@ -175,15 +243,22 @@ service cloud.firestore {
             || getAfter(/databases/$(database)/documents/sessoes/$(resource.data.sessaoId)).data.encerrada == true);
     }
 
-    // A vitrine é pública; papel, avaliações e preços não vêm de perfis
-    // editáveis pelo usuário. Admin cria pelo e-mail antes mesmo do login.
+    // Só o administrador cadastra e corrige o nome. O dono do e-mail confirmado
+    // publica foto/apresentação e define as próprias leituras e preços.
     match /tarologos/{tarologoId} {
       allow read: if true;
       allow create: if ehAdmin()
                     && request.resource.data.uid == tarologoId
                     && request.resource.data.email == tarologoId
-                    && request.resource.data.modalidades is map;
-      allow update: if (ehAdmin() || edicaoDaCartaPeloDono(tarologoId) || edicaoDaApresentacaoPeloDono(tarologoId))
+                    && (tarologoId == 'rodriv.l680@gmail.com' || novoAcessoTarologoValido(tarologoId));
+      allow update: if ((ehAdmin()
+                         && mexeuSoEm(['nome'])
+                         && request.resource.data.nome is string
+                         && request.resource.data.nome.size() > 0
+                         && request.resource.data.nome.size() <= 80)
+                        || edicaoDaCartaPeloDono(tarologoId)
+                        || edicaoDaApresentacaoPeloDono(tarologoId)
+                        || edicaoDasModalidadesPeloDono(tarologoId))
                     && request.resource.data.uid == tarologoId
                     && request.resource.data.email == tarologoId
                     && request.resource.data.modalidades is map;
@@ -202,15 +277,18 @@ service cloud.firestore {
       }
       allow get: if ehAdmin() || donoTarologo(tarologoId) || acessoCliente();
       allow list: if false;
-      allow create, update: if ehAdmin()
+      allow create, update: if donoTarologo(tarologoId)
                             && request.resource.data.keys().hasOnly(['chave', 'nome', 'cidade'])
                             && request.resource.data.chave is string
                             && request.resource.data.chave.size() > 0
+                            && request.resource.data.chave.size() <= 140
                             && request.resource.data.nome is string
                             && request.resource.data.nome.size() > 0
+                            && request.resource.data.nome.size() <= 25
                             && request.resource.data.cidade is string
-                            && request.resource.data.cidade.size() > 0;
-      allow delete: if ehAdmin();
+                            && request.resource.data.cidade.size() > 0
+                            && request.resource.data.cidade.size() <= 15;
+      allow delete: if false;
     }
 
     match /pixAcessos/{acessoId} {

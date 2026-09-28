@@ -516,24 +516,34 @@ export class FirebaseBackend implements Backend {
   async salvarTarologo(uid: string, patch: Partial<TarologoPublico>) {
     const id = idTarologo(uid)
     if (!id || id.includes('/')) throw new Error('Informe um e-mail válido para o tarólogo.')
+    const nome = patch.nome?.trim()
+    if (!nome || nome.length > 80) throw new Error('Informe um nome com até 80 caracteres.')
     const ref = doc(this.db, 'tarologos', id)
     const existente = await getDoc(ref)
+    if (existente.exists()) {
+      await updateDoc(ref, { nome })
+      return
+    }
     const novo: TarologoPublico = {
-      nome: '',
-      foto: '',
-      personagem: '',
-      // Perfis antigos já estavam na vitrine; só os novos aguardam publicação.
-      cartaoPublicado: existente.exists(),
-      bio: '',
-      avaliacao: { media: 5, total: 0 },
-      modalidades: {},
-      ativo: true,
-      ...(existente.data() as Partial<TarologoPublico> | undefined),
-      ...patch,
+      ...(id === TAROLOGO_RODRIGO.uid ? TAROLOGO_RODRIGO : {
+        nome: '',
+        foto: '',
+        personagem: '',
+        cartaoPublicado: false,
+        bio: '',
+        avaliacao: { media: 5, total: 0 },
+        modalidades: {},
+        ativo: true,
+      }),
+      nome,
       uid: id,
       email: id,
     }
     await setDoc(ref, novo)
+  }
+
+  async salvarModalidadesTarologo(uid: string, modalidades: Record<string, number>) {
+    await updateDoc(doc(this.db, 'tarologos', idTarologo(uid)), { modalidades })
   }
 
   async publicarCartaTarologo(uid: string, foto: string, personagem: string) {

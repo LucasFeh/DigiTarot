@@ -7,6 +7,7 @@ import AvatarEditavel from '../components/temas/AvatarEditavel'
 import SeletorDesempenho from '../components/SeletorDesempenho'
 import SecaoConta from '../components/perfil/SecaoConta'
 import EditorCartaTarologo from '../components/perfil/EditorCartaTarologo'
+import EditorServicosTarologo from '../components/perfil/EditorServicosTarologo'
 import CartaArcanoPessoal from '../components/perfil/CartaArcanoPessoal'
 import ConfigurarMesa from '../components/perfil/ConfigurarMesa'
 import VincularCamera from '../components/perfil/VincularCamera'
@@ -18,7 +19,7 @@ import { useHashRoute } from '../lib/useHashRoute'
 const TiragemPage = lazy(() => import('./TiragemPage'))
 const AdminPage = lazy(() => import('./AdminPage'))
 
-type Secao = 'geral' | 'carta' | 'mesa' | 'camera' | 'conta' | 'tiragem' | 'gestao'
+type Secao = 'geral' | 'carta' | 'servicos' | 'mesa' | 'camera' | 'conta' | 'tiragem' | 'gestao'
 
 const SECOES: ItemMenu<Secao>[] = [
   { id: 'geral', rotulo: 'Geral', icone: '☾' },
@@ -86,6 +87,7 @@ export default function PerfilPage() {
     SECOES[0],
     ...(usuario.papel === 'tarologo' ? [
       { id: 'carta' as const, rotulo: 'Minha carta', icone: '✦' },
+      { id: 'servicos' as const, rotulo: 'Atendimentos e Pix', icone: '◇' },
       { id: 'mesa' as const, rotulo: 'Configurar a mesa', icone: '▣' },
       { id: 'camera' as const, rotulo: 'Câmera do celular', icone: '◉' },
     ] : []),
@@ -231,6 +233,7 @@ export default function PerfilPage() {
 
       {secao === 'conta' && <SecaoConta />}
       {secao === 'carta' && usuario.papel === 'tarologo' && <EditorCartaTarologo />}
+      {secao === 'servicos' && usuario.papel === 'tarologo' && <EditorServicosTarologo />}
       {secao === 'mesa' && usuario.papel === 'tarologo' && <ConfigurarMesa valor={perfil.configuracaoMesa ?? CONFIGURACAO_MESA_PADRAO} salvar={(configuracaoMesa) => salvar({ configuracaoMesa })} />}
       {secao === 'camera' && usuario.papel === 'tarologo' && <VincularCamera />}
       {secao === 'tiragem' && <Suspense fallback={<p className="text-mist/70">Abrindo tiragem…</p>}><TiragemPage embutido /></Suspense>}
