@@ -75,7 +75,9 @@ precisa ficar aberto, com a tela ligada e conexão de internet. Se o microfone
 for negado, a câmera ainda funciona e o tarólogo pode usar o microfone do
 computador. A voz do cliente é reproduzida no computador da mesa.
 
-O vídeo acompanha a orientação do celular e o aplicativo busca versões novas
+Ao tocar em **Câmera**, o aplicativo tenta colocar a tela em paisagem e inicia
+a captura horizontal. Se o navegador ou o aparelho bloquear a rotação, a tela
+mostra como ativar a Rotação automática do celular. O aplicativo busca versões novas
 ao abrir, voltar à tela e a cada cinco minutos. Se houver atualização durante
 uma transmissão, ele a aplica após desligar a câmera. Com uma mesa aberta,
 **Habilitar posição** mostra as marcações do layout sobre a imagem. A análise

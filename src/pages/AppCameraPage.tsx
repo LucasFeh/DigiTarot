@@ -39,6 +39,7 @@ export default function AppCameraPage() {
   const [mesaId, setMesaId] = useState<string | null>(null)
   const [sessaoAtiva, setSessaoAtiva] = useState<Sessao | null>(null)
   const [ligada, setLigada] = useState(false)
+  const [telaHorizontal, setTelaHorizontal] = useState(cameraEmPaisagem)
   const [proporcaoVideo, setProporcaoVideo] = useState(9 / 16)
   const [atualizacaoDisponivel, setAtualizacaoDisponivel] = useState(false)
   const [mudo, setMudo] = useState(false)
@@ -49,6 +50,7 @@ export default function AppCameraPage() {
   const stream = useRef<MediaStream | null>(null)
   const peer = useRef<RTCPeerConnection | null>(null)
   const iniciando = useRef(false)
+  const telaCheiaDaCamera = useRef(false)
   const vinculado = Boolean(dispositivoId && vinculo?.dispositivoId === dispositivoId)
   const mesaAtual = sessaoAtiva?.id === mesaId && !sessaoAtiva.encerrada ? sessaoAtiva : null
   const spread = SPREAD_BY_ID.get(mesaAtual?.spreadId ?? 'una')
@@ -117,6 +119,10 @@ export default function AppCameraPage() {
       if (video.current) video.current.srcObject = null
       setLigada(false)
       setTemMicrofone(false)
+      setProporcaoVideo(9 / 16)
+      try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
+      if (telaCheiaDaCamera.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+      telaCheiaDaCamera.current = false
     })
   }, [backend, usuario, dispositivoId])
 
@@ -130,6 +136,14 @@ export default function AppCameraPage() {
     return backend.observarSessao(mesaId, setSessaoAtiva)
   }, [backend, mesaId, vinculado])
 
+  const liberarOrientacao = () => {
+    try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
+    if (telaCheiaDaCamera.current && document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {})
+    }
+    telaCheiaDaCamera.current = false
+  }
+
   const parar = () => {
     if (backend && mesaId) void backend.salvarSinal(mesaId, 'app-camera', { oferta: '', resposta: '' }).catch(() => {})
     peer.current?.close()
@@ -140,12 +154,16 @@ export default function AppCameraPage() {
     setLigada(false)
     setMudo(false)
     setTemMicrofone(false)
+    setProporcaoVideo(9 / 16)
     setEstado('Câmera desligada.')
+    liberarOrientacao()
   }
 
   useEffect(() => () => {
     peer.current?.close()
     stream.current?.getTracks().forEach((t) => t.stop())
+    try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
+    if (telaCheiaDaCamera.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -189,6 +207,7 @@ export default function AppCameraPage() {
     let espera: ReturnType<typeof setTimeout> | undefined
     const aoGirar = () => {
       const paisagem = cameraEmPaisagem()
+      setTelaHorizontal(paisagem)
       if (paisagem === paisagemAnterior) return
       paisagemAnterior = paisagem
       if (espera) clearTimeout(espera)
@@ -198,15 +217,15 @@ export default function AppCameraPage() {
           const faixa = atual?.getVideoTracks()[0]
           if (!atual || !faixa) return
           try {
-            await faixa.applyConstraints(restricoesCamera())
+            await faixa.applyConstraints(restricoesCamera(true))
           } catch {
             // Alguns navegadores só mudam a orientação ao abrir uma nova faixa.
           }
           if (stream.current !== atual) return
           const { width, height } = faixa.getSettings()
-          if (width && height && (width > height) === paisagem) return
+          if (width && height && width > height) return
           try {
-            const novaCaptura = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(), audio: false })
+            const novaCaptura = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(true), audio: false })
             const novaFaixa = novaCaptura.getVideoTracks()[0]
             if (!novaFaixa || stream.current !== atual) {
               novaCaptura.getTracks().forEach((t) => t.stop())
@@ -246,17 +265,46 @@ export default function AppCameraPage() {
     }
     iniciando.current = true
     try {
-      void screen.orientation?.lock('any').catch(() => {})
+      let travouPaisagem = false
+      try {
+        if (screen.orientation?.lock) {
+          await screen.orientation.lock('landscape')
+          travouPaisagem = true
+        }
+      } catch { /* Tenta novamente em tela cheia quando permitido. */ }
+      if (!travouPaisagem && screen.orientation?.lock && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+        try {
+          await document.documentElement.requestFullscreen()
+          telaCheiaDaCamera.current = true
+          if (screen.orientation?.lock) {
+            await screen.orientation.lock('landscape')
+            travouPaisagem = true
+          }
+        } catch { /* O navegador ou o sistema pode impedir a rotação. */ }
+      }
+      if (!travouPaisagem && telaCheiaDaCamera.current && document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {})
+        telaCheiaDaCamera.current = false
+      }
+      setTelaHorizontal(cameraEmPaisagem())
+      setProporcaoVideo(16 / 9)
       setEstado('Pedindo acesso à câmera e ao microfone…')
       let capturada: MediaStream
       try {
         capturada = await navigator.mediaDevices.getUserMedia({
-          video: restricoesCamera(),
+          video: restricoesCamera(true),
           audio: { echoCancellation: true, noiseSuppression: true },
         })
       } catch {
-        capturada = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(), audio: false })
+        capturada = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(true), audio: false })
         setEstado('Microfone indisponível. A câmera funcionará sem voz.')
+      }
+      const { width, height } = capturada.getVideoTracks()[0]?.getSettings() ?? {}
+      if (width && height && width <= height) {
+        capturada.getTracks().forEach((t) => t.stop())
+        liberarOrientacao()
+        setEstado('A câmera não iniciou na horizontal. Gire o celular, ative a Rotação automática e toque em Câmera novamente.')
+        return
       }
       stream.current = capturada
       setTemMicrofone(capturada.getAudioTracks().length > 0)
@@ -264,6 +312,7 @@ export default function AppCameraPage() {
       setLigada(true)
       if (!mesaId) setEstado(capturada.getAudioTracks().length ? 'Câmera e microfone prontos. Aguardando uma mesa…' : 'Câmera pronta sem microfone. Aguardando uma mesa…')
     } catch {
+      liberarOrientacao()
       setEstado('Não foi possível abrir a câmera. Confira as permissões do celular.')
     } finally {
       iniciando.current = false
@@ -334,6 +383,9 @@ export default function AppCameraPage() {
             </div>}
             {!ligada && <div className="absolute inset-0 grid place-items-center text-center text-sm text-mist/60"><span><span aria-hidden className="mb-3 block text-4xl text-gold/70">◉</span>Câmera desligada</span></div>}
           </div>
+          {ligada && !telaHorizontal && <p role="alert" className="rounded-xl border border-gold/50 bg-gold/10 px-4 py-3 text-center text-sm leading-relaxed text-gold">
+            Gire o celular na horizontal. Se a tela não acompanhar, ative a Rotação automática nas configurações do aparelho. A câmera está configurada para transmitir na horizontal.
+          </p>}
           <div className="flex gap-2">
             <button type="button" onClick={() => ligada ? parar() : void ativar()} className={`flex-1 rounded-xl px-5 py-3.5 font-semibold ${ligada ? 'border border-rose/50 text-rose' : 'bg-gold text-void'}`}>{ligada ? 'Desligar câmera' : 'Câmera'}</button>
             {ligada && temMicrofone ? <button type="button" onClick={() => { const proximo = !mudo; stream.current?.getAudioTracks().forEach((t) => { t.enabled = !proximo }); setMudo(proximo) }} className="rounded-xl border border-white/20 px-4 text-sm">{mudo ? 'Ativar microfone' : 'Silenciar'}</button> : null}
