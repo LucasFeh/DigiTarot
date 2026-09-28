@@ -70,6 +70,7 @@ export default function AppCameraPage() {
   const peer = useRef<RTCPeerConnection | null>(null)
   const iniciando = useRef(false)
   const autoIniciada = useRef<string | null>(null)
+  const secaoAtual = useRef<SecaoCamera>('camera')
   const telaCheiaDaCamera = useRef(false)
   const vinculado = Boolean(dispositivoId && vinculo?.dispositivoId === dispositivoId)
   const mesaAtual = sessaoAtiva?.id === mesaId && !sessaoAtiva.encerrada ? sessaoAtiva : null
@@ -164,6 +165,38 @@ export default function AppCameraPage() {
       void document.exitFullscreen().catch(() => {})
     }
     telaCheiaDaCamera.current = false
+  }, [])
+
+  const orientarCamera = useCallback(async () => {
+    if (secaoAtual.current !== 'camera') return
+    let travouPaisagem = false
+    const instalado = window.matchMedia('(display-mode: standalone)').matches
+    // No navegador, a tela cheia precisa nascer do toque no menu para permitir
+    // o bloqueio horizontal. No app instalado, o bloqueio pode ser direto.
+    if (!instalado && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+      try {
+        await document.documentElement.requestFullscreen()
+        telaCheiaDaCamera.current = true
+      } catch { /* A PWA continua utilizável sem tela cheia. */ }
+    }
+    try {
+      if (screen.orientation?.lock) {
+        await screen.orientation.lock('landscape')
+        travouPaisagem = true
+      }
+    } catch { /* O sistema pode exigir a rotação automática do aparelho. */ }
+    if (secaoAtual.current !== 'camera') {
+      try { await screen.orientation?.lock?.('portrait') } catch { /* O manifesto mantém o retrato como padrão. */ }
+      if (telaCheiaDaCamera.current && document.fullscreenElement) await document.exitFullscreen().catch(() => {})
+      telaCheiaDaCamera.current = false
+      setTelaHorizontal(cameraEmPaisagem())
+      return
+    }
+    if (!travouPaisagem && telaCheiaDaCamera.current && document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {})
+      telaCheiaDaCamera.current = false
+    }
+    setTelaHorizontal(cameraEmPaisagem())
   }, [])
 
   const parar = () => {
@@ -303,28 +336,7 @@ export default function AppCameraPage() {
     }
     iniciando.current = true
     try {
-      let travouPaisagem = false
-      try {
-        if (screen.orientation?.lock) {
-          await screen.orientation.lock('landscape')
-          travouPaisagem = true
-        }
-      } catch { /* Tenta novamente em tela cheia quando permitido. */ }
-      if (!travouPaisagem && screen.orientation?.lock && !document.fullscreenElement && document.documentElement.requestFullscreen) {
-        try {
-          await document.documentElement.requestFullscreen()
-          telaCheiaDaCamera.current = true
-          if (screen.orientation?.lock) {
-            await screen.orientation.lock('landscape')
-            travouPaisagem = true
-          }
-        } catch { /* O navegador ou o sistema pode impedir a rotação. */ }
-      }
-      if (!travouPaisagem && telaCheiaDaCamera.current && document.fullscreenElement) {
-        await document.exitFullscreen().catch(() => {})
-        telaCheiaDaCamera.current = false
-      }
-      setTelaHorizontal(cameraEmPaisagem())
+      await orientarCamera()
       setProporcaoVideo(16 / 9)
       setEstado('Pedindo acesso à câmera e ao microfone…')
       let capturada: MediaStream
@@ -355,15 +367,15 @@ export default function AppCameraPage() {
     } finally {
       iniciando.current = false
     }
-  }, [ligada, liberarOrientacao])
+  }, [ligada, liberarOrientacao, orientarCamera])
 
   useEffect(() => {
-    if (!usuario || usuario.papel !== 'tarologo' || !vinculado) return
+    if (!usuario || usuario.papel !== 'tarologo' || !vinculado || secao !== 'camera') return
     const chave = `${usuario.uid}:${dispositivoId}`
     if (autoIniciada.current === chave) return
     autoIniciada.current = chave
     void ativar()
-  }, [usuario, vinculado, dispositivoId, ativar])
+  }, [usuario, vinculado, dispositivoId, secao, ativar])
 
   const vincular = async (evento: React.FormEvent) => {
     evento.preventDefault()
@@ -397,7 +409,24 @@ export default function AppCameraPage() {
     </div>
   </main>
 
-  const escolher = (proxima: SecaoCamera) => { setSecao(proxima); setMenuAberto(false) }
+  const escolher = (proxima: SecaoCamera) => {
+    secaoAtual.current = proxima
+    if (proxima === 'camera') {
+      if (ligada) void orientarCamera()
+    } else {
+      try {
+        void screen.orientation?.lock?.('portrait').catch(() => {
+          try { screen.orientation?.unlock() } catch { /* Mantém a orientação do aparelho. */ }
+        })
+      } catch { /* O manifesto mantém o retrato como padrão. */ }
+      if (telaCheiaDaCamera.current && document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => {})
+      }
+      telaCheiaDaCamera.current = false
+    }
+    setSecao(proxima)
+    setMenuAberto(false)
+  }
   const alternarTransmissao = () => {
     if (!ligada || !mesaAtual) return
     if (transmitindo) {
