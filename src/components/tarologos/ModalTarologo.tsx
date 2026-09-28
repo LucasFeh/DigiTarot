@@ -47,6 +47,13 @@ export default function ModalTarologo({ tarologo, onClose }: { tarologo: Tarolog
             <h2 id="tarologo-dialog-nome">{tarologo.nome}</h2>
             <div className="tarologo-dialog-rating"><Estrelas tarologo={tarologo} /></div>
             {tarologo.anosExperiencia != null && <p className="tarologo-dialog-experience"><strong>{tarologo.anosExperiencia}</strong> {tarologo.anosExperiencia === 1 ? 'ano' : 'anos'} de trabalho com tarot</p>}
+            <div className="tarologo-dialog-section">
+              <h3>Tipos de leitura</h3>
+              {modalidades.length ? <>
+                <div className="tarologo-dialog-services">{modalidades.slice(0, mostrarTodas ? undefined : 6).map((id) => <a key={id} href={`#/agendar/${encodeURIComponent(id)}`}>{PLAN_BY_ID.get(id)?.plano.title ?? id.replace(/-/g, ' ')} <span aria-hidden="true">↗</span></a>)}</div>
+                {modalidades.length > 6 && <button className="tarologo-dialog-more" type="button" onClick={() => setMostrarTodas((valor) => !valor)}>{mostrarTodas ? 'Mostrar menos' : `Ver todas as ${modalidades.length} leituras`}</button>}
+              </> : <p>Agenda em preparação.</p>}
+            </div>
             <div className="tarologo-dialog-section" id="tarologo-dialog-resumo">
               <h3>Sobre o trabalho</h3>
               <p>{tarologo.bio?.trim() || 'Apresentação profissional em breve.'}</p>
@@ -59,13 +66,6 @@ export default function ModalTarologo({ tarologo, onClose }: { tarologo: Tarolog
               <h3>Como conduz a leitura</h3>
               <p>{tarologo.abordagem}</p>
             </div>}
-            <div className="tarologo-dialog-section">
-              <h3>Leituras disponíveis</h3>
-              {modalidades.length ? <>
-                <div className="tarologo-dialog-services">{modalidades.slice(0, mostrarTodas ? undefined : 6).map((id) => <a key={id} href={`#/agendar/${encodeURIComponent(id)}`}>{PLAN_BY_ID.get(id)?.plano.title ?? id.replace(/-/g, ' ')} <span aria-hidden="true">↗</span></a>)}</div>
-                {modalidades.length > 6 && <button className="tarologo-dialog-more" type="button" onClick={() => setMostrarTodas((valor) => !valor)}>{mostrarTodas ? 'Mostrar menos' : `Ver todas as ${modalidades.length} leituras`}</button>}
-              </> : <p>Agenda em preparação.</p>}
-            </div>
           </div>
         </div>
       </div>

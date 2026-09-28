@@ -2,45 +2,14 @@ import { useCallback, useState, type CSSProperties } from 'react'
 import Footer from '../components/Footer'
 import CartaVisual from '../components/tarologos/CartaVisual'
 import ModalTarologo from '../components/tarologos/ModalTarologo'
-import { PLAN_BY_ID } from '../data/plans'
 import { useTarologos } from '../lib/tarologos'
 import type { TarologoPublico } from '../lib/backend'
 import './TarologosPage.css'
 
-function nomeDaModalidade(id: string) {
-  return PLAN_BY_ID.get(id)?.plano.title ?? id.replace(/-/g, ' ')
-}
-
 function CartaTarologo({ tarologo, indice, onOpen }: { tarologo: TarologoPublico; indice: number; onOpen: () => void }) {
-  const modalidades = Object.keys(tarologo.modalidades ?? {}).filter((id) => Number.isFinite(tarologo.modalidades[id]))
   return (
     <article className="tarologo-profile" style={{ '--card-index': indice } as CSSProperties}>
       <CartaVisual tarologo={tarologo} indice={indice} onOpen={onOpen} />
-      <div className="tarologo-profile-copy">
-        <div className="tarologo-profile-heading">
-          <div>
-            <span className="tarologo-profile-overline">Leitura com</span>
-            <h2>{tarologo.nome}</h2>
-          </div>
-          <span className="tarologo-profile-ornament" aria-hidden="true">✦</span>
-        </div>
-        <p className="tarologo-profile-bio">{tarologo.bio || 'Uma leitura feita com escuta, sensibilidade e espaço para a sua pergunta.'}</p>
-        {modalidades.length > 0 && (
-          <nav className="tarologo-modalidades" aria-label={`Leituras atendidas por ${tarologo.nome}`}>
-            {modalidades.slice(0, 3).map((id) => (
-              <a key={id} href={`#/agendar/${encodeURIComponent(id)}`}>{nomeDaModalidade(id)}</a>
-            ))}
-            {modalidades.length > 3 && <a href="#/tiragem">+ {modalidades.length - 3} opções</a>}
-          </nav>
-        )}
-        {modalidades[0] ? (
-          <a className="tarologo-link" href={`#/agendar/${encodeURIComponent(modalidades[0])}`}>
-            Escolher uma leitura <span aria-hidden="true">↗</span>
-          </a>
-        ) : (
-          <span className="tarologo-link is-unavailable">Agenda em preparação</span>
-        )}
-      </div>
     </article>
   )
 }
