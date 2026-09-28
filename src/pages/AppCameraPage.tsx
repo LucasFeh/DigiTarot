@@ -56,8 +56,7 @@ export default function AppCameraPage() {
   const [sessaoAtiva, setSessaoAtiva] = useState<Sessao | null>(null)
   const [ligada, setLigada] = useState(false)
   const [mesaEnviandoId, setMesaEnviandoId] = useState<string | null>(null)
-  const [telaHorizontal, setTelaHorizontal] = useState(cameraEmPaisagem)
-  const [proporcaoVideo, setProporcaoVideo] = useState(16 / 9)
+  const [proporcaoVideo, setProporcaoVideo] = useState(() => cameraEmPaisagem() ? 16 / 9 : 9 / 16)
   const [atualizacaoDisponivel, setAtualizacaoDisponivel] = useState(false)
   const [mudo, setMudo] = useState(false)
   const [temMicrofone, setTemMicrofone] = useState(false)
@@ -71,7 +70,6 @@ export default function AppCameraPage() {
   const iniciando = useRef(false)
   const autoIniciada = useRef<string | null>(null)
   const secaoAtual = useRef<SecaoCamera>('camera')
-  const telaCheiaDaCamera = useRef(false)
   const vinculado = Boolean(dispositivoId && vinculo?.dispositivoId === dispositivoId)
   const mesaAtual = sessaoAtiva?.id === mesaId && !sessaoAtiva.encerrada ? sessaoAtiva : null
   const transmitindo = ligada && Boolean(mesaAtual && mesaEnviandoId === mesaAtual.id && vinculado)
@@ -142,10 +140,8 @@ export default function AppCameraPage() {
       setLigada(false)
       setMesaEnviandoId(null)
       setTemMicrofone(false)
-      setProporcaoVideo(16 / 9)
+      setProporcaoVideo(cameraEmPaisagem() ? 16 / 9 : 9 / 16)
       try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
-      if (telaCheiaDaCamera.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
-      telaCheiaDaCamera.current = false
     })
   }, [backend, usuario, dispositivoId])
 
@@ -161,42 +157,12 @@ export default function AppCameraPage() {
 
   const liberarOrientacao = useCallback(() => {
     try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
-    if (telaCheiaDaCamera.current && document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => {})
-    }
-    telaCheiaDaCamera.current = false
   }, [])
 
-  const orientarCamera = useCallback(async () => {
+  const orientarCamera = useCallback(() => {
     if (secaoAtual.current !== 'camera') return
-    let travouPaisagem = false
-    const instalado = window.matchMedia('(display-mode: standalone)').matches
-    // No navegador, a tela cheia precisa nascer do toque no menu para permitir
-    // o bloqueio horizontal. No app instalado, o bloqueio pode ser direto.
-    if (!instalado && !document.fullscreenElement && document.documentElement.requestFullscreen) {
-      try {
-        await document.documentElement.requestFullscreen()
-        telaCheiaDaCamera.current = true
-      } catch { /* A PWA continua utilizável sem tela cheia. */ }
-    }
-    try {
-      if (screen.orientation?.lock) {
-        await screen.orientation.lock('landscape')
-        travouPaisagem = true
-      }
-    } catch { /* O sistema pode exigir a rotação automática do aparelho. */ }
-    if (secaoAtual.current !== 'camera') {
-      try { await screen.orientation?.lock?.('portrait') } catch { /* O manifesto mantém o retrato como padrão. */ }
-      if (telaCheiaDaCamera.current && document.fullscreenElement) await document.exitFullscreen().catch(() => {})
-      telaCheiaDaCamera.current = false
-      setTelaHorizontal(cameraEmPaisagem())
-      return
-    }
-    if (!travouPaisagem && telaCheiaDaCamera.current && document.fullscreenElement) {
-      await document.exitFullscreen().catch(() => {})
-      telaCheiaDaCamera.current = false
-    }
-    setTelaHorizontal(cameraEmPaisagem())
+    // A câmera respeita a orientação atual e acompanha a rotação do aparelho.
+    try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
   }, [])
 
   const parar = () => {
@@ -210,7 +176,7 @@ export default function AppCameraPage() {
     setMesaEnviandoId(null)
     setMudo(false)
     setTemMicrofone(false)
-    setProporcaoVideo(16 / 9)
+    setProporcaoVideo(cameraEmPaisagem() ? 16 / 9 : 9 / 16)
     setEstado('Câmera desligada.')
     liberarOrientacao()
   }
@@ -219,7 +185,6 @@ export default function AppCameraPage() {
     peer.current?.close()
     stream.current?.getTracks().forEach((t) => t.stop())
     try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
-    if (telaCheiaDaCamera.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -278,9 +243,9 @@ export default function AppCameraPage() {
     let espera: ReturnType<typeof setTimeout> | undefined
     const aoGirar = () => {
       const paisagem = cameraEmPaisagem()
-      setTelaHorizontal(paisagem)
       if (paisagem === paisagemAnterior) return
       paisagemAnterior = paisagem
+      setProporcaoVideo(paisagem ? 16 / 9 : 9 / 16)
       if (espera) clearTimeout(espera)
       espera = setTimeout(() => {
         void (async () => {
@@ -288,15 +253,14 @@ export default function AppCameraPage() {
           const faixa = atual?.getVideoTracks()[0]
           if (!atual || !faixa) return
           try {
-            await faixa.applyConstraints(restricoesCamera(true))
+            await faixa.applyConstraints(restricoesCamera())
+            return
           } catch {
             // Alguns navegadores só mudam a orientação ao abrir uma nova faixa.
           }
           if (stream.current !== atual) return
-          const { width, height } = faixa.getSettings()
-          if (width && height && width > height) return
           try {
-            const novaCaptura = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(true), audio: false })
+            const novaCaptura = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(), audio: false })
             const novaFaixa = novaCaptura.getVideoTracks()[0]
             if (!novaFaixa || stream.current !== atual) {
               novaCaptura.getTracks().forEach((t) => t.stop())
@@ -336,25 +300,18 @@ export default function AppCameraPage() {
     }
     iniciando.current = true
     try {
-      await orientarCamera()
-      setProporcaoVideo(16 / 9)
+      orientarCamera()
+      setProporcaoVideo(cameraEmPaisagem() ? 16 / 9 : 9 / 16)
       setEstado('Pedindo acesso à câmera e ao microfone…')
       let capturada: MediaStream
       try {
         capturada = await navigator.mediaDevices.getUserMedia({
-          video: restricoesCamera(true),
+          video: restricoesCamera(),
           audio: { echoCancellation: true, noiseSuppression: true },
         })
       } catch {
-        capturada = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(true), audio: false })
+        capturada = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(), audio: false })
         setEstado('Microfone indisponível. A câmera funcionará sem voz.')
-      }
-      const { width, height } = capturada.getVideoTracks()[0]?.getSettings() ?? {}
-      if (width && height && width <= height) {
-        capturada.getTracks().forEach((t) => t.stop())
-        liberarOrientacao()
-        setEstado('A câmera não iniciou na horizontal. Gire o celular, ative a Rotação automática e toque em Ligar câmera novamente.')
-        return
       }
       stream.current = capturada
       setTemMicrofone(capturada.getAudioTracks().length > 0)
@@ -412,17 +369,13 @@ export default function AppCameraPage() {
   const escolher = (proxima: SecaoCamera) => {
     secaoAtual.current = proxima
     if (proxima === 'camera') {
-      if (ligada) void orientarCamera()
+      orientarCamera()
     } else {
       try {
         void screen.orientation?.lock?.('portrait').catch(() => {
           try { screen.orientation?.unlock() } catch { /* Mantém a orientação do aparelho. */ }
         })
-      } catch { /* O manifesto mantém o retrato como padrão. */ }
-      if (telaCheiaDaCamera.current && document.fullscreenElement) {
-        void document.exitFullscreen().catch(() => {})
-      }
-      telaCheiaDaCamera.current = false
+      } catch { /* O sistema decide a orientação. */ }
     }
     setSecao(proxima)
     setMenuAberto(false)
@@ -501,7 +454,6 @@ export default function AppCameraPage() {
       </div>}
       {secao === 'camera' && vinculado && <div className="absolute right-3 top-[max(68px,calc(env(safe-area-inset-top)+68px))] z-20 max-w-[min(60vw,300px)] rounded-xl bg-black/70 px-3 py-2 text-right text-xs text-mist">
         <p role="status">{!ligada ? estado : !mesaAtual ? 'Prévia ativa · abra uma mesa no computador' : transmitindo || /^(Falha|Conexão interrompida|Não foi possível enviar)/.test(estado) ? estado : 'Prévia ativa · transmissão pausada'}</p>
-        {ligada && !telaHorizontal && <p role="alert" className="mt-1 text-gold">Gire o celular e ative a Rotação automática se a tela não acompanhar.</p>}
         {mesaAtual && <p className="mt-1 text-gold">{spread?.nome ?? 'Layout'} · posições da mesa</p>}
       </div>}
 
