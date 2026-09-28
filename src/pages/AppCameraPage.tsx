@@ -12,6 +12,21 @@ import { GeralCamera, MinhaCartaCamera, TiragensCamera, type SecaoCamera } from 
 
 const CHAVE_APARELHO = 'digitarot.camera.dispositivo'
 
+function IconeMicrofone({ mudo }: { mudo: boolean }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+    <rect x="9" y="3" width="6" height="12" rx="3" />
+    <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" />
+    {mudo && <path d="M3 3l18 18" />}
+  </svg>
+}
+
+function IconePosicoes() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+    <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+    <rect x="9" y="7" width="6" height="10" rx="1" />
+  </svg>
+}
+
 function assinaturaVersao(documento: Document): string {
   return Array.from(documento.querySelectorAll('script[type="module"][src], link[rel="modulepreload"], link[rel="stylesheet"]'))
     .map((elemento) => elemento.getAttribute('src') ?? elemento.getAttribute('href') ?? '')
@@ -40,12 +55,13 @@ export default function AppCameraPage() {
   const [mesaId, setMesaId] = useState<string | null>(null)
   const [sessaoAtiva, setSessaoAtiva] = useState<Sessao | null>(null)
   const [ligada, setLigada] = useState(false)
+  const [mesaEnviandoId, setMesaEnviandoId] = useState<string | null>(null)
   const [telaHorizontal, setTelaHorizontal] = useState(cameraEmPaisagem)
   const [proporcaoVideo, setProporcaoVideo] = useState(16 / 9)
   const [atualizacaoDisponivel, setAtualizacaoDisponivel] = useState(false)
   const [mudo, setMudo] = useState(false)
   const [temMicrofone, setTemMicrofone] = useState(false)
-  const [estado, setEstado] = useState('Toque em Câmera para preparar a transmissão.')
+  const [estado, setEstado] = useState('Preparando a câmera…')
   const [instalar, setInstalar] = useState<Event & { prompt?: () => Promise<void> } | null>(null)
   const [secao, setSecao] = useState<SecaoCamera>('camera')
   const [menuAberto, setMenuAberto] = useState(false)
@@ -57,6 +73,8 @@ export default function AppCameraPage() {
   const telaCheiaDaCamera = useRef(false)
   const vinculado = Boolean(dispositivoId && vinculo?.dispositivoId === dispositivoId)
   const mesaAtual = sessaoAtiva?.id === mesaId && !sessaoAtiva.encerrada ? sessaoAtiva : null
+  const transmitindo = ligada && Boolean(mesaAtual && mesaEnviandoId === mesaAtual.id && vinculado)
+  const sessaoIdParaEnvio = transmitindo ? mesaAtual?.id ?? null : null
   const spread = SPREAD_BY_ID.get(mesaAtual?.spreadId ?? 'una')
   const guiasAtivas = mesaAtual?.cameraGuias === true
   const guias = spread ? guiasDaCamera(spread) : []
@@ -107,8 +125,8 @@ export default function AppCameraPage() {
   }, [])
 
   useEffect(() => {
-    if (atualizacaoDisponivel && !ligada && !codigo) window.location.reload()
-  }, [atualizacaoDisponivel, ligada, codigo])
+    if (atualizacaoDisponivel && !transmitindo && !codigo) window.location.reload()
+  }, [atualizacaoDisponivel, transmitindo, codigo])
 
   useEffect(() => {
     if (!backend || !usuario || usuario.papel !== 'tarologo') return
@@ -121,6 +139,7 @@ export default function AppCameraPage() {
       stream.current = null
       if (video.current) video.current.srcObject = null
       setLigada(false)
+      setMesaEnviandoId(null)
       setTemMicrofone(false)
       setProporcaoVideo(16 / 9)
       try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
@@ -155,6 +174,7 @@ export default function AppCameraPage() {
     stream.current = null
     if (video.current) video.current.srcObject = null
     setLigada(false)
+    setMesaEnviandoId(null)
     setMudo(false)
     setTemMicrofone(false)
     setProporcaoVideo(16 / 9)
@@ -170,11 +190,12 @@ export default function AppCameraPage() {
   }, [])
 
   useEffect(() => {
-    if (!backend || !mesaId || !ligada || !vinculado || !stream.current) {
+    if (!backend || !sessaoIdParaEnvio || !stream.current) {
       peer.current?.close()
       peer.current = null
       return
     }
+    const sessaoId = sessaoIdParaEnvio
     let cancelado = false
     const conexao = criarPeer()
     peer.current = conexao
@@ -184,25 +205,39 @@ export default function AppCameraPage() {
     conexao.onconnectionstatechange = () => {
       if (cancelado) return
       if (conexao.connectionState === 'connected') setEstado('Câmera e microfone conectados à mesa.')
-      if (conexao.connectionState === 'failed' || conexao.connectionState === 'disconnected') setEstado('Conexão interrompida. Desligue e ligue a câmera para tentar novamente.')
+      if (conexao.connectionState === 'failed' || conexao.connectionState === 'disconnected') {
+        setEstado('Conexão interrompida. Toque na bolinha para tentar novamente.')
+        setMesaEnviandoId(null)
+      }
     }
-    const pararSinal = backend.observarSinal(mesaId, 'app-camera', (sinal: SinalMidia | null) => {
+    const pararSinal = backend.observarSinal(sessaoId, 'app-camera', (sinal: SinalMidia | null) => {
       if (cancelado || sinal?.versao !== versao || !sinal.resposta || sinal.resposta === 'encerrar') return
-      void receberResposta(conexao, sinal.resposta).catch(() => setEstado('Falha na conexão. Desligue e ligue a câmera.'))
+      void receberResposta(conexao, sinal.resposta).catch(() => {
+        setEstado('Falha na conexão. Toque na bolinha para tentar novamente.')
+        setMesaEnviandoId(null)
+      })
     })
     void oferecer(conexao)
-      .then((oferta) => backend.salvarSinal(mesaId, 'app-camera', {
-        tipo: 'camera', versao, oferta, resposta: '', dispositivoId,
-      }))
+      .then((oferta) => {
+        if (cancelado) return
+        return backend.salvarSinal(sessaoId, 'app-camera', {
+          tipo: 'camera', versao, oferta, resposta: '', dispositivoId,
+        })
+      })
       .then(() => { if (!cancelado) setEstado('Conectando à mesa…') })
-      .catch(() => { if (!cancelado) setEstado('Não foi possível enviar a câmera. Confira as regras do Firebase e a conexão.') })
+      .catch(() => {
+        if (cancelado) return
+        setEstado('Não foi possível enviar a câmera. Confira a conexão e tente novamente.')
+        setMesaEnviandoId(null)
+      })
     return () => {
       cancelado = true
       pararSinal()
       conexao.close()
       if (peer.current === conexao) peer.current = null
+      void backend.salvarSinal(sessaoId, 'app-camera', { oferta: '', resposta: '' }).catch(() => {})
     }
-  }, [backend, mesaId, ligada, vinculado, dispositivoId])
+  }, [backend, sessaoIdParaEnvio, dispositivoId])
 
   useEffect(() => {
     if (!ligada) return
@@ -313,14 +348,14 @@ export default function AppCameraPage() {
       setTemMicrofone(capturada.getAudioTracks().length > 0)
       if (video.current) video.current.srcObject = capturada
       setLigada(true)
-      if (!mesaId) setEstado(capturada.getAudioTracks().length ? 'Câmera e microfone prontos. Aguardando uma mesa…' : 'Câmera pronta sem microfone. Aguardando uma mesa…')
+      setEstado(capturada.getAudioTracks().length ? 'Prévia ativa. Transmissão desligada.' : 'Prévia ativa sem microfone. Transmissão desligada.')
     } catch {
       liberarOrientacao()
       setEstado('Não foi possível abrir a câmera. Confira as permissões do celular.')
     } finally {
       iniciando.current = false
     }
-  }, [ligada, mesaId, liberarOrientacao])
+  }, [ligada, liberarOrientacao])
 
   useEffect(() => {
     if (!usuario || usuario.papel !== 'tarologo' || !vinculado) return
@@ -363,6 +398,15 @@ export default function AppCameraPage() {
   </main>
 
   const escolher = (proxima: SecaoCamera) => { setSecao(proxima); setMenuAberto(false) }
+  const alternarTransmissao = () => {
+    if (!ligada || !mesaAtual) return
+    if (transmitindo) {
+      peer.current?.close()
+      peer.current = null
+    }
+    setEstado(transmitindo ? 'Prévia ativa. Transmissão pausada.' : 'Conectando à mesa…')
+    setMesaEnviandoId(transmitindo ? null : mesaAtual.id)
+  }
   const secoes: { id: SecaoCamera; titulo: string; icone: string }[] = [
     { id: 'camera', titulo: 'Câmera', icone: '◉' },
     { id: 'geral', titulo: 'Geral', icone: '☾' },
@@ -391,7 +435,9 @@ export default function AppCameraPage() {
               <span className="absolute -left-1 -top-2 rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-bold leading-none text-void">{guia.slot + 1}</span>
             </div>)}
           </div>}
-          {!ligada && <div className="absolute inset-0 grid place-items-center text-sm text-mist/70">Câmera desligada</div>}
+          {!ligada && <div className="absolute inset-0 grid place-items-center text-center text-sm text-mist/70">
+            <div><p>Prévia indisponível</p><button type="button" onClick={() => void ativar()} className="mt-3 rounded-xl border border-gold/50 bg-black/75 px-4 py-2 text-gold">Tentar abrir câmera</button></div>
+          </div>}
         </div>
       </div>}
 
@@ -403,14 +449,29 @@ export default function AppCameraPage() {
         {menuAberto ? '×' : '☰'}
       </button>
 
-      {secao === 'camera' && vinculado && <div className="absolute inset-x-4 bottom-[max(12px,env(safe-area-inset-bottom))] z-20 flex flex-wrap items-center justify-center gap-2">
-        <button type="button" onClick={() => ligada ? parar() : void ativar()} className="rounded-xl border border-white/25 bg-black/80 px-4 py-2.5 text-sm font-semibold">{ligada ? 'Desligar câmera' : 'Ligar câmera'}</button>
-        {ligada && temMicrofone && <button type="button" onClick={() => { const proximo = !mudo; stream.current?.getAudioTracks().forEach((t) => { t.enabled = !proximo }); setMudo(proximo) }} className="rounded-xl border border-white/25 bg-black/80 px-4 py-2.5 text-sm">{mudo ? 'Ativar microfone' : 'Silenciar'}</button>}
-        <button type="button" onClick={() => void alternarGuias()} disabled={!mesaAtual} aria-pressed={guiasAtivas}
-          className="rounded-xl border border-white/25 bg-black/80 px-4 py-2.5 text-sm disabled:opacity-45">{guiasAtivas ? 'Desabilitar posições' : 'Habilitar posição'}</button>
+      {secao === 'camera' && vinculado && <button type="button" aria-label={transmitindo ? 'Parar transmissão para o site' : 'Iniciar transmissão para o site'} aria-pressed={transmitindo}
+        title={!ligada ? 'A câmera ainda não está pronta' : !mesaAtual ? 'Abra uma mesa no computador para transmitir' : transmitindo ? 'Parar transmissão' : 'Iniciar transmissão'}
+        disabled={!ligada || !mesaAtual}
+        onClick={alternarTransmissao}
+        className="absolute right-[max(12px,env(safe-area-inset-right))] top-[max(12px,env(safe-area-inset-top))] z-20 grid h-12 w-12 place-items-center rounded-full border border-white/30 bg-black/80 shadow-lg disabled:cursor-not-allowed">
+        <span className={'h-5 w-5 rounded-full border-2 border-white/50 transition-all ' + (transmitindo ? 'bg-emerald-400 shadow-[0_0_18px_#4ade80,0_0_6px_#4ade80]' : 'bg-red-500 shadow-[0_0_14px_#ef4444]')} />
+      </button>}
+      {secao === 'camera' && vinculado && <div className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] right-[max(12px,env(safe-area-inset-right))] z-20 flex items-center gap-2">
+        <button type="button" aria-label={mudo ? 'Ativar microfone' : 'Silenciar microfone'} aria-pressed={mudo} title={temMicrofone ? (mudo ? 'Ativar microfone' : 'Silenciar microfone') : 'Microfone indisponível'}
+          disabled={!ligada || !temMicrofone}
+          onClick={() => { const proximo = !mudo; stream.current?.getAudioTracks().forEach((t) => { t.enabled = !proximo }); setMudo(proximo) }}
+          className={'grid h-12 w-12 place-items-center rounded-xl border bg-black/80 shadow-lg disabled:opacity-45 ' + (mudo ? 'border-red-400/70 text-red-300' : 'border-white/30 text-star')}>
+          <IconeMicrofone mudo={mudo} />
+        </button>
+        <button type="button" aria-label={guiasAtivas ? 'Desabilitar posições' : 'Habilitar posições'} aria-pressed={guiasAtivas} title={mesaAtual ? (guiasAtivas ? 'Desabilitar posições' : 'Habilitar posições') : 'Abra uma mesa para habilitar posições'}
+          disabled={!mesaAtual}
+          onClick={() => void alternarGuias()}
+          className={'grid h-12 w-12 place-items-center rounded-xl border transition-all disabled:opacity-45 ' + (guiasAtivas ? 'translate-y-px border-gold bg-gold/25 text-gold shadow-[inset_0_2px_8px_#0009,0_0_16px_#f4d48988]' : 'border-white/30 bg-black/80 text-star shadow-lg')}>
+          <IconePosicoes />
+        </button>
       </div>}
-      {secao === 'camera' && vinculado && <div className="absolute right-3 top-[max(12px,env(safe-area-inset-top))] z-20 max-w-[min(60vw,340px)] rounded-xl bg-black/70 px-3 py-2 text-right text-xs text-mist">
-        <p role="status">{ligada && !mesaId ? 'Câmera pronta · aguardando mesa no computador' : estado}</p>
+      {secao === 'camera' && vinculado && <div className="absolute right-3 top-[max(68px,calc(env(safe-area-inset-top)+68px))] z-20 max-w-[min(60vw,300px)] rounded-xl bg-black/70 px-3 py-2 text-right text-xs text-mist">
+        <p role="status">{!ligada ? estado : !mesaAtual ? 'Prévia ativa · abra uma mesa no computador' : transmitindo || /^(Falha|Conexão interrompida|Não foi possível enviar)/.test(estado) ? estado : 'Prévia ativa · transmissão pausada'}</p>
         {ligada && !telaHorizontal && <p role="alert" className="mt-1 text-gold">Gire o celular e ative a Rotação automática se a tela não acompanhar.</p>}
         {mesaAtual && <p className="mt-1 text-gold">{spread?.nome ?? 'Layout'} · posições da mesa</p>}
       </div>}
@@ -447,7 +508,7 @@ export default function AppCameraPage() {
             className={'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm ' + (secao === item.id ? 'bg-gold/15 text-gold' : 'text-star hover:bg-white/10')}><span aria-hidden>{item.icone}</span>{item.titulo}</button></li>)}</ul>
           <button type="button" onClick={() => { parar(); void sair() }} className="mt-8 w-full rounded-xl border border-white/20 px-3 py-3 text-left text-sm text-mist">Sair</button>
           {instalar?.prompt && <button type="button" onClick={() => { void instalar.prompt?.(); setInstalar(null) }} className="mt-3 w-full rounded-xl border border-gold/40 px-3 py-3 text-left text-sm text-gold">Instalar aplicativo</button>}
-          {atualizacaoDisponivel && <p className="mt-4 px-3 text-xs text-gold">Nova versão disponível. Ela será aplicada após desligar a câmera.</p>}
+          {atualizacaoDisponivel && <p className="mt-4 px-3 text-xs text-gold">Nova versão disponível. Ela será aplicada após parar a transmissão.</p>}
         </nav>
       </>}
     </main>
