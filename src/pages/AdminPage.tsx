@@ -164,6 +164,32 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     }
   }
 
+  const remover = async () => {
+    if (!backend || !usuario?.admin || !selecionado || selecionado === EMAIL_TAROLOGO || salvando) return
+    const profissional = tarologos.find((item) => item.uid === selecionado)
+    const pendentes = agendamentos.filter((item) => item.tarologoUid === selecionado
+      && item.data >= chaveDia(new Date())
+      && item.status !== 'cancelado'
+      && !item.atendidoEm).length
+    const avisoReservas = pendentes > 0
+      ? `\n\nAtenção: há ${pendentes} ${pendentes === 1 ? 'reserva futura ou pendente' : 'reservas futuras ou pendentes'} com este profissional. Resolva esses atendimentos com os clientes.`
+      : ''
+    if (!window.confirm(`Remover ${profissional?.nome ?? selecionado} da equipe de tarólogos?\n\nA carta pública e a chave Pix serão removidas. A conta de login continua existindo como cliente, e o histórico de atendimentos será preservado.${avisoReservas}`)) return
+    setSalvando(true)
+    setErroEdicao(null)
+    setMensagem(null)
+    try {
+      await backend.removerTarologo(selecionado)
+      setSelecionado(null)
+      setFormulario(novoFormulario())
+      setMensagem('Tarólogo removido. A conta agora pode ser usada como cliente.')
+    } catch (erro) {
+      setErroEdicao(erro instanceof Error ? `Não foi possível remover: ${erro.message}` : 'Não foi possível remover o tarólogo.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
   if (carregandoConta) {
     return <main className="grid min-h-[60vh] place-items-center text-mist">Carregando acesso…</main>
   }
@@ -288,7 +314,10 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
             </div>
             {erroEdicao && <p role="alert" className="mt-5 rounded-xl border border-rose/40 bg-rose/10 p-3 text-[13px] text-rose">{erroEdicao}</p>}
             {mensagem && <p role="status" className="mt-5 rounded-xl border border-gold/35 bg-gold/10 p-3 text-[13px] text-gold">{mensagem}</p>}
-            <div className="mt-7 flex justify-end">
+            <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
+              {selecionado && selecionado !== EMAIL_TAROLOGO ? (
+                <button type="button" onClick={() => void remover()} disabled={salvando} className="rounded-full border border-rose/40 px-5 py-3 text-[14px] text-rose transition hover:bg-rose/10 disabled:opacity-50">Remover tarólogo</button>
+              ) : <span />}
               <button type="button" onClick={() => void salvar()} disabled={salvando} className="rounded-full bg-gold px-7 py-3 text-[14px] font-medium text-void transition hover:brightness-110 disabled:opacity-50">{salvando ? 'Salvando…' : selecionado ? 'Salvar nome' : 'Cadastrar acesso'}</button>
             </div>
           </div>

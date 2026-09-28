@@ -563,6 +563,18 @@ export class LocalBackend implements Backend {
     this.avisar('tarologos')
   }
 
+  async removerTarologo(uid: string) {
+    const id = uid.trim().toLowerCase()
+    if (!id || id === EMAIL_TAROLOGO) throw new Error('A conta administradora não pode ser removida.')
+    const tarologos = ler<Record<string, TarologoPublico>>(CHAVE_TAROLOGOS, {})
+    const pix = ler<Record<string, TarologoPix>>(CHAVE_PIX_TAROLOGOS, {})
+    delete tarologos[id]
+    delete pix[id]
+    gravar(CHAVE_TAROLOGOS, tarologos)
+    gravar(CHAVE_PIX_TAROLOGOS, pix)
+    this.avisar('tarologos')
+  }
+
   async salvarModalidadesTarologo(uid: string, modalidades: Record<string, number>) {
     await this.salvarTarologo(uid, { modalidades })
   }

@@ -262,7 +262,7 @@ service cloud.firestore {
                     && request.resource.data.uid == tarologoId
                     && request.resource.data.email == tarologoId
                     && request.resource.data.modalidades is map;
-      allow delete: if ehAdmin();
+      allow delete: if ehAdmin() && tarologoId != 'rodriv.l680@gmail.com';
     }
 
     // A chave Pix é legível pelo recebedor, admin e cliente com reserva válida.
@@ -288,7 +288,7 @@ service cloud.firestore {
                             && request.resource.data.cidade is string
                             && request.resource.data.cidade.size() > 0
                             && request.resource.data.cidade.size() <= 15;
-      allow delete: if false;
+      allow delete: if ehAdmin() && tarologoId != 'rodriv.l680@gmail.com';
     }
 
     match /pixAcessos/{acessoId} {

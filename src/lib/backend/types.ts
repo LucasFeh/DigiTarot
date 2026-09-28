@@ -417,6 +417,7 @@ export interface Backend {
   observarTarologos(cb: (lista: TarologoPublico[]) => void, onError?: (erro: string) => void): Unsubscribe
   observarTarologo(uid: string, cb: (perfil: TarologoPublico | null) => void): Unsubscribe
   salvarTarologo(uid: string, patch: Partial<TarologoPublico>): Promise<void>
+  removerTarologo(uid: string): Promise<void>
   salvarModalidadesTarologo(uid: string, modalidades: Record<string, number>): Promise<void>
   publicarCartaTarologo(uid: string, foto: string, personagem: string): Promise<void>
   salvarApresentacaoTarologo(uid: string, dados: ApresentacaoTarologo): Promise<void>

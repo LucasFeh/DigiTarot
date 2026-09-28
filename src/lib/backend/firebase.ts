@@ -542,6 +542,15 @@ export class FirebaseBackend implements Backend {
     await setDoc(ref, novo)
   }
 
+  async removerTarologo(uid: string) {
+    const id = idTarologo(uid)
+    if (!id || id === TAROLOGO_RODRIGO.uid) throw new Error('A conta administradora não pode ser removida.')
+    const lote = writeBatch(this.db)
+    lote.delete(doc(this.db, 'pixTarologos', id))
+    lote.delete(doc(this.db, 'tarologos', id))
+    await lote.commit()
+  }
+
   async salvarModalidadesTarologo(uid: string, modalidades: Record<string, number>) {
     await updateDoc(doc(this.db, 'tarologos', idTarologo(uid)), { modalidades })
   }
