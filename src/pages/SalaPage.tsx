@@ -25,6 +25,7 @@ import SeletorTema from '../components/temas/SeletorTema'
 import LoginPage from './LoginPage'
 import type { CartaNaMesa, Sessao } from '../lib/backend'
 import type { TemaBaralho, TemaPano } from '../lib/temas/tipos'
+import { slotDaCamera, type CartaReconhecida } from '../lib/posicaoCartaCamera'
 
 // O Three.js só entra no bundle de quem abre a sala.
 const Sala3D = lazy(() => import('../components/sala/Sala3D'))
@@ -97,6 +98,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   /** Onde cada slot está na tela. A cena preenche enquanto se arrasta. */
   const projecao = useRef<{ slot: number; x: number; y: number }[]>([])
   const arrastando = useRef(false)
+  const cartasAtuais = useRef<CartaNaMesa[]>([])
 
   // Os hooks vêm todos ANTES dos early returns — é a regra dos hooks, e o
   // `useVisual` já trata sessão nula.
@@ -180,6 +182,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   )
 
   const cartas = sessao?.cartas ?? []
+  useEffect(() => { cartasAtuais.current = sessao?.cartas ?? [] }, [sessao])
   const spread = SPREAD_BY_ID.get(sessao?.spreadId ?? 'tres')
   const panoEmbutidoId = panoEmbutidoDe(visual.visivel.panoId)
 
@@ -334,6 +337,19 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
         </div>
       </main>
     )
+  }
+
+  const reconhecerCarta = (carta: CartaReconhecida): boolean => {
+    if (!backend || !sessao || !ehTarologo || !spread || sessao.encerrada) return false
+    const slot = slotDaCamera(carta, spread, cartasAtuais.current)
+    if (slot === null) return false
+    const atualizadas = [...cartasAtuais.current, {
+      slot, cardId: carta.cardId, invertida: carta.invertida, revelada: true,
+    }]
+    cartasAtuais.current = atualizadas
+    void backend.atualizarSessao(sessao.id, { cartas: atualizadas })
+      .catch(() => setErroEncerrar('Não foi possível colocar a carta reconhecida na mesa.'))
+    return true
   }
 
   if (sessao.encerrada) {
@@ -642,7 +658,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           que é o que a pessoa realmente precisa ver. */}
       <div data-sala className="relative h-[calc(100vh-4rem)] w-full overflow-hidden">
         {cena}
-        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} onConexao={setCameraConectada} />}
+        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} onConexao={setCameraConectada} temaBaralho={baralho.tema} onCartaReconhecida={reconhecerCarta} />}
 
         <BarraFerramentas
           cartas={cartas}

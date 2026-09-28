@@ -1,6 +1,6 @@
 import { CARDS } from '../../data/cards'
 import { PANOS, panoDataUri } from '../../data/panos'
-import type { ChaveArte, Tema, TemaPano } from './tipos'
+import type { ChaveArte, Tema, TemaBaralho, TemaPano } from './tipos'
 
 /**
  * Temas que vêm com o site.
@@ -16,7 +16,7 @@ import type { ChaveArte, Tema, TemaPano } from './tipos'
  */
 const RAIZ = `${import.meta.env.BASE_URL}baralhos`
 
-export const RIDER_WAITE: Tema = {
+export const RIDER_WAITE: TemaBaralho = {
   id: 'embutido-rider-waite',
   tipo: 'baralho',
   nome: 'Rider-Waite',
