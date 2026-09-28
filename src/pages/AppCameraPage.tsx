@@ -3,11 +3,19 @@ import { useAuth } from '../lib/useAuth'
 import { useHashRoute } from '../lib/useHashRoute'
 import { novoToken } from '../lib/backend/local'
 import { criarPeer, oferecer, receberResposta } from '../lib/webrtc'
-import { PROPORCAO_CAMERA_RETRATO } from '../lib/posicaoCamera'
-import type { SinalMidia, VinculacaoCamera } from '../lib/backend'
+import { cameraEmPaisagem, restricoesCamera } from '../lib/capturaCamera'
+import { guiasDaCamera } from '../lib/posicaoCartaCamera'
+import { SPREAD_BY_ID } from '../data/spreads'
+import type { Sessao, SinalMidia, VinculacaoCamera } from '../lib/backend'
 import LoginPage from './LoginPage'
 
 const CHAVE_APARELHO = 'digitarot.camera.dispositivo'
+
+function assinaturaVersao(documento: Document): string {
+  return Array.from(documento.querySelectorAll('script[type="module"][src], link[rel="modulepreload"], link[rel="stylesheet"]'))
+    .map((elemento) => elemento.getAttribute('src') ?? elemento.getAttribute('href') ?? '')
+    .join('|')
+}
 
 function idDesteAparelho(): string {
   try {
@@ -29,7 +37,10 @@ export default function AppCameraPage() {
   const [codigo, setCodigo] = useState(partes[1] ?? '')
   const [vinculo, setVinculo] = useState<VinculacaoCamera | null>(null)
   const [mesaId, setMesaId] = useState<string | null>(null)
+  const [sessaoAtiva, setSessaoAtiva] = useState<Sessao | null>(null)
   const [ligada, setLigada] = useState(false)
+  const [proporcaoVideo, setProporcaoVideo] = useState(9 / 16)
+  const [atualizacaoDisponivel, setAtualizacaoDisponivel] = useState(false)
   const [mudo, setMudo] = useState(false)
   const [temMicrofone, setTemMicrofone] = useState(false)
   const [estado, setEstado] = useState('Toque em Câmera para preparar a transmissão.')
@@ -39,6 +50,10 @@ export default function AppCameraPage() {
   const peer = useRef<RTCPeerConnection | null>(null)
   const iniciando = useRef(false)
   const vinculado = Boolean(dispositivoId && vinculo?.dispositivoId === dispositivoId)
+  const mesaAtual = sessaoAtiva?.id === mesaId && !sessaoAtiva.encerrada ? sessaoAtiva : null
+  const spread = SPREAD_BY_ID.get(mesaAtual?.spreadId ?? 'una')
+  const guiasAtivas = mesaAtual?.cameraGuias === true
+  const guias = spread ? guiasDaCamera(spread) : []
 
   useEffect(() => {
     const receber = (evento: Event) => { evento.preventDefault(); setInstalar(evento as Event & { prompt?: () => Promise<void> }) }
@@ -47,10 +62,48 @@ export default function AppCameraPage() {
   }, [])
 
   useEffect(() => {
-    if ('serviceWorker' in navigator && import.meta.env.PROD) {
-      void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}camera-sw.js`, { scope: import.meta.env.BASE_URL })
+    if (!import.meta.env.PROD) return
+    try { screen.orientation?.unlock() } catch { /* A rotação segue a configuração do aparelho. */ }
+    let cancelado = false
+    let registro: ServiceWorkerRegistration | null = null
+    const versaoAtual = assinaturaVersao(document)
+    const verificar = async () => {
+      if (document.visibilityState === 'hidden') return
+      try {
+        await registro?.update()
+        const url = `${import.meta.env.BASE_URL}camera-app.html?atualizacao=${Date.now()}`
+        const resposta = await fetch(url, { cache: 'no-store' })
+        if (!resposta.ok || cancelado) return
+        const html = new DOMParser().parseFromString(await resposta.text(), 'text/html')
+        const ultimaVersao = assinaturaVersao(html)
+        if (ultimaVersao && versaoAtual && ultimaVersao !== versaoAtual) setAtualizacaoDisponivel(true)
+      } catch {
+        // Sem rede, a versão instalada continua utilizável.
+      }
+    }
+    if ('serviceWorker' in navigator) {
+      void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}camera-sw.js`, {
+        scope: import.meta.env.BASE_URL,
+        updateViaCache: 'none',
+      }).then((r) => { registro = r; return verificar() }).catch(() => {})
+    } else {
+      void verificar()
+    }
+    const aoVisivel = () => { if (document.visibilityState === 'visible') void verificar() }
+    window.addEventListener('focus', aoVisivel)
+    document.addEventListener('visibilitychange', aoVisivel)
+    const intervalo = window.setInterval(() => void verificar(), 5 * 60 * 1000)
+    return () => {
+      cancelado = true
+      window.removeEventListener('focus', aoVisivel)
+      document.removeEventListener('visibilitychange', aoVisivel)
+      window.clearInterval(intervalo)
     }
   }, [])
+
+  useEffect(() => {
+    if (atualizacaoDisponivel && !ligada && !codigo) window.location.reload()
+  }, [atualizacaoDisponivel, ligada, codigo])
 
   useEffect(() => {
     if (!backend || !usuario || usuario.papel !== 'tarologo') return
@@ -71,6 +124,11 @@ export default function AppCameraPage() {
     if (!backend || !usuario || !vinculado) return
     return backend.observarMesaAtiva(usuario.uid, setMesaId)
   }, [backend, usuario, vinculado])
+
+  useEffect(() => {
+    if (!backend || !mesaId || !vinculado) return
+    return backend.observarSessao(mesaId, setSessaoAtiva)
+  }, [backend, mesaId, vinculado])
 
   const parar = () => {
     if (backend && mesaId) void backend.salvarSinal(mesaId, 'app-camera', { oferta: '', resposta: '' }).catch(() => {})
@@ -125,6 +183,61 @@ export default function AppCameraPage() {
     }
   }, [backend, mesaId, ligada, vinculado, dispositivoId])
 
+  useEffect(() => {
+    if (!ligada) return
+    let paisagemAnterior = cameraEmPaisagem()
+    let espera: ReturnType<typeof setTimeout> | undefined
+    const aoGirar = () => {
+      const paisagem = cameraEmPaisagem()
+      if (paisagem === paisagemAnterior) return
+      paisagemAnterior = paisagem
+      if (espera) clearTimeout(espera)
+      espera = setTimeout(() => {
+        void (async () => {
+          const atual = stream.current
+          const faixa = atual?.getVideoTracks()[0]
+          if (!atual || !faixa) return
+          try {
+            await faixa.applyConstraints(restricoesCamera())
+          } catch {
+            // Alguns navegadores só mudam a orientação ao abrir uma nova faixa.
+          }
+          if (stream.current !== atual) return
+          const { width, height } = faixa.getSettings()
+          if (width && height && (width > height) === paisagem) return
+          try {
+            const novaCaptura = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(), audio: false })
+            const novaFaixa = novaCaptura.getVideoTracks()[0]
+            if (!novaFaixa || stream.current !== atual) {
+              novaCaptura.getTracks().forEach((t) => t.stop())
+              return
+            }
+            const emissor = peer.current?.getSenders().find((s) => s.track?.kind === 'video')
+            if (emissor) await emissor.replaceTrack(novaFaixa)
+            atual.removeTrack(faixa)
+            faixa.stop()
+            atual.addTrack(novaFaixa)
+            if (video.current) {
+              video.current.srcObject = null
+              video.current.srcObject = atual
+            }
+          } catch {
+            setEstado('O navegador não ajustou a imagem. Desligue e ligue a câmera com o celular na posição desejada.')
+          }
+        })()
+      }, 250)
+    }
+    window.addEventListener('resize', aoGirar)
+    window.addEventListener('orientationchange', aoGirar)
+    screen.orientation?.addEventListener('change', aoGirar)
+    return () => {
+      if (espera) clearTimeout(espera)
+      window.removeEventListener('resize', aoGirar)
+      window.removeEventListener('orientationchange', aoGirar)
+      screen.orientation?.removeEventListener('change', aoGirar)
+    }
+  }, [ligada])
+
   const ativar = async () => {
     if (iniciando.current || ligada) return
     if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) {
@@ -133,21 +246,16 @@ export default function AppCameraPage() {
     }
     iniciando.current = true
     try {
+      void screen.orientation?.lock('any').catch(() => {})
       setEstado('Pedindo acesso à câmera e ao microfone…')
       let capturada: MediaStream
-      const videoRetrato = {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 720 },
-        height: { ideal: 1280 },
-        aspectRatio: { ideal: PROPORCAO_CAMERA_RETRATO },
-      }
       try {
         capturada = await navigator.mediaDevices.getUserMedia({
-          video: videoRetrato,
+          video: restricoesCamera(),
           audio: { echoCancellation: true, noiseSuppression: true },
         })
       } catch {
-        capturada = await navigator.mediaDevices.getUserMedia({ video: videoRetrato, audio: false })
+        capturada = await navigator.mediaDevices.getUserMedia({ video: restricoesCamera(), audio: false })
         setEstado('Microfone indisponível. A câmera funcionará sem voz.')
       }
       stream.current = capturada
@@ -174,6 +282,15 @@ export default function AppCameraPage() {
     }
   }
 
+  const alternarGuias = async () => {
+    if (!backend || !mesaAtual) return
+    try {
+      await backend.atualizarSessao(mesaAtual.id, { cameraGuias: !guiasAtivas })
+    } catch {
+      setEstado('Não foi possível alterar as posições da câmera. Tente novamente.')
+    }
+  }
+
   if (carregando || !backend) return <main className="grid min-h-svh place-items-center text-mist">Abrindo aplicativo…</main>
   if (!usuario) return <LoginPage titulo="DigiTarot Câmera" descricao="Entre com a mesma conta de tarólogo que você usa no site." voltarPara={`${import.meta.env.BASE_URL}#/`} />
   if (usuario.papel !== 'tarologo') return <main className="grid min-h-svh place-items-center px-6 text-center text-mist">Este aplicativo é para contas de tarólogo. Entre com a conta criada para seus atendimentos.</main>
@@ -196,19 +313,44 @@ export default function AppCameraPage() {
         </section>
       ) : (
         <>
-          <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-black">
-            <video ref={video} autoPlay muted playsInline aria-hidden={!ligada} className="aspect-[9/16] max-h-[60svh] w-full object-contain" />
+          <div className="relative mx-auto overflow-hidden rounded-2xl border border-white/15 bg-black"
+            style={{ width: `min(100%, ${proporcaoVideo * 66}svh)`, aspectRatio: proporcaoVideo }}>
+            <video ref={video} autoPlay muted playsInline aria-hidden={!ligada}
+              onLoadedMetadata={(e) => {
+                const { videoWidth, videoHeight } = e.currentTarget
+                if (videoWidth && videoHeight) setProporcaoVideo(videoWidth / videoHeight)
+              }}
+              onResize={(e) => {
+                const { videoWidth, videoHeight } = e.currentTarget
+                if (videoWidth && videoHeight) setProporcaoVideo(videoWidth / videoHeight)
+              }}
+              className="absolute inset-0 h-full w-full object-contain" />
+            {ligada && guiasAtivas && <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              {guias.map((guia) => <div key={guia.slot}
+                className="absolute rounded-md border-2 border-gold bg-gold/10 shadow-[0_0_14px_#f4d48988]"
+                style={{ left: `${guia.x * 100}%`, top: `${guia.y * 100}%`, width: `${guia.largura * 100}%`, height: `${guia.altura * 100}%`, transform: 'translate(-50%, -50%)' }}>
+                <span className="absolute -left-1 -top-2 rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-bold leading-none text-void">{guia.slot + 1}</span>
+              </div>)}
+            </div>}
             {!ligada && <div className="absolute inset-0 grid place-items-center text-center text-sm text-mist/60"><span><span aria-hidden className="mb-3 block text-4xl text-gold/70">◉</span>Câmera desligada</span></div>}
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => ligada ? parar() : void ativar()} className={`flex-1 rounded-xl px-5 py-3.5 font-semibold ${ligada ? 'border border-rose/50 text-rose' : 'bg-gold text-void'}`}>{ligada ? 'Desligar câmera' : 'Câmera'}</button>
             {ligada && temMicrofone ? <button type="button" onClick={() => { const proximo = !mudo; stream.current?.getAudioTracks().forEach((t) => { t.enabled = !proximo }); setMudo(proximo) }} className="rounded-xl border border-white/20 px-4 text-sm">{mudo ? 'Ativar microfone' : 'Silenciar'}</button> : null}
           </div>
+          <button type="button" onClick={() => void alternarGuias()} disabled={!mesaAtual} aria-pressed={guiasAtivas}
+            className={`rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-45 ${guiasAtivas ? 'border-gold bg-gold/15 text-gold' : 'border-white/20 text-mist'}`}>
+            {guiasAtivas ? 'Desabilitar posições' : 'Habilitar posição'}
+          </button>
+          <p className="text-center text-xs leading-relaxed text-mist/60">
+            {mesaAtual ? `${spread?.nome ?? 'Layout'} · coloque as cartas dentro das marcações. O layout acompanha a mesa.` : 'Abra uma mesa no computador para habilitar as posições das cartas.'}
+          </p>
           <p className="text-center text-xs text-mist/60">Mantenha o aplicativo aberto e a tela ligada durante a leitura.</p>
           <p className="text-center text-xs text-mist/60">Sua voz sai pelo microfone do celular. A voz do cliente é ouvida no computador, pela conversa da mesa.</p>
         </>
       )}
       <p role="status" className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm text-mist">{ligada && !mesaId ? `Câmera pronta${temMicrofone ? ' e microfone pronto' : ' sem microfone'}. Aguardando você abrir uma mesa no computador…` : estado}</p>
+      {atualizacaoDisponivel && (ligada || codigo) && <p className="rounded-xl border border-gold/35 px-4 py-2 text-center text-xs text-gold">Nova versão pronta. Ela será aplicada automaticamente {ligada ? 'quando você desligar a câmera' : 'após vincular este celular'}.</p>}
       {instalar?.prompt && <button type="button" onClick={() => { void instalar.prompt?.(); setInstalar(null) }} className="rounded-xl border border-gold/50 px-4 py-3 text-sm text-gold">Instalar aplicativo neste celular</button>}
       <p className="text-center text-xs leading-relaxed text-mist/50">No iPhone, use Compartilhar → Adicionar à Tela de Início. No Android, use Instalar aplicativo no menu do navegador.</p>
     </main>

@@ -342,7 +342,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
 
   const reconhecerCarta = (carta: CartaReconhecida): boolean => {
     if (!backend || !sessao || !ehTarologo || !spread || sessao.encerrada) return false
-    const slot = slotDaCamera(carta, spread, cartasAtuais.current)
+    const slot = slotDaCamera(carta, spread, cartasAtuais.current, sessao.cameraGuias === true)
     if (slot === null) return false
     const atualizadas = [...cartasAtuais.current, {
       slot, cardId: carta.cardId, invertida: carta.invertida, revelada: true,

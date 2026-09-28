@@ -75,6 +75,13 @@ precisa ficar aberto, com a tela ligada e conexão de internet. Se o microfone
 for negado, a câmera ainda funciona e o tarólogo pode usar o microfone do
 computador. A voz do cliente é reproduzida no computador da mesa.
 
+O vídeo acompanha a orientação do celular e o aplicativo busca versões novas
+ao abrir, voltar à tela e a cada cinco minutos. Se houver atualização durante
+uma transmissão, ele a aplica após desligar a câmera. Com uma mesa aberta,
+**Habilitar posição** mostra as marcações do layout sobre a imagem. A análise
+passa a examinar essas áreas e usa cada marcação para escolher o lugar da carta;
+a arte da carta ainda precisa ser reconhecida.
+
 O Firestore usa `mesasAtivas/{uid}` para impedir duas mesas simultâneas. Abrir
 e encerrar uma mesa atualiza esse ponteiro em transação; uma mesa encerrada não
 pode ser reaberta. **Publique `firestore.rules` antes de publicar o site**:

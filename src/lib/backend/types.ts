@@ -252,6 +252,8 @@ export type Sessao = {
   cameraModo?: 'sobreposta' | 'camera'
   cameraPosicao?: { x: number; y: number }
   cameraVisivel?: boolean
+  /** Guias posicionadas sobre o vídeo para localizar as cartas no layout. */
+  cameraGuias?: boolean
   /** Largura da câmera sobreposta, em porcentagem da sala. */
   cameraTamanho?: number
   chatLado?: LadoMesa

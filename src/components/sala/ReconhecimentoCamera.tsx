@@ -3,7 +3,7 @@ import { CARDS, CARD_BY_ID } from '../../data/cards'
 import { RIDER_WAITE } from '../../lib/temas/embutidos'
 import { repoTemas } from '../../lib/temas'
 import type { TemaBaralho } from '../../lib/temas/tipos'
-import type { CartaReconhecida } from '../../lib/posicaoCartaCamera'
+import type { CartaReconhecida, GuiaCamera } from '../../lib/posicaoCartaCamera'
 
 type Referencia = { id: string; url?: string; blob?: Blob }
 type Deteccao = CartaReconhecida & { pontos: number }
@@ -25,14 +25,20 @@ async function referenciasDoBaralho(tema: TemaBaralho | null): Promise<Referenci
 }
 
 /** A câmera conectada é analisada continuamente neste aparelho. */
-export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao }: {
+export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao, guias, spreadId }: {
   videoRef: RefObject<HTMLVideoElement | null>
   temaBaralho: TemaBaralho | null
   onDeteccao: (carta: CartaReconhecida) => boolean
+  guias: GuiaCamera[]
+  spreadId: string
 }) {
   const [estado, setEstado] = useState('Preparando reconhecimento automático…')
   const aoDetectar = useRef(onDeteccao)
+  const guiasAtuais = useRef(guias)
+  const enviadas = useRef(new Set<string>())
   useEffect(() => { aoDetectar.current = onDeteccao }, [onDeteccao])
+  useEffect(() => { guiasAtuais.current = guias }, [guias])
+  useEffect(() => { enviadas.current.clear() }, [spreadId, temaBaralho])
 
   useEffect(() => {
     let cancelado = false
@@ -40,7 +46,6 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
     let trabalhador: Worker | undefined
     let ocupado = false
     const estaveis = new Map<string, { x: number; y: number; invertida: boolean; vezes: number }>()
-    const enviadas = new Set<string>()
     const canvas = document.createElement('canvas')
     const contexto = canvas.getContext('2d', { willReadFrequently: true })
 
@@ -53,6 +58,23 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
       canvas.width = largura
       canvas.height = altura
       contexto.drawImage(video, 0, 0, largura, altura)
+      if (guiasAtuais.current.length) {
+        contexto.save()
+        contexto.globalCompositeOperation = 'destination-in'
+        contexto.fillStyle = '#fff'
+        contexto.beginPath()
+        for (const guia of guiasAtuais.current) {
+          const margem = 0.055
+          contexto.rect(
+            (guia.x - guia.largura / 2 - margem) * largura,
+            (guia.y - guia.altura / 2 - margem) * altura,
+            (guia.largura + margem * 2) * largura,
+            (guia.altura + margem * 2) * altura,
+          )
+        }
+        contexto.fill()
+        contexto.restore()
+      }
       const quadro = contexto.getImageData(0, 0, largura, altura)
       ocupado = true
       trabalhador.postMessage({ tipo: 'quadro', largura, altura, pixels: quadro.data.buffer }, [quadro.data.buffer])
@@ -91,7 +113,7 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
             const vistos = new Set(mensagem.deteccoes.map((d) => d.cardId))
             for (const [id] of estaveis) if (!vistos.has(id)) estaveis.delete(id)
             for (const deteccao of mensagem.deteccoes) {
-              if (enviadas.has(deteccao.cardId)) continue
+              if (enviadas.current.has(deteccao.cardId)) continue
               const anterior = estaveis.get(deteccao.cardId)
               const consistente = anterior && anterior.invertida === deteccao.invertida
                 && Math.hypot(anterior.x - deteccao.x, anterior.y - deteccao.y) < 0.09
@@ -99,7 +121,7 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
               estaveis.set(deteccao.cardId, { x: deteccao.x, y: deteccao.y, invertida: deteccao.invertida, vezes })
               if (vezes < 2) continue
               if (aoDetectar.current(deteccao)) {
-                enviadas.add(deteccao.cardId)
+                enviadas.current.add(deteccao.cardId)
                 const nome = CARD_BY_ID.get(deteccao.cardId)?.nome ?? 'Carta'
                 setEstado(`${nome}${deteccao.invertida ? ' invertida' : ''} colocada na mesa.`)
               }
@@ -125,7 +147,7 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
   return (
     <div className="pointer-events-none absolute right-2 top-2 z-20 flex max-w-[55%] flex-col items-end gap-1.5">
       <p role="status" className="max-w-56 rounded-lg border border-gold/40 bg-black/85 px-2 py-1 text-right text-[11px] leading-snug text-gold">✦ Reconhecimento automático · {estado}</p>
-      <p className="max-w-56 rounded-lg bg-black/85 px-2 py-1 text-right text-[11px] leading-snug text-mist">Use o mesmo baralho das imagens selecionadas e a câmera apontada de cima.</p>
+      <p className="max-w-56 rounded-lg bg-black/85 px-2 py-1 text-right text-[11px] leading-snug text-mist">{guias.length ? 'As guias definem o lugar; a análise lê qual carta entrou em cada marcação.' : 'Use o mesmo baralho das imagens selecionadas e a câmera apontada de cima.'}</p>
     </div>
   )
 }

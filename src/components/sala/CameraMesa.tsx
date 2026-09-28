@@ -6,7 +6,8 @@ import { criarPeer, oferecer, receberResposta, responder } from '../../lib/webrt
 import { limitarQuadro, redimensionarQuadro, PROPORCAO_CAMERA_RETRATO, type DirecaoAjuste, type QuadroCamera } from '../../lib/posicaoCamera'
 import ReconhecimentoCamera from './ReconhecimentoCamera'
 import type { TemaBaralho } from '../../lib/temas/tipos'
-import type { CartaReconhecida } from '../../lib/posicaoCartaCamera'
+import { guiasDaCamera, type CartaReconhecida } from '../../lib/posicaoCartaCamera'
+import { SPREAD_BY_ID } from '../../data/spreads'
 
 const ALCAS: { direcao: DirecaoAjuste; posicao: string; cursor: string }[] = [
   { direcao: 'nw', posicao: 'left-1 top-1', cursor: 'cursor-nwse-resize' },
@@ -229,7 +230,7 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
       setCameraSinal(null)
       setQrAberto(true)
       setErro('')
-      await backend.atualizarSessao(sessao.id, { cameraVisivel: true, cameraModo: 'sobreposta' })
+      await backend.atualizarSessao(sessao.id, { cameraVisivel: true, cameraModo: 'sobreposta', cameraGuias: false })
     } catch {
       setErro('Não foi possível gerar o QR. Confira as regras de acesso do Firebase.')
     }
@@ -333,7 +334,8 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
             }}
             className="absolute inset-0 h-full w-full object-contain"
           />
-          {ehTarologo && onCartaReconhecida && <ReconhecimentoCamera videoRef={videoEl} temaBaralho={temaBaralho ?? null} onDeteccao={onCartaReconhecida} />}
+          {ehTarologo && onCartaReconhecida && <ReconhecimentoCamera videoRef={videoEl} temaBaralho={temaBaralho ?? null} onDeteccao={onCartaReconhecida}
+            guias={sessao.cameraGuias ? guiasDaCamera(SPREAD_BY_ID.get(sessao.spreadId) ?? SPREAD_BY_ID.get('una')!) : []} spreadId={sessao.spreadId} />}
           {ehTarologo && modo === 'sobreposta' && <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1 text-[11px] text-white">Arraste para mover</span>}
           {ehTarologo && <div className="absolute left-2 top-2 flex flex-wrap gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
             <button type="button" onClick={alternarModo} className="rounded-full border border-gold/50 bg-black/80 px-3 py-1.5 text-xs text-gold">{modo === 'camera' ? 'Voltar à mesa 3D' : 'Ver só câmera'}</button>

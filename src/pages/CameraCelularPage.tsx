@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { criarPeer, oferecer, receberResposta } from '../lib/webrtc'
-import { PROPORCAO_CAMERA_RETRATO } from '../lib/posicaoCamera'
+import { cameraEmPaisagem, restricoesCamera } from '../lib/capturaCamera'
 import type { SinalMidia } from '../lib/backend'
 
 /** A página do QR não lê a sessão: o token aleatório dá acesso só ao pareamento. */
@@ -9,6 +9,7 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
   const { backend } = useAuth()
   const [sinal, setSinal] = useState<SinalMidia | null>(null)
   const [ativo, setAtivo] = useState(false)
+  const [proporcaoVideo, setProporcaoVideo] = useState(9 / 16)
   const [parando, setParando] = useState(false)
   const [estado, setEstado] = useState('Abra a câmera quando estiver pronto para mostrar a mesa.')
   const video = useRef<HTMLVideoElement>(null)
@@ -51,6 +52,25 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
     stream.current?.getTracks().forEach((t) => t.stop())
   }, [])
 
+  useEffect(() => {
+    if (!ativo) return
+    let paisagemAnterior = cameraEmPaisagem()
+    const aoGirar = () => {
+      const paisagem = cameraEmPaisagem()
+      if (paisagem === paisagemAnterior) return
+      paisagemAnterior = paisagem
+      void stream.current?.getVideoTracks()[0]?.applyConstraints(restricoesCamera()).catch(() => {
+        setEstado('Para ajustar a imagem, pare e inicie a câmera após girar o celular.')
+      })
+    }
+    window.addEventListener('resize', aoGirar)
+    window.addEventListener('orientationchange', aoGirar)
+    return () => {
+      window.removeEventListener('resize', aoGirar)
+      window.removeEventListener('orientationchange', aoGirar)
+    }
+  }, [ativo])
+
   const iniciar = async () => {
     if (iniciando.current || ativo || parando) return
     if (sinal?.resposta === 'encerrar') {
@@ -69,12 +89,7 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
     try {
       setEstado('Pedindo permissão para a câmera…')
       const capturada = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 720 },
-          height: { ideal: 1280 },
-          aspectRatio: { ideal: PROPORCAO_CAMERA_RETRATO },
-        },
+        video: restricoesCamera(),
         audio: false,
       })
       stream.current = capturada
@@ -110,7 +125,11 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
       <p className="text-xs uppercase tracking-[0.2em] text-gold">DigiTarot · câmera da mesa</p>
       <h1 className="font-display text-3xl text-star">Seu celular vira a câmera</h1>
       <p className="text-mist/80">Posicione o celular acima das cartas. Esta página precisa ficar aberta durante a tiragem.</p>
-      <video ref={video} autoPlay muted playsInline className="aspect-[9/16] max-h-[65svh] w-full rounded-2xl border border-white/15 bg-black object-contain" />
+      <video ref={video} autoPlay muted playsInline
+        onLoadedMetadata={(e) => { if (e.currentTarget.videoHeight) setProporcaoVideo(e.currentTarget.videoWidth / e.currentTarget.videoHeight) }}
+        onResize={(e) => { if (e.currentTarget.videoHeight) setProporcaoVideo(e.currentTarget.videoWidth / e.currentTarget.videoHeight) }}
+        style={{ aspectRatio: proporcaoVideo }}
+        className="max-h-[65svh] w-full rounded-2xl border border-white/15 bg-black object-contain" />
       <p role="status" className="text-sm text-mist">{estado}</p>
       {sinal?.resposta === 'encerrar' ? null : ativo ? (
         <button type="button" onClick={() => void parar()} className="rounded-full border border-rose/50 px-6 py-3 text-rose">Parar câmera</button>
