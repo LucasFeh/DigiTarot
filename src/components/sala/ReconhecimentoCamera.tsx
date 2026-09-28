@@ -64,12 +64,13 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
         contexto.fillStyle = '#fff'
         contexto.beginPath()
         for (const guia of guiasAtuais.current) {
-          const margem = 0.055
+          const margemX = 0.02
+          const margemY = 0.025
           contexto.rect(
-            (guia.x - guia.largura / 2 - margem) * largura,
-            (guia.y - guia.altura / 2 - margem) * altura,
-            (guia.largura + margem * 2) * largura,
-            (guia.altura + margem * 2) * altura,
+            (guia.x - guia.largura / 2 - margemX) * largura,
+            (guia.y - guia.altura / 2 - margemY) * altura,
+            (guia.largura + margemX * 2) * largura,
+            (guia.altura + margemY * 2) * altura,
           )
         }
         contexto.fill()
@@ -120,7 +121,9 @@ export default function ReconhecimentoCamera({ videoRef, temaBaralho, onDeteccao
               const vezes = consistente ? anterior.vezes + 1 : 1
               estaveis.set(deteccao.cardId, { x: deteccao.x, y: deteccao.y, invertida: deteccao.invertida, vezes })
               if (vezes < 2) continue
-              if (aoDetectar.current(deteccao)) {
+              const video = videoRef.current
+              const proporcaoVideo = video?.videoHeight ? video.videoWidth / video.videoHeight : undefined
+              if (aoDetectar.current({ ...deteccao, proporcaoVideo })) {
                 enviadas.current.add(deteccao.cardId)
                 const nome = CARD_BY_ID.get(deteccao.cardId)?.nome ?? 'Carta'
                 setEstado(`${nome}${deteccao.invertida ? ' invertida' : ''} colocada na mesa.`)

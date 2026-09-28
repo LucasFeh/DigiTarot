@@ -17,7 +17,7 @@ export type Spread = {
 
 /**
  * Layouts de tiragem. As coordenadas são do tampo da mesa — o centro é (0,0), x
- * cresce para a direita e z para o fundo. Uma carta ocupa cerca de 0,42 × 0,72,
+ * cresce para a direita e z para o fundo. Uma carta ocupa 0,4 × 0,68,
  * então manter ~0,5 entre centros evita sobreposição.
  */
 export const SPREADS: Spread[] = [

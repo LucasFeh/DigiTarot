@@ -335,7 +335,7 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
             className="absolute inset-0 h-full w-full object-contain"
           />
           {ehTarologo && onCartaReconhecida && <ReconhecimentoCamera videoRef={videoEl} temaBaralho={temaBaralho ?? null} onDeteccao={onCartaReconhecida}
-            guias={sessao.cameraGuias ? guiasDaCamera(SPREAD_BY_ID.get(sessao.spreadId) ?? SPREAD_BY_ID.get('una')!) : []} spreadId={sessao.spreadId} />}
+            guias={sessao.cameraGuias ? guiasDaCamera(SPREAD_BY_ID.get(sessao.spreadId) ?? SPREAD_BY_ID.get('una')!, proporcao) : []} spreadId={sessao.spreadId} />}
           {ehTarologo && modo === 'sobreposta' && <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1 text-[11px] text-white">Arraste para mover</span>}
           {ehTarologo && <div className="absolute left-2 top-2 flex flex-wrap gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
             <button type="button" onClick={alternarModo} className="rounded-full border border-gold/50 bg-black/80 px-3 py-1.5 text-xs text-gold">{modo === 'camera' ? 'Voltar à mesa 3D' : 'Ver só câmera'}</button>

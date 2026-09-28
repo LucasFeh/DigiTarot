@@ -3,9 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useTexturaCarta } from '../../lib/temas/useTema'
 import type { TemaBaralho } from '../../lib/temas/tipos'
+import { CARTA_W, CARTA_H } from '../../data/cardDimensions'
 
-export const CARTA_W = 0.4
-export const CARTA_H = 0.68
+export { CARTA_W, CARTA_H } from '../../data/cardDimensions'
 
 /** Creme do papel: é o que aparece enquanto a textura não subiu. Nunca branco
  *  puro — branco puro numa mesa escura lê como erro de carregamento. */

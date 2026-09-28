@@ -78,7 +78,7 @@ export default function AppCameraPage() {
   const sessaoIdParaEnvio = transmitindo ? mesaAtual?.id ?? null : null
   const spread = SPREAD_BY_ID.get(mesaAtual?.spreadId ?? 'una')
   const guiasAtivas = mesaAtual?.cameraGuias === true
-  const guias = spread ? guiasDaCamera(spread) : []
+  const guias = spread ? guiasDaCamera(spread, proporcaoVideo) : []
 
   useEffect(() => {
     const receber = (evento: Event) => { evento.preventDefault(); setInstalar(evento as Event & { prompt?: () => Promise<void> }) }

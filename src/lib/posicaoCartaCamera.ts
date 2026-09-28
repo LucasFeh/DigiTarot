@@ -1,7 +1,8 @@
 import type { CartaNaMesa } from './backend'
 import type { Spread } from '../data/spreads'
+import { CARTA_H, CARTA_W } from '../data/cardDimensions'
 
-export type CartaReconhecida = { cardId: string; x: number; y: number; invertida: boolean }
+export type CartaReconhecida = { cardId: string; x: number; y: number; invertida: boolean; proporcaoVideo?: number }
 
 export type GuiaCamera = {
   slot: number
@@ -12,18 +13,35 @@ export type GuiaCamera = {
   rotulo: string
 }
 
-/** Mesma escala usada para encaixar uma carta reconhecida no layout da mesa. */
-export function guiasDaCamera(spread: Spread): GuiaCamera[] {
-  const limiteX = Math.max(0.8, ...spread.slots.map((slot) => Math.abs(slot.x) + 0.2))
-  const limiteZ = Math.max(0.8, ...spread.slots.map((slot) => Math.abs(slot.z) + 0.2))
+/** Preserva o tamanho e a proporção da carta 3D no vídeo e encaixa a tiragem inteira. */
+export function guiasDaCamera(spread: Spread, proporcaoVideo = 16 / 9): GuiaCamera[] {
+  if (!spread.slots.length) return []
+  const aspecto = Number.isFinite(proporcaoVideo) && proporcaoVideo > 0 ? proporcaoVideo : 16 / 9
+  const limites = spread.slots.map((slot) => {
+    const deLado = Math.abs(slot.rot ?? 0) % 180 === 90
+    const largura = deLado ? CARTA_H : CARTA_W
+    const altura = deLado ? CARTA_W : CARTA_H
+    return { xMin: slot.x - largura / 2, xMax: slot.x + largura / 2, zMin: slot.z - altura / 2, zMax: slot.z + altura / 2 }
+  })
+  const xMin = Math.min(...limites.map((limite) => limite.xMin))
+  const xMax = Math.max(...limites.map((limite) => limite.xMax))
+  const zMin = Math.min(...limites.map((limite) => limite.zMin))
+  const zMax = Math.max(...limites.map((limite) => limite.zMax))
+  const centroX = (xMin + xMax) / 2
+  const centroZ = (zMin + zMax) / 2
+  const escala = Math.min(
+    aspecto * 0.84 / (xMax - xMin),
+    0.8 / (zMax - zMin),
+    0.32 / CARTA_H,
+  )
   return spread.slots.map((slot, indice) => {
     const deLado = Math.abs(slot.rot ?? 0) % 180 === 90
     return {
       slot: indice,
-      x: slot.x / (2 * limiteX) + 0.5,
-      y: slot.z / (2 * limiteZ) + 0.5,
-      largura: (deLado ? 0.72 : 0.42) / (2 * limiteX),
-      altura: (deLado ? 0.42 : 0.72) / (2 * limiteZ),
+      x: 0.5 + (slot.x - centroX) * escala / aspecto,
+      y: 0.5 + (slot.z - centroZ) * escala,
+      largura: (deLado ? CARTA_H : CARTA_W) * escala / aspecto,
+      altura: (deLado ? CARTA_W : CARTA_H) * escala,
       rotulo: slot.rotulo,
     }
   })
@@ -40,12 +58,14 @@ export function slotDaCamera(
   const livres = spread.slots.map((slot, indice) => ({ slot, indice }))
     .filter(({ indice }) => !ocupadas.some((item) => item.slot === indice))
   if (!livres.length) return null
+  const guias = guiasDaCamera(spread, carta.proporcaoVideo)
+  const aspecto = typeof carta.proporcaoVideo === 'number' && Number.isFinite(carta.proporcaoVideo) && carta.proporcaoVideo > 0
+    ? carta.proporcaoVideo : 16 / 9
 
   if (usarGuias) {
-    const guias = guiasDaCamera(spread)
     const candidatas = guias.filter((guia) => livres.some(({ indice }) => indice === guia.slot)
-      && Math.abs(carta.x - guia.x) <= guia.largura / 2 + 0.055
-      && Math.abs(carta.y - guia.y) <= guia.altura / 2 + 0.055)
+      && Math.abs(carta.x - guia.x) <= guia.largura / 2 + 0.02
+      && Math.abs(carta.y - guia.y) <= guia.altura / 2 + 0.025)
     if (!candidatas.length) return null
     candidatas.sort((a, b) =>
       ((a.x - carta.x) / a.largura) ** 2 + ((a.y - carta.y) / a.altura) ** 2
@@ -54,13 +74,7 @@ export function slotDaCamera(
     return candidatas[0].slot
   }
 
-  const limiteX = Math.max(0.8, ...spread.slots.map((slot) => Math.abs(slot.x) + 0.2))
-  const limiteZ = Math.max(0.8, ...spread.slots.map((slot) => Math.abs(slot.z) + 0.2))
-  const x = (carta.x - 0.5) * 2 * limiteX
-  const z = (carta.y - 0.5) * 2 * limiteZ
-  livres.sort((a, b) =>
-    (a.slot.x - x) ** 2 + (a.slot.z - z) ** 2
-    - (b.slot.x - x) ** 2 - (b.slot.z - z) ** 2,
-  )
+  const distancia = (indice: number) => ((guias[indice].x - carta.x) * aspecto) ** 2 + (guias[indice].y - carta.y) ** 2
+  livres.sort((a, b) => distancia(a.indice) - distancia(b.indice))
   return livres[0].indice
 }
