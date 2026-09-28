@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { criarPeer, oferecer, receberResposta } from '../lib/webrtc'
+import { PROPORCAO_CAMERA_RETRATO } from '../lib/posicaoCamera'
 import type { SinalMidia } from '../lib/backend'
 
 /** A página do QR não lê a sessão: o token aleatório dá acesso só ao pareamento. */
@@ -68,7 +69,12 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
     try {
       setEstado('Pedindo permissão para a câmera…')
       const capturada = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 720 },
+          height: { ideal: 1280 },
+          aspectRatio: { ideal: PROPORCAO_CAMERA_RETRATO },
+        },
         audio: false,
       })
       stream.current = capturada
@@ -104,7 +110,7 @@ export default function CameraCelularPage({ sessaoId, token }: { sessaoId: strin
       <p className="text-xs uppercase tracking-[0.2em] text-gold">DigiTarot · câmera da mesa</p>
       <h1 className="font-display text-3xl text-star">Seu celular vira a câmera</h1>
       <p className="text-mist/80">Posicione o celular acima das cartas. Esta página precisa ficar aberta durante a tiragem.</p>
-      <video ref={video} autoPlay muted playsInline className="max-h-[65svh] w-full rounded-2xl border border-white/15 bg-black object-contain" />
+      <video ref={video} autoPlay muted playsInline className="aspect-[9/16] max-h-[65svh] w-full rounded-2xl border border-white/15 bg-black object-contain" />
       <p role="status" className="text-sm text-mist">{estado}</p>
       {sinal?.resposta === 'encerrar' ? null : ativo ? (
         <button type="button" onClick={() => void parar()} className="rounded-full border border-rose/50 px-6 py-3 text-rose">Parar câmera</button>

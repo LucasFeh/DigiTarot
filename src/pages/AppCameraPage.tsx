@@ -3,6 +3,7 @@ import { useAuth } from '../lib/useAuth'
 import { useHashRoute } from '../lib/useHashRoute'
 import { novoToken } from '../lib/backend/local'
 import { criarPeer, oferecer, receberResposta } from '../lib/webrtc'
+import { PROPORCAO_CAMERA_RETRATO } from '../lib/posicaoCamera'
 import type { SinalMidia, VinculacaoCamera } from '../lib/backend'
 import LoginPage from './LoginPage'
 
@@ -134,13 +135,19 @@ export default function AppCameraPage() {
     try {
       setEstado('Pedindo acesso à câmera e ao microfone…')
       let capturada: MediaStream
+      const videoRetrato = {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 720 },
+        height: { ideal: 1280 },
+        aspectRatio: { ideal: PROPORCAO_CAMERA_RETRATO },
+      }
       try {
         capturada = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: videoRetrato,
           audio: { echoCancellation: true, noiseSuppression: true },
         })
       } catch {
-        capturada = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+        capturada = await navigator.mediaDevices.getUserMedia({ video: videoRetrato, audio: false })
         setEstado('Microfone indisponível. A câmera funcionará sem voz.')
       }
       stream.current = capturada
@@ -190,7 +197,7 @@ export default function AppCameraPage() {
       ) : (
         <>
           <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-black">
-            <video ref={video} autoPlay muted playsInline aria-hidden={!ligada} className="aspect-[3/4] max-h-[60svh] w-full object-contain" />
+            <video ref={video} autoPlay muted playsInline aria-hidden={!ligada} className="aspect-[9/16] max-h-[60svh] w-full object-contain" />
             {!ligada && <div className="absolute inset-0 grid place-items-center text-center text-sm text-mist/60"><span><span aria-hidden className="mb-3 block text-4xl text-gold/70">◉</span>Câmera desligada</span></div>}
           </div>
           <div className="flex gap-2">

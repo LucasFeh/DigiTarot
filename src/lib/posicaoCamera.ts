@@ -2,6 +2,8 @@ export type DirecaoAjuste = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
 
 export type QuadroCamera = { x: number; y: number; largura: number }
 
+export const PROPORCAO_CAMERA_RETRATO = 9 / 16
+
 const limitar = (valor: number, minimo: number, maximo: number) => Math.max(minimo, Math.min(maximo, valor))
 
 /** Mantém a imagem inteira no quadro, inclusive quando a câmera está na vertical. */

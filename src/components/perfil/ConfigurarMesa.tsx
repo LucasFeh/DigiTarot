@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ConfiguracaoMesa, LadoMesa } from '../../lib/backend'
-import { limitarQuadro, redimensionarQuadro, type DirecaoAjuste, type QuadroCamera } from '../../lib/posicaoCamera'
+import { limitarQuadro, redimensionarQuadro, PROPORCAO_CAMERA_RETRATO, type DirecaoAjuste, type QuadroCamera } from '../../lib/posicaoCamera'
 
 const DIRECOES: { id: DirecaoAjuste; posicao: string; cursor: string }[] = [
   { id: 'nw', posicao: 'left-0.5 top-0.5', cursor: 'cursor-nwse-resize' },
@@ -22,6 +22,8 @@ export default function ConfigurarMesa({ valor, salvar }: {
   const [edicao, setEdicao] = useState<ConfiguracaoMesa | null>(null)
   const rascunho = edicao ?? valor
   const area = useRef<HTMLDivElement>(null)
+  const [areaTamanho, setAreaTamanho] = useState({ largura: 0, altura: 0 })
+  const quadroPrevia = limitarQuadro({ ...rascunho.cameraPosicao, largura: rascunho.cameraTamanho }, areaTamanho, PROPORCAO_CAMERA_RETRATO)
   const gesto = useRef<{
     tipo: 'mover' | DirecaoAjuste
     x: number
@@ -32,6 +34,14 @@ export default function ConfigurarMesa({ valor, salvar }: {
     altura: number
   } | null>(null)
 
+  useEffect(() => {
+    const elemento = area.current
+    if (!elemento) return
+    const observar = new ResizeObserver(() => setAreaTamanho({ largura: elemento.clientWidth, altura: elemento.clientHeight }))
+    observar.observe(elemento)
+    return () => observar.disconnect()
+  }, [])
+
   const mudar = (proxima: ConfiguracaoMesa) => {
     salvar(proxima)
     setEdicao(null)
@@ -41,7 +51,7 @@ export default function ConfigurarMesa({ valor, salvar }: {
     const caixa = area.current?.getBoundingClientRect()
     if (!caixa) return
     evento.stopPropagation()
-    const quadro = limitarQuadro({ ...rascunho.cameraPosicao, largura: rascunho.cameraTamanho }, { largura: caixa.width, altura: caixa.height }, 16 / 9)
+    const quadro = limitarQuadro({ ...rascunho.cameraPosicao, largura: rascunho.cameraTamanho }, { largura: caixa.width, altura: caixa.height }, PROPORCAO_CAMERA_RETRATO)
     gesto.current = { tipo, x: evento.clientX, y: evento.clientY, quadro, ultimo: quadro, largura: caixa.width, altura: caixa.height }
     evento.currentTarget.setPointerCapture(evento.pointerId)
   }
@@ -57,8 +67,8 @@ export default function ConfigurarMesa({ valor, salvar }: {
         ...atual.quadro,
         x: atual.quadro.x + dx / atual.largura * 100,
         y: atual.quadro.y + dy / atual.altura * 100,
-      }, { largura: atual.largura, altura: atual.altura }, 16 / 9)
-      : redimensionarQuadro(atual.quadro, atual.tipo, dx, dy, { largura: atual.largura, altura: atual.altura }, 16 / 9)
+      }, { largura: atual.largura, altura: atual.altura }, PROPORCAO_CAMERA_RETRATO)
+      : redimensionarQuadro(atual.quadro, atual.tipo, dx, dy, { largura: atual.largura, altura: atual.altura }, PROPORCAO_CAMERA_RETRATO)
     setEdicao((anterior) => ({ ...(anterior ?? valor), cameraPosicao: { x: atual.ultimo.x, y: atual.ultimo.y }, cameraTamanho: atual.ultimo.largura }))
   }
 
@@ -117,7 +127,7 @@ export default function ConfigurarMesa({ valor, salvar }: {
             <div className={`pointer-events-none absolute top-[25%] z-20 w-[22%] rounded-lg border border-white/20 bg-[#1d1429]/90 px-2 py-2 text-[10px] text-mist ${rascunho.painelLado === 'direita' ? 'right-[3%]' : 'left-[3%]'}`}>Painel de cartas<br />Layout · visual</div>
 
             <div className="absolute z-10 grid cursor-move place-items-center rounded-xl border border-gold bg-black/85 text-center shadow-[0_12px_36px_#0009] select-none"
-              style={{ left: `${rascunho.cameraPosicao.x}%`, top: `${rascunho.cameraPosicao.y}%`, width: `${rascunho.cameraTamanho}%`, aspectRatio: 16 / 9, touchAction: 'none' }}
+              style={{ left: `${quadroPrevia.x}%`, top: `${quadroPrevia.y}%`, width: `${quadroPrevia.largura}%`, aspectRatio: PROPORCAO_CAMERA_RETRATO, touchAction: 'none' }}
               onPointerDown={(e) => iniciar(e, 'mover')} onPointerMove={mover} onPointerUp={terminar} onPointerCancel={() => { gesto.current = null }}>
               <span className="pointer-events-none px-2 text-xs text-gold">◉ Câmera do tarólogo</span>
               {DIRECOES.map(({ id, posicao, cursor }) => (
@@ -127,7 +137,7 @@ export default function ConfigurarMesa({ valor, salvar }: {
               ))}
             </div>
           </div>
-          <p className="mt-3 text-xs text-mist/55">A posição da câmera também aparece para o cliente. A proporção real se ajusta ao vídeo do celular.</p>
+          <p className="mt-3 text-xs text-mist/55">A câmera aparece em retrato para você e para o cliente. A proporção se ajusta automaticamente ao vídeo do celular.</p>
         </div>
 
         <div className="glass h-fit rounded-2xl p-5">

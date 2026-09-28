@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import type { Backend, Sessao, SinalMidia } from '../../lib/backend'
 import { novoToken } from '../../lib/backend/local'
 import { criarPeer, oferecer, receberResposta, responder } from '../../lib/webrtc'
-import { limitarQuadro, redimensionarQuadro, type DirecaoAjuste, type QuadroCamera } from '../../lib/posicaoCamera'
+import { limitarQuadro, redimensionarQuadro, PROPORCAO_CAMERA_RETRATO, type DirecaoAjuste, type QuadroCamera } from '../../lib/posicaoCamera'
 import ReconhecimentoCamera from './ReconhecimentoCamera'
 import type { TemaBaralho } from '../../lib/temas/tipos'
 import type { CartaReconhecida } from '../../lib/posicaoCartaCamera'
@@ -43,7 +43,7 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   const [recebido, setRecebido] = useState<MediaStream | null>(null)
   const [posicaoLocal, setPosicaoLocal] = useState<{ x: number; y: number } | null>(null)
   const [tamanhoLocal, setTamanhoLocal] = useState<number | null>(null)
-  const [proporcao, setProporcao] = useState(16 / 9)
+  const [proporcao, setProporcao] = useState(PROPORCAO_CAMERA_RETRATO)
   const [salaTamanho, setSalaTamanho] = useState({ largura: 0, altura: 0 })
   const cameraPc = useRef<RTCPeerConnection | null>(null)
   const canalControle = useRef<RTCDataChannel | null>(null)
@@ -323,6 +323,10 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
           <video
             ref={videoEl}
             autoPlay muted playsInline
+            onResize={(e) => {
+              const { videoWidth, videoHeight } = e.currentTarget
+              if (videoWidth && videoHeight) setProporcao(videoWidth / videoHeight)
+            }}
             onLoadedMetadata={(e) => {
               const { videoWidth, videoHeight } = e.currentTarget
               if (videoWidth && videoHeight) setProporcao(videoWidth / videoHeight)
