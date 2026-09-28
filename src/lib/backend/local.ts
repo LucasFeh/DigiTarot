@@ -18,6 +18,7 @@ import type {
   TarologoPublico,
   Unsubscribe,
   Usuario,
+  VinculacaoCamera,
 } from './types'
 
 const CHAVE_USER = 'tarot.usuario'
@@ -30,6 +31,7 @@ const CHAVE_HORARIOS = 'tarot.horarios'
 const CHAVE_CONVITES = 'tarot.convites'
 const CHAVE_MENSAGENS = 'tarot.mensagens'
 const CHAVE_SINAIS = 'digitarot.sinais'
+const CHAVE_VINCULACAO_CAMERA = 'digitarot.vinculacaoCamera'
 const CHAVE_TAROLOGOS = 'digitarot.tarologos'
 const CHAVE_PIX_TAROLOGOS = 'digitarot.pixTarologos'
 const CANAL = 'tarot.sync'
@@ -196,6 +198,7 @@ export class LocalBackend implements Backend {
         if (e.key === CHAVE_AGENDA || e.key === CHAVE_HORARIOS) this.receber('agenda')
         if (e.key === CHAVE_PERFIS) this.receber('perfis')
         if (e.key === CHAVE_TAROLOGOS || e.key === CHAVE_PIX_TAROLOGOS) this.receber('tarologos')
+        if (e.key === CHAVE_VINCULACAO_CAMERA) this.receber('sessoes')
       })
     }
   }
@@ -693,11 +696,59 @@ export class LocalBackend implements Backend {
   // ------------------------------ sessões ------------------------------
 
   async criarSessao(dados: Omit<Sessao, 'id' | 'criadaEm'>) {
+    if (this.sessoes().some((s) => s.tarologoUid === dados.tarologoUid && !s.encerrada)) {
+      throw new Error('Você já tem uma mesa aberta. Encerre-a antes de abrir outra.')
+    }
     const id = novoId('s')
     const nova: Sessao = { ...dados, id, criadaEm: new Date().toISOString() }
     gravar(CHAVE_SESSOES, [nova, ...this.sessoes()])
     this.avisar('sessoes')
     return id
+  }
+
+  async encerrarSessao(id: string) {
+    const sessao = this.sessoes().find((s) => s.id === id)
+    if (!sessao) throw new Error('Mesa não encontrada.')
+    await this.atualizarSessao(id, { encerrada: true, cameraVisivel: false })
+  }
+
+  observarMesaAtiva(uid: string, cb: (id: string | null) => void): Unsubscribe {
+    const emitir = () => cb(this.sessoes().find((s) => s.tarologoUid === uid && !s.encerrada)?.id ?? null)
+    this.ouvintesSessoes.add(emitir)
+    emitir()
+    return () => this.ouvintesSessoes.delete(emitir)
+  }
+
+  observarVinculacaoCamera(uid: string, cb: (v: VinculacaoCamera | null) => void): Unsubscribe {
+    const emitir = () => cb(ler<Record<string, VinculacaoCamera>>(CHAVE_VINCULACAO_CAMERA, {})[uid] ?? null)
+    this.ouvintesSessoes.add(emitir)
+    emitir()
+    return () => this.ouvintesSessoes.delete(emitir)
+  }
+
+  async gerarCodigoCamera(uid: string): Promise<string> {
+    const codigo = String(crypto.getRandomValues(new Uint32Array(1))[0] % 100_000_000).padStart(8, '0')
+    const todos = ler<Record<string, VinculacaoCamera>>(CHAVE_VINCULACAO_CAMERA, {})
+    todos[uid] = { ...(todos[uid] ?? { dispositivoId: '', vinculadoEm: '' }), codigo, expiraEm: Date.now() + 10 * 60_000 }
+    gravar(CHAVE_VINCULACAO_CAMERA, todos)
+    this.avisar('sessoes')
+    return codigo
+  }
+
+  async vincularCamera(uid: string, codigo: string, dispositivoId: string): Promise<void> {
+    const todos = ler<Record<string, VinculacaoCamera>>(CHAVE_VINCULACAO_CAMERA, {})
+    const atual = todos[uid]
+    if (!atual || atual.codigo !== codigo || atual.expiraEm < Date.now()) throw new Error('Código incorreto ou expirado. Gere outro no perfil.')
+    todos[uid] = { codigo: '', expiraEm: 0, dispositivoId, vinculadoEm: new Date().toISOString() }
+    gravar(CHAVE_VINCULACAO_CAMERA, todos)
+    this.avisar('sessoes')
+  }
+
+  async revogarCamera(uid: string): Promise<void> {
+    const todos = ler<Record<string, VinculacaoCamera>>(CHAVE_VINCULACAO_CAMERA, {})
+    todos[uid] = { codigo: '', expiraEm: 0, dispositivoId: '', vinculadoEm: '' }
+    gravar(CHAVE_VINCULACAO_CAMERA, todos)
+    this.avisar('sessoes')
   }
 
   observarSessao(id: string, cb: (s: Sessao | null) => void): Unsubscribe {

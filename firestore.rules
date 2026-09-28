@@ -142,6 +142,39 @@ service cloud.firestore {
       allow write: if contaConfirmada() && uid() == usuarioId;
     }
 
+    // Código de 8 dígitos por dez minutos. Só a conta do próprio tarólogo
+    // lê ou altera a vinculação; o código não concede acesso sem login.
+    match /vinculacoesCamera/{usuarioId} {
+      allow get: if ehTarologo() && uid() == usuarioId;
+      allow list, delete: if false;
+      allow create, update: if ehTarologo() && uid() == usuarioId
+        && request.resource.data.keys().hasOnly(['codigo', 'expiraEm', 'dispositivoId', 'vinculadoEm'])
+        && request.resource.data.codigo is string
+        && (request.resource.data.codigo == '' || request.resource.data.codigo.matches('^[0-9]{8}$'))
+        && request.resource.data.expiraEm is int
+        && request.resource.data.dispositivoId is string
+        && request.resource.data.dispositivoId.size() <= 64
+        && request.resource.data.vinculadoEm is string
+        && request.resource.data.vinculadoEm.size() <= 50;
+    }
+
+    // Ponteiro transacional: uma conta só pode ter uma mesa em andamento.
+    match /mesasAtivas/{usuarioId} {
+      allow get: if ehTarologo() && uid() == usuarioId;
+      allow list, delete: if false;
+      allow create, update: if ehTarologo() && uid() == usuarioId
+        && request.resource.data.keys().hasOnly(['sessaoId'])
+        && (
+          request.resource.data.sessaoId == null
+          || (request.resource.data.sessaoId is string
+              && getAfter(/databases/$(database)/documents/sessoes/$(request.resource.data.sessaoId)).data.tarologoUid == uid()
+              && getAfter(/databases/$(database)/documents/sessoes/$(request.resource.data.sessaoId)).data.encerrada == false)
+        )
+        && (!exists(/databases/$(database)/documents/mesasAtivas/$(usuarioId))
+            || resource.data.sessaoId == null
+            || getAfter(/databases/$(database)/documents/sessoes/$(resource.data.sessaoId)).data.encerrada == true);
+    }
+
     // A vitrine é pública; papel, avaliações e preços não vêm de perfis
     // editáveis pelo usuário. Admin cria pelo e-mail antes mesmo do login.
     match /tarologos/{tarologoId} {
@@ -334,7 +367,9 @@ service cloud.firestore {
                       || resource.data.get('clienteUid', null) == uid());
 
       // Só o tarólogo abre mesa, e sempre em nome próprio.
-      allow create: if ehTarologo() && request.resource.data.tarologoUid == uid();
+      allow create: if ehTarologo() && request.resource.data.tarologoUid == uid()
+                    && request.resource.data.encerrada == false
+                    && getAfter(/databases/$(database)/documents/mesasAtivas/$(uid())).data.sessaoId == sessaoId;
 
       // O tarólogo dono edita à vontade.
       //
@@ -350,8 +385,9 @@ service cloud.firestore {
       // `get(campo, null)` em vez de `resource.data.campo`: sessão gravada
       // antes deste campo existir não tem a chave, e o acesso direto a um
       // campo ausente faz a regra INTEIRA falhar, não devolver null.
-      allow update: if contaConfirmada() && (
-        resource.data.tarologoUid == uid()
+      allow update: if contaConfirmada() && resource.data.encerrada == false && (
+        (resource.data.tarologoUid == uid()
+         && request.resource.data.encerrada is bool)
         || (
           resource.data.get('clienteUid', null) == null
           && request.resource.data.clienteUid == uid()
@@ -449,10 +485,13 @@ service cloud.firestore {
         function camera() {
           return sinalId.matches('^camera-[0-9a-f]{32}$');
         }
+        function appCamera() {
+          return sinalId == 'app-camera';
+        }
         function valido() {
-          return request.resource.data.keys().hasOnly(['tipo', 'versao', 'oferta', 'resposta', 'expiraEm'])
+          return request.resource.data.keys().hasOnly(['tipo', 'versao', 'oferta', 'resposta', 'expiraEm', 'dispositivoId'])
                  && request.resource.data.tipo in ['camera', 'video', 'voz']
-                 && ((camera() && request.resource.data.tipo == 'camera')
+                 && (((camera() || appCamera()) && request.resource.data.tipo == 'camera')
                      || (sinalId in ['video', 'voz'] && request.resource.data.tipo == sinalId))
                  && request.resource.data.versao is string
                  && request.resource.data.versao.size() <= 50
@@ -465,21 +504,29 @@ service cloud.firestore {
         allow get: if (camera()
                        && resource.data.tipo == 'camera'
                        && request.time < timestamp.value(resource.data.expiraEm))
-                      || (!camera() && (dono() || cliente()));
+                      || (appCamera() && dono())
+                      || (!camera() && !appCamera() && (dono() || cliente()));
         allow list: if false;
-        allow create: if dono() && valido()
+        allow create: if dono() && mesa().encerrada == false && valido()
                       && ((camera() && request.resource.data.tipo == 'camera'
                            && request.resource.data.expiraEm is int
                            && request.time < timestamp.value(request.resource.data.expiraEm)
                            && request.resource.data.expiraEm < request.time.toMillis() + 660000)
+                          || (appCamera() && request.resource.data.tipo == 'camera'
+                              && request.resource.data.dispositivoId is string
+                              && request.resource.data.dispositivoId.size() > 0
+                              && request.resource.data.dispositivoId == get(/databases/$(database)/documents/vinculacoesCamera/$(uid())).data.dispositivoId)
                           || (sinalId in ['video', 'voz']
                               && request.resource.data.tipo == sinalId));
-        allow update: if valido() && (
-          dono()
+        allow update: if mesa().encerrada == false && valido() && (
+          (dono() && (!appCamera()
+            || (request.resource.data.dispositivoId is string
+                && request.resource.data.dispositivoId.size() > 0
+                && request.resource.data.dispositivoId == get(/databases/$(database)/documents/vinculacoesCamera/$(uid())).data.dispositivoId)))
           || (camera() && resource.data.tipo == 'camera'
               && request.time < timestamp.value(resource.data.expiraEm)
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['oferta']))
-          || (!camera() && cliente()
+          || (!camera() && !appCamera() && cliente()
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resposta']))
         );
         allow delete: if false;

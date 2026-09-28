@@ -1,0 +1,15 @@
+{
+  "name": "DigiTarot Câmera",
+  "short_name": "DigiTarot Câmera",
+  "description": "Câmera e microfone do tarólogo para a mesa digital DigiTarot.",
+  "id": "/DigiTarot/camera-app.html",
+  "start_url": "/DigiTarot/camera-app.html#/app-camera",
+  "scope": "/DigiTarot/",
+  "display": "standalone",
+  "background_color": "#05010f",
+  "theme_color": "#05010f",
+  "icons": [
+    { "src": "/DigiTarot/camera-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/DigiTarot/camera-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

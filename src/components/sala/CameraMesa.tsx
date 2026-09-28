@@ -21,12 +21,13 @@ const ALCAS: { direcao: DirecaoAjuste; posicao: string; cursor: string }[] = [
 
 export type CameraMesaHandle = { conectar: () => void; encerrar: () => Promise<void> }
 
-export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onConexao, temaBaralho, onCartaReconhecida }: {
+export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onConexao, onAudio, temaBaralho, onCartaReconhecida }: {
   backend: Backend
   sessao: Sessao
   ehTarologo: boolean
   cameraRef?: React.Ref<CameraMesaHandle>
   onConexao?: (conectada: boolean) => void
+  onAudio?: (stream: MediaStream | null) => void
   temaBaralho?: TemaBaralho | null
   onCartaReconhecida?: (carta: CartaReconhecida) => boolean
 }) {
@@ -34,6 +35,9 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   const [qrAberto, setQrAberto] = useState(false)
   const [erro, setErro] = useState('')
   const [cameraSinal, setCameraSinal] = useState<SinalMidia | null>(null)
+  const [appSinal, setAppSinal] = useState<SinalMidia | null>(null)
+  const [dispositivoVinculado, setDispositivoVinculado] = useState('')
+  const [preferirQr, setPreferirQr] = useState(false)
   const [videoSinal, setVideoSinal] = useState<SinalMidia | null>(null)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [recebido, setRecebido] = useState<MediaStream | null>(null)
@@ -48,6 +52,7 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   const arrastando = useRef<{ dx: number; dy: number; ultimo: { x: number; y: number } | null } | null>(null)
   const redimensionando = useRef<{ x: number; y: number; direcao: DirecaoAjuste; area: { largura: number; altura: number }; inicial: QuadroCamera; ultimo: QuadroCamera } | null>(null)
   const processada = useRef('')
+  const origem = useRef<'manual' | 'app' | null>(null)
   const processadoVideo = useRef('')
   const teveStream = useRef(false)
   const pos = sessao.cameraPosicao ?? { x: 58, y: 20 }
@@ -72,15 +77,47 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
     if (!token || !ehTarologo) return
     return backend.observarSinal(sessao.id, `camera-${token}`, (s) => {
       setCameraSinal(s)
-      if (s && !s.oferta) {
+      if (s && !s.oferta && origem.current === 'manual') {
         cameraPc.current?.close()
         cameraPc.current = null
         canalControle.current = null
         processada.current = ''
+        origem.current = null
         setStream(null)
+        onAudio?.(null)
       }
     })
-  }, [backend, sessao.id, token, ehTarologo])
+  }, [backend, sessao.id, token, ehTarologo, onAudio])
+
+  useEffect(() => {
+    if (!ehTarologo) return
+    return backend.observarSinal(sessao.id, 'app-camera', (s) => {
+      setAppSinal(s)
+      if (s && !s.oferta && origem.current === 'app') {
+        cameraPc.current?.close()
+        cameraPc.current = null
+        processada.current = ''
+        origem.current = null
+        setStream(null)
+        onAudio?.(null)
+      }
+    })
+  }, [backend, sessao.id, ehTarologo, onAudio])
+
+  useEffect(() => {
+    if (!ehTarologo) return
+    return backend.observarVinculacaoCamera(sessao.tarologoUid, (v) => setDispositivoVinculado(v?.dispositivoId ?? ''))
+  }, [backend, sessao.tarologoUid, ehTarologo])
+
+  useEffect(() => {
+    if (origem.current !== 'app' || appSinal?.dispositivoId === dispositivoVinculado) return
+    cameraPc.current?.close()
+    cameraPc.current = null
+    origem.current = null
+    processada.current = ''
+    setStream(null)
+    onAudio?.(null)
+  }, [appSinal?.dispositivoId, dispositivoVinculado, onAudio])
 
   useEffect(() => backend.observarSinal(sessao.id, 'video', (s) => {
     setVideoSinal(s)
@@ -93,24 +130,29 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   }), [backend, sessao.id, ehTarologo])
 
   useEffect(() => {
-    if (!ehTarologo || !cameraSinal?.oferta || !token || cameraSinal.oferta === processada.current) return
-    processada.current = cameraSinal.oferta
+    const ofertaApp = !preferirQr && appSinal?.dispositivoId && appSinal.dispositivoId === dispositivoVinculado ? appSinal.oferta : undefined
+    const oferta = cameraSinal?.oferta || ofertaApp
+    if (!ehTarologo || !oferta || oferta === processada.current) return
+    const sinalId = cameraSinal?.oferta && token ? `camera-${token}` : 'app-camera'
+    origem.current = sinalId === 'app-camera' ? 'app' : 'manual'
+    processada.current = oferta
     cameraPc.current?.close()
     const pc = criarPeer()
     cameraPc.current = pc
     pc.ondatachannel = (e) => { canalControle.current = e.channel }
     pc.ontrack = (e) => {
       const proximo = e.streams[0] ?? new MediaStream([e.track])
-      setStream(proximo)
-      e.track.onended = () => { if (cameraPc.current === pc) setStream(null) }
+      if (e.track.kind === 'video') setStream(proximo)
+      if (e.track.kind === 'audio') onAudio?.(new MediaStream([e.track]))
+      e.track.onended = () => { if (cameraPc.current === pc) { setStream(null); onAudio?.(null) } }
     }
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed' && cameraPc.current === pc) setStream(null)
+      if (pc.connectionState === 'failed' && cameraPc.current === pc) { setStream(null); onAudio?.(null) }
     }
-    void responder(pc, cameraSinal.oferta)
-      .then((resposta) => backend.salvarSinal(sessao.id, `camera-${token}`, { resposta }))
+    void responder(pc, oferta)
+      .then((resposta) => backend.salvarSinal(sessao.id, sinalId, { resposta }))
       .catch(() => setErro('Não foi possível receber a câmera do celular. Gere outro QR.'))
-  }, [backend, sessao.id, ehTarologo, cameraSinal?.oferta, token])
+  }, [backend, sessao.id, ehTarologo, cameraSinal?.oferta, appSinal?.oferta, appSinal?.dispositivoId, dispositivoVinculado, preferirQr, token, onAudio])
 
   // O computador do tarólogo recebe o celular e retransmite a mesma faixa ao
   // cliente. O token do QR nunca aparece no documento que o cliente lê.
@@ -162,7 +204,8 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   useEffect(() => () => {
     cameraPc.current?.close()
     videoPc.current?.close()
-  }, [])
+    onAudio?.(null)
+  }, [onAudio])
 
   const gerarQr = async () => {
     const novo = novoToken()
@@ -174,8 +217,12 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
       cameraPc.current = null
       canalControle.current = null
       processada.current = ''
+      origem.current = null
       setStream(null)
+      onAudio?.(null)
+      setPreferirQr(true)
       setToken(novo)
+      setCameraSinal(null)
       setQrAberto(true)
       setErro('')
       await backend.atualizarSessao(sessao.id, { cameraVisivel: true, cameraModo: 'sobreposta' })

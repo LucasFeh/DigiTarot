@@ -30,6 +30,7 @@ const ConcluirCadastroPage = lazy(() => import('./pages/ConcluirCadastroPage'))
 const ArmazenamentoPage = lazy(() => import('./pages/ArmazenamentoPage'))
 const MesaDigitalDemoPage = lazy(() => import('./pages/MesaDigitalDemoPage'))
 const CameraCelularPage = lazy(() => import('./pages/CameraCelularPage'))
+const AppCameraPage = lazy(() => import('./pages/AppCameraPage'))
 
 /** `#/temas/pessoais` e `#/temas/favoritos` abrem o acervo já na aba certa. */
 const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favoritos' }
@@ -39,7 +40,7 @@ function Rotas() {
   const mobile = useMobileLayout()
   const { usuario, backend } = useAuth()
   const linkEmail = haLinkDeEmailNaUrl() || partes[0] === 'confirmar-cadastro'
-  const paginaPublica = linkEmail || !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento', 'mesa-digital', 'camera'].includes(partes[0])
+  const paginaPublica = linkEmail || !partes[0] || ['sobre', 'tarologos', 'convite', 'armazenamento', 'mesa-digital', 'camera', 'app-camera'].includes(partes[0])
   const aguardaEmail = backend?.modo === 'firebase' && Boolean(usuario?.email) && usuario?.emailVerificado === false && !paginaPublica
 
   /**
@@ -52,11 +53,14 @@ function Rotas() {
    */
   const naSala = partes[0] === 'tiragem' && Boolean(partes[1])
   const naCamera = partes[0] === 'camera' && Boolean(partes[1]) && Boolean(partes[2])
+  const noAppCamera = partes[0] === 'app-camera'
 
   // `#/tiragem/<id>` abre a sala daquela sessão; `#/tiragem` é o lobby.
   const conteudo =
     linkEmail ? (
       <ConcluirCadastroPage />
+    ) : noAppCamera ? (
+      <AppCameraPage />
     ) : partes[0] === 'camera' && partes[1] && partes[2] ? (
       <CameraCelularPage sessaoId={partes[1]} token={partes[2]} />
     ) : partes[0] === 'tiragem' && partes[1] ? (
@@ -99,8 +103,8 @@ function Rotas() {
   return (
     <>
       {!mobile && (!partes[0] || partes[0] === 'sobre') && <SmokeFilters />}
-      {!naSala && !naCamera && <NebulaBackdrop />}
-      {!naCamera && <Header caminho={caminho} />}
+      {!naSala && !naCamera && !noAppCamera && <NebulaBackdrop />}
+      {!naCamera && !noAppCamera && <Header caminho={caminho} />}
       <Suspense
         fallback={
           <main className="grid min-h-screen place-items-center">
@@ -111,7 +115,7 @@ function Rotas() {
         {aguardaEmail ? <VerificarEmailPage /> : conteudo}
       </Suspense>
       {/* Ponteiro-estrela com rastro — por cima de tudo, sem capturar clique. */}
-      {!mobile && !naSala && !naCamera && <StarCursor />}
+      {!mobile && !naSala && !naCamera && !noAppCamera && <StarCursor />}
     </>
   )
 }

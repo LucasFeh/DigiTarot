@@ -31,10 +31,12 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   getFirestore,
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   setDoc,
   updateDoc,
   where,
@@ -67,6 +69,7 @@ import type {
   TarologoPublico,
   Unsubscribe,
   Usuario,
+  VinculacaoCamera,
 } from './types'
 
 /**
@@ -697,9 +700,66 @@ export class FirebaseBackend implements Backend {
   // ------------------------------ sessões ------------------------------
 
   async criarSessao(dados: Omit<Sessao, 'id' | 'criadaEm'>) {
+    const antigas = await getDocs(query(collection(this.db, 'sessoes'), where('tarologoUid', '==', dados.tarologoUid)))
+    if (antigas.docs.some((d) => d.data().encerrada !== true)) throw new Error('Você já tem uma mesa aberta. Encerre-a antes de abrir outra.')
     const ref = doc(collection(this.db, 'sessoes'))
-    await setDoc(ref, semVazios({ ...dados, criadaEm: new Date().toISOString() }))
+    const ativa = doc(this.db, 'mesasAtivas', dados.tarologoUid)
+    await runTransaction(this.db, async (tx) => {
+      const atual = await tx.get(ativa)
+      const anteriorId = atual.data()?.sessaoId as string | null | undefined
+      if (anteriorId) {
+        const anterior = await tx.get(doc(this.db, 'sessoes', anteriorId))
+        if (anterior.exists() && !anterior.data().encerrada) throw new Error('Você já tem uma mesa aberta. Encerre-a antes de abrir outra.')
+      }
+      tx.set(ref, semVazios({ ...dados, criadaEm: new Date().toISOString() }))
+      tx.set(ativa, { sessaoId: ref.id })
+    })
     return ref.id
+  }
+
+  async encerrarSessao(id: string) {
+    const ref = doc(this.db, 'sessoes', id)
+    await runTransaction(this.db, async (tx) => {
+      const sessao = await tx.get(ref)
+      if (!sessao.exists() || sessao.data().tarologoUid !== this.exigirUsuario().uid) throw new Error('Mesa não encontrada.')
+      if (sessao.data().encerrada) return
+      const ativa = doc(this.db, 'mesasAtivas', sessao.data().tarologoUid as string)
+      const atual = await tx.get(ativa)
+      tx.update(ref, { encerrada: true, cameraVisivel: false })
+      if (atual.data()?.sessaoId === id) tx.set(ativa, { sessaoId: null })
+    })
+  }
+
+  observarMesaAtiva(uid: string, cb: (id: string | null) => void): Unsubscribe {
+    return onSnapshot(doc(this.db, 'mesasAtivas', uid), (d) => cb((d.data()?.sessaoId as string | null) ?? null), () => cb(null))
+  }
+
+  observarVinculacaoCamera(uid: string, cb: (v: VinculacaoCamera | null) => void): Unsubscribe {
+    return onSnapshot(doc(this.db, 'vinculacoesCamera', uid), (d) => cb(d.exists() ? d.data() as VinculacaoCamera : null), () => cb(null))
+  }
+
+  async gerarCodigoCamera(uid: string): Promise<string> {
+    if (this.exigirUsuario().uid !== uid) throw new Error('Conta incorreta.')
+    const codigo = String(crypto.getRandomValues(new Uint32Array(1))[0] % 100_000_000).padStart(8, '0')
+    await setDoc(doc(this.db, 'vinculacoesCamera', uid), {
+      codigo, expiraEm: Date.now() + 10 * 60_000, dispositivoId: '', vinculadoEm: '',
+    })
+    return codigo
+  }
+
+  async vincularCamera(uid: string, codigo: string, dispositivoId: string): Promise<void> {
+    if (this.exigirUsuario().uid !== uid) throw new Error('Conta incorreta.')
+    const ref = doc(this.db, 'vinculacoesCamera', uid)
+    await runTransaction(this.db, async (tx) => {
+      const atual = await tx.get(ref)
+      if (!atual.exists() || atual.data().codigo !== codigo || atual.data().expiraEm < Date.now()) throw new Error('Código incorreto ou expirado. Gere outro no perfil.')
+      tx.set(ref, { codigo: '', expiraEm: 0, dispositivoId, vinculadoEm: new Date().toISOString() })
+    })
+  }
+
+  async revogarCamera(uid: string): Promise<void> {
+    if (this.exigirUsuario().uid !== uid) throw new Error('Conta incorreta.')
+    await setDoc(doc(this.db, 'vinculacoesCamera', uid), { codigo: '', expiraEm: 0, dispositivoId: '', vinculadoEm: '' })
   }
 
   observarSessao(id: string, cb: (s: Sessao | null) => void): Unsubscribe {

@@ -9,6 +9,7 @@ import SecaoConta from '../components/perfil/SecaoConta'
 import EditorCartaTarologo from '../components/perfil/EditorCartaTarologo'
 import CartaArcanoPessoal from '../components/perfil/CartaArcanoPessoal'
 import ConfigurarMesa from '../components/perfil/ConfigurarMesa'
+import VincularCamera from '../components/perfil/VincularCamera'
 import { calcularArcanoPessoal, calcularIdade } from '../data/arcanosPessoais'
 import LoginPage from './LoginPage'
 import { CONFIGURACAO_MESA_PADRAO } from '../lib/backend'
@@ -17,7 +18,7 @@ import { useHashRoute } from '../lib/useHashRoute'
 const TiragemPage = lazy(() => import('./TiragemPage'))
 const AdminPage = lazy(() => import('./AdminPage'))
 
-type Secao = 'geral' | 'carta' | 'mesa' | 'conta' | 'tiragem' | 'gestao'
+type Secao = 'geral' | 'carta' | 'mesa' | 'camera' | 'conta' | 'tiragem' | 'gestao'
 
 const SECOES: ItemMenu<Secao>[] = [
   { id: 'geral', rotulo: 'Geral', icone: '☾' },
@@ -86,6 +87,7 @@ export default function PerfilPage() {
     ...(usuario.papel === 'tarologo' ? [
       { id: 'carta' as const, rotulo: 'Minha carta', icone: '✦' },
       { id: 'mesa' as const, rotulo: 'Configurar a mesa', icone: '▣' },
+      { id: 'camera' as const, rotulo: 'Câmera do celular', icone: '◉' },
     ] : []),
     { id: 'tiragem', rotulo: 'Minha tiragem', icone: '☷' },
     ...(usuario.admin ? [{ id: 'gestao' as const, rotulo: 'Gestão DigiTarot', icone: '✧' }] : []),
@@ -230,6 +232,7 @@ export default function PerfilPage() {
       {secao === 'conta' && <SecaoConta />}
       {secao === 'carta' && usuario.papel === 'tarologo' && <EditorCartaTarologo />}
       {secao === 'mesa' && usuario.papel === 'tarologo' && <ConfigurarMesa valor={perfil.configuracaoMesa ?? CONFIGURACAO_MESA_PADRAO} salvar={(configuracaoMesa) => salvar({ configuracaoMesa })} />}
+      {secao === 'camera' && usuario.papel === 'tarologo' && <VincularCamera />}
       {secao === 'tiragem' && <Suspense fallback={<p className="text-mist/70">Abrindo tiragem…</p>}><TiragemPage embutido /></Suspense>}
       {secao === 'gestao' && usuario.admin && <Suspense fallback={<p className="text-mist/70">Abrindo gestão…</p>}><AdminPage embutido /></Suspense>}
     </LayoutPainel>

@@ -82,6 +82,7 @@ export default function ChatMesa({
   aoFechar,
   aoNaoLidas,
   lado = 'esquerda',
+  microfoneCelular,
 }: {
   sessaoId: string
   autor: 'tarologo' | 'cliente'
@@ -91,6 +92,7 @@ export default function ChatMesa({
   /** Avisa a sala quantas mensagens chegaram enquanto estava fechado. */
   aoNaoLidas: (n: number) => void
   lado?: 'esquerda' | 'direita'
+  microfoneCelular?: MediaStream | null
 }) {
   const { backend } = useAuth()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
@@ -265,7 +267,7 @@ export default function ChatMesa({
             ×
           </button>
         </header>
-        {backend && <VozMesa backend={backend} sessaoId={sessaoId} autor={autor} />}
+        {backend && <VozMesa backend={backend} sessaoId={sessaoId} autor={autor} microfoneCelular={microfoneCelular} />}
 
         <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-3">
           {mensagens.length === 0 ? (

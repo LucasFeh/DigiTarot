@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { resolve } from 'node:path'
 
 /**
  * No GitHub Pages o site fica em /<nome-do-repositorio>/, e sem esta base os
@@ -14,4 +15,8 @@ const REPO = '/DigiTarot/'
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? REPO : '/',
   plugins: [react(), tailwindcss()],
+  build: { rollupOptions: { input: {
+    main: resolve(import.meta.dirname, 'index.html'),
+    camera: resolve(import.meta.dirname, 'camera-app.html'),
+  } } },
 }))

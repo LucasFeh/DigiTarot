@@ -345,6 +345,16 @@ export type SinalMidia = {
   resposta?: string
   /** Milissegundos Unix: o QR da câmera expira mesmo se for fotografado. */
   expiraEm?: number
+  /** Identifica o celular vinculado nas ofertas permanentes do aplicativo. */
+  dispositivoId?: string
+}
+
+/** Um aparelho por conta. O código é temporário e consumido na vinculação. */
+export type VinculacaoCamera = {
+  codigo: string
+  expiraEm: number
+  dispositivoId: string
+  vinculadoEm: string
 }
 
 /**
@@ -442,6 +452,12 @@ export interface Backend {
   // ------------------------------- sessões -------------------------------
 
   criarSessao(dados: Omit<Sessao, 'id' | 'criadaEm'>): Promise<string>
+  encerrarSessao(id: string): Promise<void>
+  observarMesaAtiva(uid: string, cb: (id: string | null) => void): Unsubscribe
+  observarVinculacaoCamera(uid: string, cb: (v: VinculacaoCamera | null) => void): Unsubscribe
+  gerarCodigoCamera(uid: string): Promise<string>
+  vincularCamera(uid: string, codigo: string, dispositivoId: string): Promise<void>
+  revogarCamera(uid: string): Promise<void>
   observarSessao(id: string, cb: (s: Sessao | null) => void): Unsubscribe
   atualizarSessao(id: string, patch: Partial<Sessao>): Promise<void>
   /** A conversa daquela mesa, em ordem de chegada. */

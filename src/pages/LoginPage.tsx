@@ -29,9 +29,11 @@ type Modo = 'entrar' | 'criar' | 'link' | 'recuperar' | 'telefone'
 export default function LoginPage({
   titulo = 'Entre na sala',
   descricao = 'Com uma conta você reserva sua consulta, acompanha a leitura ao vivo e guarda o histórico.',
+  voltarPara = '#/',
 }: {
   titulo?: string
   descricao?: string
+  voltarPara?: string
 }) {
   const { backend, entrarComGoogle, entrarComEmail, enviarLinkEmail, recuperarSenha } = useAuth()
   const [modo, setModo] = useState<Modo>('entrar')
@@ -257,7 +259,7 @@ export default function LoginPage({
           </div>
 
           <a
-            href="#/"
+            href={voltarPara}
             className="mt-6 block text-center text-[14px] text-mist/60 transition hover:text-star"
           >
             Voltar para a home

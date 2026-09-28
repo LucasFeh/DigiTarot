@@ -60,6 +60,28 @@ cada visitante tem o seu próprio mundo em `localStorage`: ele pode percorrer o
 catálogo, a agenda e a mesa sozinho, mas ninguém vê a reserva de ninguém e nada
 chega aos tarólogos. **Para atender cliente de verdade, o Firebase é obrigatório.**
 
+## Aplicativo de câmera para tarólogos
+
+O perfil do tarólogo tem a aba **Câmera do celular**. Ela mostra um QR para
+abrir `camera-app.html` no aparelho e instalar o aplicativo na tela inicial,
+além de gerar um código de vinculação de 8 dígitos válido por 10 minutos.
+O aplicativo usa o mesmo login do site e consome o código uma vez para vincular
+um único celular. O profissional pode revogar o aparelho no perfil.
+
+Depois de tocar em **Câmera** no aplicativo, o celular fica pronto. Ao abrir
+uma mesa no computador, o vídeo e o microfone entram automaticamente pela
+conexão WebRTC; o cliente entra na conversa por voz pela mesa. O aplicativo
+precisa ficar aberto, com a tela ligada e conexão de internet. Se o microfone
+for negado, a câmera ainda funciona e o tarólogo pode usar o microfone do
+computador.
+
+O Firestore usa `mesasAtivas/{uid}` para impedir duas mesas simultâneas. Abrir
+e encerrar uma mesa atualiza esse ponteiro em transação; uma mesa encerrada não
+pode ser reaberta. **Publique `firestore.rules` antes de publicar o site**:
+sem as regras novas, a criação das mesas e a vinculação do celular serão
+negadas. O aplicativo é uma PWA instalável pelo navegador no Android e no
+iPhone; não há um APK separado.
+
 ## Tiragem digital
 
 O caminho inteiro do visitante, de ponta a ponta: **catálogo → tarólogo → agenda → Pix →

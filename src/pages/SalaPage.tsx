@@ -90,6 +90,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const [chat, setChat] = useState(false)
   const [erroEncerrar, setErroEncerrar] = useState('')
   const [cameraConectada, setCameraConectada] = useState(false)
+  const [audioCelular, setAudioCelular] = useState<MediaStream | null>(null)
   const [naoLidas, setNaoLidas] = useState(0)
   const cameraRef = useRef<CameraMesaHandle>(null)
   /** Carta viajando na ponta do ponteiro, em coordenadas de cliente. */
@@ -444,6 +445,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
       aoFechar={() => setChat(false)}
       aoNaoLidas={setNaoLidas}
       lado={ehTarologo ? sessao.chatLado : 'esquerda'}
+      microfoneCelular={ehTarologo ? audioCelular : null}
     />
   )
 
@@ -658,7 +660,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           que é o que a pessoa realmente precisa ver. */}
       <div data-sala className="relative h-[calc(100vh-4rem)] w-full overflow-hidden">
         {cena}
-        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} onConexao={setCameraConectada} temaBaralho={baralho.tema} onCartaReconhecida={reconhecerCarta} />}
+        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} onConexao={setCameraConectada} onAudio={setAudioCelular} temaBaralho={baralho.tema} onCartaReconhecida={reconhecerCarta} />}
 
         <BarraFerramentas
           cartas={cartas}
@@ -687,7 +689,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           onEncerrar={() => {
             if (!backend) return
             setErroEncerrar('')
-            void Promise.resolve(cameraRef.current?.encerrar()).then(() => backend.atualizarSessao(sessao.id, { encerrada: true, cameraVisivel: false }))
+            void Promise.resolve(cameraRef.current?.encerrar()).then(() => backend.encerrarSessao(sessao.id))
               .then(() => irPara('/tiragem'))
               .catch(() => setErroEncerrar('Não foi possível encerrar a leitura. Tente novamente.'))
           }}
