@@ -1,5 +1,4 @@
-import { useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { QRCodeSVG } from 'qrcode.react'
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { Backend, Sessao, SinalMidia } from '../../lib/backend'
 import { novoToken } from '../../lib/backend/local'
 import { criarPeer, oferecer, receberResposta, responder } from '../../lib/webrtc'
@@ -20,25 +19,25 @@ const ALCAS: { direcao: DirecaoAjuste; posicao: string; cursor: string }[] = [
   { direcao: 'w', posicao: 'left-1 top-1/2 -translate-y-1/2', cursor: 'cursor-ew-resize' },
 ]
 
-export type CameraMesaHandle = { conectar: () => void; encerrar: () => Promise<void> }
+export type CameraMesaHandle = { abrirConfiguracao: () => void; encerrar: () => Promise<void> }
 
-export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onConexao, onAudio, temaBaralho, onCartaReconhecida }: {
+export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onConexao, onAudio, onFonteMicrofone, temaBaralho, onCartaReconhecida }: {
   backend: Backend
   sessao: Sessao
   ehTarologo: boolean
   cameraRef?: React.Ref<CameraMesaHandle>
   onConexao?: (conectada: boolean) => void
   onAudio?: (stream: MediaStream | null) => void
+  onFonteMicrofone?: (fonte: 'pc' | 'app') => void
   temaBaralho?: TemaBaralho | null
   onCartaReconhecida?: (carta: CartaReconhecida) => boolean
 }) {
-  const [token, setToken] = useState<string | null>(null)
-  const [qrAberto, setQrAberto] = useState(false)
+  const [configuracaoAberta, setConfiguracaoAberta] = useState(false)
+  const [fonteCamera, setFonteCamera] = useState<'pc' | 'app'>('app')
+  const [fonteMicrofone, setFonteMicrofone] = useState<'pc' | 'app'>('pc')
   const [erro, setErro] = useState('')
-  const [cameraSinal, setCameraSinal] = useState<SinalMidia | null>(null)
   const [appSinal, setAppSinal] = useState<SinalMidia | null>(null)
   const [dispositivoVinculado, setDispositivoVinculado] = useState('')
-  const [preferirQr, setPreferirQr] = useState(false)
   const [videoSinal, setVideoSinal] = useState<SinalMidia | null>(null)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [recebido, setRecebido] = useState<MediaStream | null>(null)
@@ -47,21 +46,31 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   const [proporcao, setProporcao] = useState(PROPORCAO_CAMERA_RETRATO)
   const [salaTamanho, setSalaTamanho] = useState({ largura: 0, altura: 0 })
   const cameraPc = useRef<RTCPeerConnection | null>(null)
-  const canalControle = useRef<RTCDataChannel | null>(null)
+  const streamPc = useRef<MediaStream | null>(null)
+  const fonteCameraAtual = useRef<'pc' | 'app'>('app')
   const videoPc = useRef<RTCPeerConnection | null>(null)
   const videoEl = useRef<HTMLVideoElement>(null)
   const arrastando = useRef<{ dx: number; dy: number; ultimo: { x: number; y: number } | null } | null>(null)
   const redimensionando = useRef<{ x: number; y: number; direcao: DirecaoAjuste; area: { largura: number; altura: number }; inicial: QuadroCamera; ultimo: QuadroCamera } | null>(null)
   const processada = useRef('')
-  const origem = useRef<'manual' | 'app' | null>(null)
   const processadoVideo = useRef('')
+  const versaoVideo = useRef('')
   const teveStream = useRef(false)
+  const filaVideo = useRef<Promise<void>>(Promise.resolve())
   const pos = sessao.cameraPosicao ?? { x: 58, y: 20 }
   const posicao = posicaoLocal ?? pos
   const cameraAtiva = ehTarologo ? stream : recebido
-  const visivel = sessao.cameraVisivel !== false
+  // A visibilidade agora segue a transmissão da fonte escolhida. O aplicativo
+  // liga/desliga a própria transmissão; a mesa não mantém um segundo interruptor.
+  const visivel = true
   const tamanho = tamanhoLocal ?? sessao.cameraTamanho ?? 34
   const quadro = limitarQuadro({ ...posicao, largura: tamanho }, salaTamanho, proporcao)
+  const salvarVideo = useCallback((dados: Partial<SinalMidia>) => {
+    // A troca rápida de fonte não pode deixar um "desligar" antigo sobrescrever
+    // a nova oferta para o cliente no mesmo documento de sinalização.
+    filaVideo.current = filaVideo.current.catch(() => {}).then(() => backend.salvarSinal(sessao.id, 'video', dados))
+    return filaVideo.current
+  }, [backend, sessao.id])
 
   useEffect(() => {
     if (!cameraAtiva || !visivel || !videoEl.current) return
@@ -75,31 +84,14 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   useEffect(() => { onConexao?.(Boolean(stream)) }, [onConexao, stream])
 
   useEffect(() => {
-    if (!token || !ehTarologo) return
-    return backend.observarSinal(sessao.id, `camera-${token}`, (s) => {
-      setCameraSinal(s)
-      if (s && !s.oferta && origem.current === 'manual') {
-        cameraPc.current?.close()
-        cameraPc.current = null
-        canalControle.current = null
-        processada.current = ''
-        origem.current = null
-        setStream(null)
-        onAudio?.(null)
-      }
-    })
-  }, [backend, sessao.id, token, ehTarologo, onAudio])
-
-  useEffect(() => {
     if (!ehTarologo) return
     return backend.observarSinal(sessao.id, 'app-camera', (s) => {
       setAppSinal(s)
-      if (s && !s.oferta && origem.current === 'app') {
+      if (s && !s.oferta && cameraPc.current) {
         cameraPc.current?.close()
         cameraPc.current = null
         processada.current = ''
-        origem.current = null
-        setStream(null)
+        if (fonteCameraAtual.current === 'app') setStream(null)
         onAudio?.(null)
       }
     })
@@ -111,12 +103,11 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   }, [backend, sessao.tarologoUid, ehTarologo])
 
   useEffect(() => {
-    if (origem.current !== 'app' || appSinal?.dispositivoId === dispositivoVinculado) return
+    if (!cameraPc.current || appSinal?.dispositivoId === dispositivoVinculado) return
     cameraPc.current?.close()
     cameraPc.current = null
-    origem.current = null
     processada.current = ''
-    setStream(null)
+    if (fonteCameraAtual.current === 'app') setStream(null)
     onAudio?.(null)
   }, [appSinal?.dispositivoId, dispositivoVinculado, onAudio])
 
@@ -131,36 +122,36 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   }), [backend, sessao.id, ehTarologo])
 
   useEffect(() => {
-    const ofertaApp = !preferirQr && appSinal?.dispositivoId && appSinal.dispositivoId === dispositivoVinculado ? appSinal.oferta : undefined
-    const oferta = cameraSinal?.oferta || ofertaApp
+    const precisaApp = fonteCamera === 'app' || fonteMicrofone === 'app'
+    const oferta = precisaApp && appSinal?.dispositivoId && appSinal.dispositivoId === dispositivoVinculado ? appSinal.oferta : undefined
     if (!ehTarologo || !oferta || oferta === processada.current) return
-    const sinalId = cameraSinal?.oferta && token ? `camera-${token}` : 'app-camera'
-    origem.current = sinalId === 'app-camera' ? 'app' : 'manual'
     processada.current = oferta
     cameraPc.current?.close()
     const pc = criarPeer()
     cameraPc.current = pc
-    pc.ondatachannel = (e) => { canalControle.current = e.channel }
     pc.ontrack = (e) => {
       const proximo = e.streams[0] ?? new MediaStream([e.track])
-      if (e.track.kind === 'video') setStream(proximo)
+      if (e.track.kind === 'video' && fonteCameraAtual.current === 'app') setStream(proximo)
       if (e.track.kind === 'audio') onAudio?.(new MediaStream([e.track]))
       e.track.onended = () => {
         if (cameraPc.current !== pc) return
-        if (e.track.kind === 'video') setStream(null)
-        else onAudio?.(null)
+        if (e.track.kind === 'video') {
+          if (fonteCameraAtual.current === 'app') setStream(null)
+        } else onAudio?.(null)
       }
     }
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed' && cameraPc.current === pc) { setStream(null); onAudio?.(null) }
+      if (pc.connectionState === 'failed' && cameraPc.current === pc) {
+        if (fonteCameraAtual.current === 'app') setStream(null)
+        onAudio?.(null)
+      }
     }
     void responder(pc, oferta)
-      .then((resposta) => backend.salvarSinal(sessao.id, sinalId, { resposta }))
-      .catch(() => setErro('Não foi possível receber a câmera do celular. Gere outro QR.'))
-  }, [backend, sessao.id, ehTarologo, cameraSinal?.oferta, appSinal?.oferta, appSinal?.dispositivoId, dispositivoVinculado, preferirQr, token, onAudio])
+      .then((resposta) => backend.salvarSinal(sessao.id, 'app-camera', { resposta }))
+      .catch(() => setErro('Não foi possível receber a câmera do aplicativo.'))
+  }, [backend, sessao.id, ehTarologo, appSinal?.oferta, appSinal?.dispositivoId, dispositivoVinculado, fonteCamera, fonteMicrofone, onAudio])
 
-  // O computador do tarólogo recebe o celular e retransmite a mesma faixa ao
-  // cliente. O token do QR nunca aparece no documento que o cliente lê.
+  // O computador retransmite ao cliente somente a fonte escolhida.
   useEffect(() => {
     if (!ehTarologo || !stream) return
     teveStream.current = true
@@ -169,23 +160,27 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
     videoPc.current = pc
     stream.getVideoTracks().forEach((t) => pc.addTrack(t, stream))
     const versao = novoToken()
+    versaoVideo.current = versao
     void oferecer(pc)
-      .then((oferta) => backend.salvarSinal(sessao.id, 'video', { tipo: 'video', versao, oferta, resposta: '' }))
+      .then((oferta) => {
+        if (videoPc.current !== pc) return
+        return salvarVideo({ tipo: 'video', versao, oferta, resposta: '' })
+      })
       .catch(() => setErro('Não foi possível mostrar a câmera ao cliente.'))
     return () => { pc.close() }
-  }, [backend, sessao.id, ehTarologo, stream])
+  }, [ehTarologo, stream, salvarVideo])
 
   useEffect(() => {
     if (ehTarologo && !stream && teveStream.current) {
       teveStream.current = false
-      void backend.salvarSinal(sessao.id, 'video', { oferta: '', resposta: '' }).catch(() => {})
+      void salvarVideo({ oferta: '', resposta: '' }).catch(() => {})
     }
-  }, [backend, sessao.id, ehTarologo, stream])
+  }, [ehTarologo, stream, salvarVideo])
 
   useEffect(() => {
-    if (!ehTarologo || !videoSinal?.resposta || !videoPc.current) return
+    if (!ehTarologo || !videoSinal?.resposta || videoSinal.versao !== versaoVideo.current || !videoPc.current) return
     void receberResposta(videoPc.current, videoSinal.resposta).catch(() => setErro('A conexão de vídeo falhou.'))
-  }, [ehTarologo, videoSinal?.resposta])
+  }, [ehTarologo, videoSinal?.resposta, videoSinal?.versao])
 
   useEffect(() => {
     if (ehTarologo || !videoSinal?.oferta || videoSinal.oferta === processadoVideo.current) return
@@ -209,51 +204,63 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
   useEffect(() => () => {
     cameraPc.current?.close()
     videoPc.current?.close()
+    streamPc.current?.getTracks().forEach((faixa) => faixa.stop())
     onAudio?.(null)
   }, [onAudio])
 
-  const gerarQr = async () => {
-    const novo = novoToken()
-    try {
-      await backend.salvarSinal(sessao.id, `camera-${novo}`, {
-        tipo: 'camera', versao: novo, expiraEm: Date.now() + 10 * 60 * 1000, oferta: '', resposta: '',
-      })
+  const selecionarCamera = async (fonte: 'pc' | 'app') => {
+    if (fonte === fonteCamera && (fonte !== 'pc' || streamPc.current)) return
+    fonteCameraAtual.current = fonte
+    setFonteCamera(fonte)
+    setErro('')
+    if (fonte === 'app' || fonteMicrofone !== 'app') {
       cameraPc.current?.close()
       cameraPc.current = null
-      canalControle.current = null
       processada.current = ''
-      origem.current = null
-      setStream(null)
       onAudio?.(null)
-      setPreferirQr(true)
-      setToken(novo)
-      setCameraSinal(null)
-      setQrAberto(true)
-      setErro('')
-      await backend.atualizarSessao(sessao.id, { cameraVisivel: true, cameraModo: 'sobreposta', cameraGuias: false })
-    } catch {
-      setErro('Não foi possível gerar o QR. Confira as regras de acesso do Firebase.')
+    }
+    streamPc.current?.getTracks().forEach((faixa) => faixa.stop())
+    streamPc.current = null
+    setStream(null)
+    if (fonte === 'pc') {
+      try {
+        const novoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        if (fonteCameraAtual.current !== 'pc') {
+          novoStream.getTracks().forEach((faixa) => faixa.stop())
+          return
+        }
+        streamPc.current = novoStream
+        setStream(novoStream)
+      } catch {
+        setErro('Não foi possível abrir a câmera do computador. Confira a permissão no navegador.')
+      }
+    }
+    void backend.atualizarSessao(sessao.id, { cameraVisivel: true })
+      .catch(() => setErro('Não foi possível atualizar a visualização da câmera.'))
+  }
+
+  const selecionarMicrofone = (fonte: 'pc' | 'app') => {
+    setFonteMicrofone(fonte)
+    onFonteMicrofone?.(fonte)
+    if (fonte === 'pc' && fonteCameraAtual.current === 'pc') {
+      cameraPc.current?.close()
+      cameraPc.current = null
+      processada.current = ''
+      onAudio?.(null)
     }
   }
 
   useImperativeHandle(cameraRef, () => ({
-    conectar: () => {
-      if (!stream) { void gerarQr(); return }
-      void backend.atualizarSessao(sessao.id, { cameraVisivel: !visivel })
-        .catch(() => setErro('Não foi possível alterar a visualização da câmera.'))
-    },
+    abrirConfiguracao: () => setConfiguracaoAberta(true),
     encerrar: async () => {
-      if (canalControle.current?.readyState === 'open') canalControle.current.send('encerrar')
-      if (token) {
-        await backend.salvarSinal(sessao.id, `camera-${token}`, { resposta: 'encerrar' }).catch(() => {})
-      }
+      streamPc.current?.getTracks().forEach((faixa) => faixa.stop())
+      streamPc.current = null
     },
   }))
 
-  const url = token ? `${window.location.origin}${window.location.pathname}#/camera/${sessao.id}/camera-${token}` : ''
   const modo = sessao.cameraModo ?? 'sobreposta'
-  const alternarModo = () => void backend.atualizarSessao(sessao.id, {
-    cameraModo: modo === 'camera' ? 'sobreposta' : 'camera',
+  const selecionarModo = (novoModo: 'sobreposta' | 'camera') => void backend.atualizarSessao(sessao.id, {
+    cameraModo: novoModo, cameraVisivel: true,
   }).catch(() => setErro('Não foi possível trocar a visualização.'))
 
   const iniciarRedimensionamento = (e: React.PointerEvent<HTMLButtonElement>, direcao: DirecaoAjuste) => {
@@ -337,10 +344,6 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
           {ehTarologo && onCartaReconhecida && <ReconhecimentoCamera videoRef={videoEl} temaBaralho={temaBaralho ?? null} onDeteccao={onCartaReconhecida}
             guias={sessao.cameraGuias ? guiasDaCamera(SPREAD_BY_ID.get(sessao.spreadId) ?? SPREAD_BY_ID.get('una')!, proporcao) : []} spreadId={sessao.spreadId} />}
           {ehTarologo && modo === 'sobreposta' && <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1 text-[11px] text-white">Arraste para mover</span>}
-          {ehTarologo && <div className="absolute left-2 top-2 flex flex-wrap gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
-            <button type="button" onClick={alternarModo} className="rounded-full border border-gold/50 bg-black/80 px-3 py-1.5 text-xs text-gold">{modo === 'camera' ? 'Voltar à mesa 3D' : 'Ver só câmera'}</button>
-            <button type="button" onClick={() => void gerarQr()} className="rounded-full border border-white/30 bg-black/80 px-3 py-1.5 text-xs text-white">Trocar celular</button>
-          </div>}
           {ehTarologo && modo === 'sobreposta' && <div className="absolute bottom-2 right-9 flex items-end gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
             <button type="button" aria-label="Diminuir câmera" onClick={() => {
               const novo = Math.max(18, tamanho - 8)
@@ -371,16 +374,31 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
         {erro && <span role="alert" className="glass rounded-xl px-3 py-2 text-xs text-rose">{erro}</span>}
       </div>
 
-      {qrAberto && token && (
-        <div role="dialog" aria-modal="true" aria-label="Conectar câmera do celular" className="fixed inset-0 z-[110] grid place-items-center bg-black/85 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-gold/30 bg-abyss p-6 text-center text-mist shadow-2xl">
-            <h2 className="font-display text-2xl text-star">Câmera do celular</h2>
-            <p className="my-3 text-sm">Escaneie com o celular, abra o link e permita usar a câmera. O QR expira em 10 minutos.</p>
-            {backend.modo === 'local' && <p className="mb-3 rounded-xl border border-gold/30 p-2 text-xs text-gold">No teste local, o endereço 127.0.0.1 só funciona neste computador. No site publicado, o QR usa o endereço HTTPS.</p>}
-            <div className="mx-auto w-fit rounded-xl bg-white p-3"><QRCodeSVG value={url} size={190} /></div>
-            <a href={url} target="_blank" rel="noreferrer" className="mt-3 block break-all text-xs text-gold underline">Abrir link neste aparelho</a>
-            <p className="mt-3 text-xs">Deixe esta sala aberta no computador durante a transmissão.</p>
-            <button type="button" onClick={() => setQrAberto(false)} className="mt-5 rounded-full border border-white/25 px-6 py-2 text-star">{cameraAtiva ? 'Câmera conectada · fechar' : 'Fechar'}</button>
+      {ehTarologo && configuracaoAberta && (
+        <div role="dialog" aria-modal="true" aria-label="Configurar câmera e microfone" className="fixed inset-0 z-[110] grid place-items-center bg-black/85 p-4" onClick={() => setConfiguracaoAberta(false)}>
+          <div className="max-h-[90svh] w-full max-w-md overflow-y-auto rounded-3xl border border-gold/30 bg-abyss p-6 text-mist shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display text-2xl text-star">Câmera e microfone</h2>
+            <p className="mt-2 text-sm text-mist/75">Escolha de onde vêm a imagem e a voz desta leitura.</p>
+            <fieldset className="mt-5 space-y-2">
+              <legend className="mb-2 text-sm font-semibold text-gold">Câmera</legend>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 p-3"><input type="radio" name="fonte-camera" checked={fonteCamera === 'app'} onChange={() => void selecionarCamera('app')} />Aplicativo DigiTarot</label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 p-3"><input type="radio" name="fonte-camera" checked={fonteCamera === 'pc'} onChange={() => void selecionarCamera('pc')} />Câmera deste computador</label>
+              {fonteCamera === 'app' && <p className="text-xs text-mist/65">Ligue ou desligue a transmissão no aplicativo. {dispositivoVinculado ? (stream ? 'Imagem recebida.' : 'Aguardando o aplicativo transmitir.') : 'Vincule o celular no seu perfil.'}</p>}
+              {fonteCamera === 'pc' && !stream && <button type="button" onClick={() => void selecionarCamera('pc')} className="text-xs text-gold underline">Tentar abrir a câmera do computador</button>}
+            </fieldset>
+            <fieldset className="mt-5 space-y-2">
+              <legend className="mb-2 text-sm font-semibold text-gold">Visualização padrão</legend>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 p-3"><input type="radio" name="modo-camera" checked={modo === 'sobreposta'} onChange={() => selecionarModo('sobreposta')} />Câmera sobre a mesa 3D</label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 p-3"><input type="radio" name="modo-camera" checked={modo === 'camera'} onChange={() => selecionarModo('camera')} />Só a câmera</label>
+            </fieldset>
+            <fieldset className="mt-5 space-y-2">
+              <legend className="mb-2 text-sm font-semibold text-gold">Microfone da conversa por voz</legend>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 p-3"><input type="radio" name="fonte-microfone" checked={fonteMicrofone === 'pc'} onChange={() => selecionarMicrofone('pc')} />Microfone deste computador</label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 p-3"><input type="radio" name="fonte-microfone" checked={fonteMicrofone === 'app'} onChange={() => selecionarMicrofone('app')} />Microfone do aplicativo</label>
+              <p className="text-xs text-mist/65">Trocar o microfone encerra a conversa por voz atual. Inicie outra para usar a nova fonte.</p>
+            </fieldset>
+            {erro && <p role="alert" className="mt-3 text-sm text-rose">{erro}</p>}
+            <button type="button" onClick={() => setConfiguracaoAberta(false)} className="mt-6 rounded-full border border-gold/50 px-6 py-2 text-gold">Concluir</button>
           </div>
         </div>
       )}

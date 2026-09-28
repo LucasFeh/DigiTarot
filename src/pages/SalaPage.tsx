@@ -91,6 +91,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
   const [erroEncerrar, setErroEncerrar] = useState('')
   const [cameraConectada, setCameraConectada] = useState(false)
   const [audioCelular, setAudioCelular] = useState<MediaStream | null>(null)
+  const [fonteMicrofone, setFonteMicrofone] = useState<'pc' | 'app'>('pc')
   const [naoLidas, setNaoLidas] = useState(0)
   const cameraRef = useRef<CameraMesaHandle>(null)
   /** Carta viajando na ponta do ponteiro, em coordenadas de cliente. */
@@ -446,6 +447,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
       aoNaoLidas={setNaoLidas}
       lado={ehTarologo ? sessao.chatLado : 'esquerda'}
       microfoneCelular={ehTarologo ? audioCelular : null}
+      fonteMicrofone={fonteMicrofone}
     />
   )
 
@@ -453,10 +455,11 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
     <button
       type="button"
       onClick={() => setLuzAcesa((v) => !v)}
-      className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star"
+      className={`glass grid h-9 w-9 place-items-center rounded-full transition hover:text-star ${luzAcesa ? 'text-gold' : 'text-mist'}`}
       title={luzAcesa ? 'Apagar a luz' : 'Acender a luz'}
+      aria-label={luzAcesa ? 'Apagar a luz' : 'Acender a luz'}
     >
-      {luzAcesa ? '☾ Apagar a luz' : '☀ Acender a luz'}
+      <svg width="19" height="19" viewBox="0 0 24 24" fill={luzAcesa ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18h6m-5 3h4M9 14.5c-1.3-1-2-2.4-2-4a5 5 0 0 1 10 0c0 1.6-.7 3-2 4-.6.5-1 1.2-1 2H10c0-.8-.4-1.5-1-2Z" /></svg>
     </button>
   )
 
@@ -660,7 +663,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           que é o que a pessoa realmente precisa ver. */}
       <div data-sala className="relative h-[calc(100vh-4rem)] w-full overflow-hidden">
         {cena}
-        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} onConexao={setCameraConectada} onAudio={setAudioCelular} temaBaralho={baralho.tema} onCartaReconhecida={reconhecerCarta} />}
+        {backend && <CameraMesa backend={backend} sessao={sessao} ehTarologo cameraRef={cameraRef} onConexao={setCameraConectada} onAudio={setAudioCelular} onFonteMicrofone={setFonteMicrofone} temaBaralho={baralho.tema} onCartaReconhecida={reconhecerCarta} />}
 
         <BarraFerramentas
           cartas={cartas}
@@ -671,9 +674,8 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           rotuloSlot={slotAtivo !== null ? spread?.slots[slotAtivo]?.rotulo : undefined}
           onRevirarTodas={revirarTodas}
           onLuz={() => setLuzAcesa((v) => !v)}
-          onCamera={() => cameraRef.current?.conectar()}
+          onCamera={() => cameraRef.current?.abrirConfiguracao()}
           cameraConectada={cameraConectada}
-          cameraVisivel={sessao.cameraVisivel !== false}
           lado={sessao.barraLado}
           onLimpar={() => {
             patch({ cartas: [] })

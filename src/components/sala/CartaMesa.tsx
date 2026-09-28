@@ -39,6 +39,9 @@ export default function CartaMesa({
   onClick?: () => void
 }) {
   const grupo = useRef<THREE.Group>(null)
+  const animacao = useRef<'parada' | 'subindo' | 'virando' | 'descendo'>('parada')
+  const reveladaAnterior = useRef(revelada)
+  const inicializada = useRef(false)
   const [hover, setHover] = useState(false)
   const matFrente = useRef<THREE.MeshStandardMaterial>(null)
   const matVerso = useRef<THREE.MeshStandardMaterial>(null)
@@ -67,16 +70,34 @@ export default function CartaMesa({
 
   useFrame((_, delta) => {
     if (!grupo.current) return
-    // Revelar é girar a carta sobre o próprio eixo, não trocar a textura.
-    const alvoFlip = revelada ? Math.PI : 0
-    grupo.current.rotation.x = THREE.MathUtils.damp(grupo.current.rotation.x, alvoFlip, 7, delta)
-    // Levanta um pouco no hover, para o cliente ver que dá para clicar. O alvo
-    // é relativo: o grupo de fora já está na posição da mesa, e somar `posicao`
-    // aqui de novo faria a carta levitar a altura inteira do tampo.
-    grupo.current.position.y = THREE.MathUtils.damp(grupo.current.position.y, hover ? 0.05 : 0, 9, delta)
+    if (!inicializada.current) {
+      grupo.current.rotation.x = revelada ? Math.PI : 0
+      inicializada.current = true
+    }
+    if (reveladaAnterior.current !== revelada) {
+      reveladaAnterior.current = revelada
+      animacao.current = 'subindo'
+    }
+
+    // Nesta cena o tampo está em XZ; a altura visual (normal da carta) é Y.
+    // Primeiro ela sobe, depois gira pelo eixo horizontal X e só então desce.
+    const altura = animacao.current === 'subindo' || animacao.current === 'virando' ? 0.2 : hover ? 0.05 : 0
+    grupo.current.position.y = THREE.MathUtils.damp(grupo.current.position.y, altura, 12, delta)
+    if (animacao.current === 'subindo' && grupo.current.position.y > 0.185) animacao.current = 'virando'
+    if (animacao.current === 'virando') {
+      const alvo = revelada ? Math.PI : 0
+      grupo.current.rotation.x = THREE.MathUtils.damp(grupo.current.rotation.x, alvo, 8, delta)
+      if (Math.abs(grupo.current.rotation.x - alvo) < 0.025) {
+        grupo.current.rotation.x = alvo
+        animacao.current = 'descendo'
+      }
+    }
+    if (animacao.current === 'descendo' && Math.abs(grupo.current.position.y - (hover ? 0.05 : 0)) < 0.006) animacao.current = 'parada'
   })
 
-  const giroTotal = ((giro + (invertida && revelada ? 180 : 0)) * Math.PI) / 180
+  // A orientação invertida já está aplicada antes da virada, sem giro vertical
+  // adicional quando a carta é revelada.
+  const giroTotal = ((giro + (invertida ? 180 : 0)) * Math.PI) / 180
 
   return (
     <group position={posicao} rotation={[0, giroTotal, 0]}>

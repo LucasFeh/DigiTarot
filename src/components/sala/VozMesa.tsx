@@ -3,11 +3,12 @@ import type { Backend, SinalMidia } from '../../lib/backend'
 import { novoToken } from '../../lib/backend/local'
 import { criarPeer, oferecer, receberResposta, responder } from '../../lib/webrtc'
 
-export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: {
+export default function VozMesa({ backend, sessaoId, autor, microfoneCelular, fonteMicrofone = 'pc' }: {
   backend: Backend
   sessaoId: string
   autor: 'tarologo' | 'cliente'
   microfoneCelular?: MediaStream | null
+  fonteMicrofone?: 'pc' | 'app'
 }) {
   const [sinal, setSinal] = useState<SinalMidia | null>(null)
   const [ativo, setAtivo] = useState(false)
@@ -19,6 +20,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
   const versao = useRef('')
   const iniciando = useRef(false)
   const fonteExterna = useRef(false)
+  const fonteEmUso = useRef<'pc' | 'app' | null>(null)
 
   useEffect(() => backend.observarSinal(sessaoId, 'voz', setSinal), [backend, sessaoId])
 
@@ -52,6 +54,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
     setAtivo(false)
     setMudo(false)
     fonteExterna.current = false
+    fonteEmUso.current = null
     setEstado('')
     if (autor === 'tarologo') {
       void backend.salvarSinal(sessaoId, 'voz', { oferta: '', resposta: '' }).catch(() => {})
@@ -67,7 +70,11 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
     if (autor === 'cliente' && !sinal?.oferta) return
     iniciando.current = true
     try {
-      const faixaCelular = autor === 'tarologo' ? microfoneCelular?.getAudioTracks().find((t) => t.readyState === 'live') : undefined
+      const faixaCelular = autor === 'tarologo' && fonteMicrofone === 'app' ? microfoneCelular?.getAudioTracks().find((t) => t.readyState === 'live') : undefined
+      if (autor === 'tarologo' && fonteMicrofone === 'app' && !faixaCelular) {
+        setEstado('Ligue a transmissão e o microfone no aplicativo para iniciar a voz.')
+        return
+      }
       setEstado(faixaCelular ? 'Ligando o microfone do celular…' : 'Abrindo microfone…')
       // Clonar evita que "Silenciar" ou "Sair da voz" desligue a faixa da
       // transmissão de câmera, que continua pertencendo ao aplicativo.
@@ -75,6 +82,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
         ? new MediaStream([faixaCelular.clone()])
         : await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false })
       fonteExterna.current = Boolean(faixaCelular)
+      if (autor === 'tarologo') fonteEmUso.current = fonteMicrofone
       mic.current = stream
       const conexao = criarPeer()
       pc.current = conexao
@@ -108,6 +116,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
       pc.current = null
       mic.current = null
       fonteExterna.current = false
+      fonteEmUso.current = null
       setEstado('Não foi possível abrir a voz. Confira a permissão do microfone e tente novamente.')
     } finally {
       iniciando.current = false
@@ -115,7 +124,13 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
   }
 
   useEffect(() => {
-    if (autor !== 'tarologo') return
+    if (autor === 'tarologo' && ativo && fonteEmUso.current && fonteEmUso.current !== fonteMicrofone) fechar()
+  // A troca de dispositivo encerra a chamada atual; o tarólogo inicia outra.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autor, ativo, fonteMicrofone])
+
+  useEffect(() => {
+    if (autor !== 'tarologo' || fonteMicrofone !== 'app') return
     if (!microfoneCelular?.getAudioTracks().some((t) => t.readyState === 'live')) {
       if (fonteExterna.current) fechar()
       return
@@ -124,7 +139,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
   // A chegada de uma nova faixa do celular inicia a voz uma vez. O botão
   // continua disponível para o tarólogo reiniciar se a chamada cair.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [microfoneCelular])
+  }, [microfoneCelular, fonteMicrofone])
 
   const alternarMudo = () => {
     const proximo = !mudo
@@ -139,7 +154,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
         <span className="mr-auto text-mist/70">Conversa por voz</span>
         {!ativo ? (
           <button type="button" onClick={() => void entrar()} disabled={autor === 'cliente' && !sinal?.oferta} className="rounded-full border border-gold/40 px-3 py-1.5 text-gold disabled:cursor-default disabled:opacity-50">
-            {autor === 'tarologo' ? microfoneCelular ? 'Iniciar voz pelo celular' : 'Iniciar voz' : sinal?.oferta ? 'Entrar na voz' : 'Aguardando chamada'}
+            {autor === 'tarologo' ? fonteMicrofone === 'app' ? 'Iniciar voz pelo aplicativo' : 'Iniciar voz pelo computador' : sinal?.oferta ? 'Entrar na voz' : 'Aguardando chamada'}
           </button>
         ) : (
           <>

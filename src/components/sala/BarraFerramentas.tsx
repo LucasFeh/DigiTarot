@@ -61,7 +61,6 @@ export default function BarraFerramentas({
   onLuz,
   onCamera,
   cameraConectada,
-  cameraVisivel,
   lado = 'esquerda',
   onLimpar,
   onMenu,
@@ -81,7 +80,6 @@ export default function BarraFerramentas({
   onLuz: () => void
   onCamera: () => void
   cameraConectada: boolean
-  cameraVisivel: boolean
   lado?: 'esquerda' | 'direita'
   onLimpar: () => void
   onMenu: () => void
@@ -107,11 +105,10 @@ export default function BarraFerramentas({
           <button
             type="button"
             onClick={onCamera}
-            title={cameraConectada ? (cameraVisivel ? 'Ocultar câmera sem desconectar o celular' : 'Mostrar câmera conectada') : 'Conectar a câmera do celular à mesa'}
-            aria-pressed={cameraConectada && cameraVisivel}
+            title="Escolher câmera, visualização e microfone"
             className="shrink-0 whitespace-nowrap rounded-full border border-gold/50 bg-gold/15 px-4 py-1.5 text-[14px] font-semibold text-gold transition hover:bg-gold/25"
           >
-            ◉ {cameraConectada ? (cameraVisivel ? 'Ocultar câmera' : 'Mostrar câmera') : 'Câmera do celular'}
+            ◉ Câmera e microfone{cameraConectada ? ' · conectada' : ''}
           </button>
 
           <Risco />
@@ -133,11 +130,11 @@ export default function BarraFerramentas({
           <Risco />
 
           <Botao onClick={onLuz} ativo={luzAcesa} titulo={luzAcesa ? 'Apagar a luz' : 'Acender a luz'}>
-            {luzAcesa ? '☾ Apagar' : '☀ Acender'}
+            <svg width="19" height="19" viewBox="0 0 24 24" fill={luzAcesa ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18h6m-5 3h4M9 14.5c-1.3-1-2-2.4-2-4a5 5 0 0 1 10 0c0 1.6-.7 3-2 4-.6.5-1 1.2-1 2H10c0-.8-.4-1.5-1-2Z" /></svg>
           </Botao>
 
           <Botao onClick={onLimpar} desabilitado={naMesa === 0} titulo="Tirar todas as cartas da mesa">
-            Limpar mesa
+            <span className="relative inline-flex items-center text-rose"><svg width="27" height="20" viewBox="0 0 29 22" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="2" width="15" height="18" rx="2" /><path d="m9.5 7 2 4-2 4-2-4 2-4ZM19 11h8m-3-3 3 3-3 3" /></svg></span>
           </Botao>
 
           <Risco />

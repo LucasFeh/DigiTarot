@@ -83,6 +83,7 @@ export default function ChatMesa({
   aoNaoLidas,
   lado = 'esquerda',
   microfoneCelular,
+  fonteMicrofone,
 }: {
   sessaoId: string
   autor: 'tarologo' | 'cliente'
@@ -93,6 +94,7 @@ export default function ChatMesa({
   aoNaoLidas: (n: number) => void
   lado?: 'esquerda' | 'direita'
   microfoneCelular?: MediaStream | null
+  fonteMicrofone?: 'pc' | 'app'
 }) {
   const { backend } = useAuth()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
@@ -267,7 +269,7 @@ export default function ChatMesa({
             ×
           </button>
         </header>
-        {backend && <VozMesa backend={backend} sessaoId={sessaoId} autor={autor} microfoneCelular={microfoneCelular} />}
+        {backend && <VozMesa backend={backend} sessaoId={sessaoId} autor={autor} microfoneCelular={microfoneCelular} fonteMicrofone={fonteMicrofone} />}
 
         <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-3">
           {mensagens.length === 0 ? (
