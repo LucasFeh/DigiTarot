@@ -198,6 +198,7 @@ export default function AppCameraPage() {
             {ligada && temMicrofone ? <button type="button" onClick={() => { const proximo = !mudo; stream.current?.getAudioTracks().forEach((t) => { t.enabled = !proximo }); setMudo(proximo) }} className="rounded-xl border border-white/20 px-4 text-sm">{mudo ? 'Ativar microfone' : 'Silenciar'}</button> : null}
           </div>
           <p className="text-center text-xs text-mist/60">Mantenha o aplicativo aberto e a tela ligada durante a leitura.</p>
+          <p className="text-center text-xs text-mist/60">Sua voz sai pelo microfone do celular. A voz do cliente é ouvida no computador, pela conversa da mesa.</p>
         </>
       )}
       <p role="status" className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm text-mist">{ligada && !mesaId ? `Câmera pronta${temMicrofone ? ' e microfone pronto' : ' sem microfone'}. Aguardando você abrir uma mesa no computador…` : estado}</p>

@@ -18,6 +18,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
   const som = useRef<HTMLAudioElement>(null)
   const versao = useRef('')
   const iniciando = useRef(false)
+  const fonteExterna = useRef(false)
 
   useEffect(() => backend.observarSinal(sessaoId, 'voz', setSinal), [backend, sessaoId])
 
@@ -50,6 +51,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
     if (som.current) som.current.srcObject = null
     setAtivo(false)
     setMudo(false)
+    fonteExterna.current = false
     setEstado('')
     if (autor === 'tarologo') {
       void backend.salvarSinal(sessaoId, 'voz', { oferta: '', resposta: '' }).catch(() => {})
@@ -72,6 +74,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
       const stream = faixaCelular
         ? new MediaStream([faixaCelular.clone()])
         : await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false })
+      fonteExterna.current = Boolean(faixaCelular)
       mic.current = stream
       const conexao = criarPeer()
       pc.current = conexao
@@ -104,6 +107,7 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
       mic.current?.getTracks().forEach((t) => t.stop())
       pc.current = null
       mic.current = null
+      fonteExterna.current = false
       setEstado('Não foi possível abrir a voz. Confira a permissão do microfone e tente novamente.')
     } finally {
       iniciando.current = false
@@ -111,9 +115,12 @@ export default function VozMesa({ backend, sessaoId, autor, microfoneCelular }: 
   }
 
   useEffect(() => {
-    if (autor === 'tarologo' && microfoneCelular?.getAudioTracks().some((t) => t.readyState === 'live') && !ativo) {
-      void entrar()
+    if (autor !== 'tarologo') return
+    if (!microfoneCelular?.getAudioTracks().some((t) => t.readyState === 'live')) {
+      if (fonteExterna.current) fechar()
+      return
     }
+    if (!ativo) void entrar()
   // A chegada de uma nova faixa do celular inicia a voz uma vez. O botão
   // continua disponível para o tarólogo reiniciar se a chamada cair.
   // eslint-disable-next-line react-hooks/exhaustive-deps

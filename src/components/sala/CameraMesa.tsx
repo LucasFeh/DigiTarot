@@ -144,7 +144,11 @@ export default function CameraMesa({ backend, sessao, ehTarologo, cameraRef, onC
       const proximo = e.streams[0] ?? new MediaStream([e.track])
       if (e.track.kind === 'video') setStream(proximo)
       if (e.track.kind === 'audio') onAudio?.(new MediaStream([e.track]))
-      e.track.onended = () => { if (cameraPc.current === pc) { setStream(null); onAudio?.(null) } }
+      e.track.onended = () => {
+        if (cameraPc.current !== pc) return
+        if (e.track.kind === 'video') setStream(null)
+        else onAudio?.(null)
+      }
     }
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'failed' && cameraPc.current === pc) { setStream(null); onAudio?.(null) }

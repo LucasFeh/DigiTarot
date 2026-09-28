@@ -73,7 +73,7 @@ uma mesa no computador, o vídeo e o microfone entram automaticamente pela
 conexão WebRTC; o cliente entra na conversa por voz pela mesa. O aplicativo
 precisa ficar aberto, com a tela ligada e conexão de internet. Se o microfone
 for negado, a câmera ainda funciona e o tarólogo pode usar o microfone do
-computador.
+computador. A voz do cliente é reproduzida no computador da mesa.
 
 O Firestore usa `mesasAtivas/{uid}` para impedir duas mesas simultâneas. Abrir
 e encerrar uma mesa atualiza esse ponteiro em transação; uma mesa encerrada não
