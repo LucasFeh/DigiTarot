@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { useHashRoute } from '../lib/useHashRoute'
 import { novoToken } from '../lib/backend/local'
@@ -8,6 +8,7 @@ import { guiasDaCamera } from '../lib/posicaoCartaCamera'
 import { SPREAD_BY_ID } from '../data/spreads'
 import type { Sessao, SinalMidia, VinculacaoCamera } from '../lib/backend'
 import LoginPage from './LoginPage'
+import { GeralCamera, MinhaCartaCamera, TiragensCamera, type SecaoCamera } from '../components/camera/AppCameraSections'
 
 const CHAVE_APARELHO = 'digitarot.camera.dispositivo'
 
@@ -40,16 +41,19 @@ export default function AppCameraPage() {
   const [sessaoAtiva, setSessaoAtiva] = useState<Sessao | null>(null)
   const [ligada, setLigada] = useState(false)
   const [telaHorizontal, setTelaHorizontal] = useState(cameraEmPaisagem)
-  const [proporcaoVideo, setProporcaoVideo] = useState(9 / 16)
+  const [proporcaoVideo, setProporcaoVideo] = useState(16 / 9)
   const [atualizacaoDisponivel, setAtualizacaoDisponivel] = useState(false)
   const [mudo, setMudo] = useState(false)
   const [temMicrofone, setTemMicrofone] = useState(false)
   const [estado, setEstado] = useState('Toque em Câmera para preparar a transmissão.')
   const [instalar, setInstalar] = useState<Event & { prompt?: () => Promise<void> } | null>(null)
+  const [secao, setSecao] = useState<SecaoCamera>('camera')
+  const [menuAberto, setMenuAberto] = useState(false)
   const video = useRef<HTMLVideoElement>(null)
   const stream = useRef<MediaStream | null>(null)
   const peer = useRef<RTCPeerConnection | null>(null)
   const iniciando = useRef(false)
+  const autoIniciada = useRef<string | null>(null)
   const telaCheiaDaCamera = useRef(false)
   const vinculado = Boolean(dispositivoId && vinculo?.dispositivoId === dispositivoId)
   const mesaAtual = sessaoAtiva?.id === mesaId && !sessaoAtiva.encerrada ? sessaoAtiva : null
@@ -65,7 +69,6 @@ export default function AppCameraPage() {
 
   useEffect(() => {
     if (!import.meta.env.PROD) return
-    try { screen.orientation?.unlock() } catch { /* A rotação segue a configuração do aparelho. */ }
     let cancelado = false
     let registro: ServiceWorkerRegistration | null = null
     const versaoAtual = assinaturaVersao(document)
@@ -119,7 +122,7 @@ export default function AppCameraPage() {
       if (video.current) video.current.srcObject = null
       setLigada(false)
       setTemMicrofone(false)
-      setProporcaoVideo(9 / 16)
+      setProporcaoVideo(16 / 9)
       try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
       if (telaCheiaDaCamera.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
       telaCheiaDaCamera.current = false
@@ -136,13 +139,13 @@ export default function AppCameraPage() {
     return backend.observarSessao(mesaId, setSessaoAtiva)
   }, [backend, mesaId, vinculado])
 
-  const liberarOrientacao = () => {
+  const liberarOrientacao = useCallback(() => {
     try { screen.orientation?.unlock() } catch { /* O sistema decide a orientação. */ }
     if (telaCheiaDaCamera.current && document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {})
     }
     telaCheiaDaCamera.current = false
-  }
+  }, [])
 
   const parar = () => {
     if (backend && mesaId) void backend.salvarSinal(mesaId, 'app-camera', { oferta: '', resposta: '' }).catch(() => {})
@@ -154,7 +157,7 @@ export default function AppCameraPage() {
     setLigada(false)
     setMudo(false)
     setTemMicrofone(false)
-    setProporcaoVideo(9 / 16)
+    setProporcaoVideo(16 / 9)
     setEstado('Câmera desligada.')
     liberarOrientacao()
   }
@@ -257,7 +260,7 @@ export default function AppCameraPage() {
     }
   }, [ligada])
 
-  const ativar = async () => {
+  const ativar = useCallback(async () => {
     if (iniciando.current || ligada) return
     if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) {
       setEstado('Este aparelho precisa de HTTPS e de um navegador com câmera e WebRTC.')
@@ -303,7 +306,7 @@ export default function AppCameraPage() {
       if (width && height && width <= height) {
         capturada.getTracks().forEach((t) => t.stop())
         liberarOrientacao()
-        setEstado('A câmera não iniciou na horizontal. Gire o celular, ative a Rotação automática e toque em Câmera novamente.')
+        setEstado('A câmera não iniciou na horizontal. Gire o celular, ative a Rotação automática e toque em Ligar câmera novamente.')
         return
       }
       stream.current = capturada
@@ -317,7 +320,15 @@ export default function AppCameraPage() {
     } finally {
       iniciando.current = false
     }
-  }
+  }, [ligada, mesaId, liberarOrientacao])
+
+  useEffect(() => {
+    if (!usuario || usuario.papel !== 'tarologo' || !vinculado) return
+    const chave = `${usuario.uid}:${dispositivoId}`
+    if (autoIniciada.current === chave) return
+    autoIniciada.current = chave
+    void ativar()
+  }, [usuario, vinculado, dispositivoId, ativar])
 
   const vincular = async (evento: React.FormEvent) => {
     evento.preventDefault()
@@ -325,7 +336,7 @@ export default function AppCameraPage() {
     try {
       await backend.vincularCamera(usuario.uid, codigo.trim(), dispositivoId)
       setCodigo('')
-      setEstado('Celular vinculado. Toque em Câmera para preparar a leitura.')
+      setEstado('Celular vinculado. Preparando a câmera…')
     } catch (e) {
       setEstado(e instanceof Error ? e.message : 'Código inválido.')
     }
@@ -340,71 +351,105 @@ export default function AppCameraPage() {
     }
   }
 
-  if (carregando || !backend) return <main className="grid min-h-svh place-items-center text-mist">Abrindo aplicativo…</main>
+  if (carregando || !backend) return <main className="grid min-h-svh place-items-center bg-void text-mist">Abrindo aplicativo…</main>
   if (!usuario) return <LoginPage titulo="DigiTarot Câmera" descricao="Entre com a mesma conta de tarólogo que você usa no site." voltarPara={`${import.meta.env.BASE_URL}#/`} />
-  if (usuario.papel !== 'tarologo') return <main className="grid min-h-svh place-items-center px-6 text-center text-mist">Este aplicativo é para contas de tarólogo. Entre com a conta criada para seus atendimentos.</main>
+  if (usuario.papel !== 'tarologo') return <main className="grid min-h-svh place-items-center bg-void px-6 text-center text-star">
+    <div className="max-w-sm">
+      <span aria-hidden className="text-5xl text-gold">✦</span>
+      <h1 className="mt-4 font-display text-2xl">Acesso de clientes em breve</h1>
+      <p className="mt-3 text-sm leading-relaxed text-mist">O aplicativo da câmera está disponível para tarólogos. Sua conta de cliente continua funcionando no site.</p>
+      <button type="button" onClick={() => void sair()} className="mt-6 rounded-xl border border-gold/50 px-6 py-3 text-gold">Sair</button>
+    </div>
+  </main>
+
+  const escolher = (proxima: SecaoCamera) => { setSecao(proxima); setMenuAberto(false) }
+  const secoes: { id: SecaoCamera; titulo: string; icone: string }[] = [
+    { id: 'camera', titulo: 'Câmera', icone: '◉' },
+    { id: 'geral', titulo: 'Geral', icone: '☾' },
+    { id: 'tiragem', titulo: 'Minha tiragem', icone: '☷' },
+    { id: 'carta', titulo: 'Minha carta', icone: '✦' },
+  ]
 
   return (
-    <main className="mx-auto flex min-h-svh max-w-lg flex-col gap-5 bg-void px-5 pb-8 pt-7 text-star">
-      <header className="flex items-start justify-between gap-3">
-        <div><p className="text-xs uppercase tracking-[0.25em] text-gold">DigiTarot</p><h1 className="mt-1 font-display text-2xl">Câmera da mesa</h1></div>
-        <button type="button" onClick={() => { parar(); void sair() }} className="rounded-full border border-white/20 px-3 py-1.5 text-xs text-mist">Sair</button>
-      </header>
-      {!dispositivoId && <p className="rounded-xl border border-rose/40 p-3 text-sm text-rose">Ative o armazenamento deste navegador para vincular o aparelho.</p>}
-      {!vinculado ? (
-        <section className="rounded-2xl border border-gold/25 bg-white/[0.04] p-5">
-          <h2 className="font-display text-lg">Vincular este celular</h2>
+    <main className="fixed inset-0 overflow-hidden bg-black text-star">
+      {vinculado && <div className="absolute inset-0 grid place-items-center overflow-hidden">
+        <div className="relative overflow-hidden bg-black" style={{ width: `min(100vw, ${proporcaoVideo * 100}svh)`, aspectRatio: proporcaoVideo }}>
+          <video ref={video} autoPlay muted playsInline aria-hidden={!ligada}
+            onLoadedMetadata={(e) => {
+              const { videoWidth, videoHeight } = e.currentTarget
+              if (videoWidth && videoHeight) setProporcaoVideo(videoWidth / videoHeight)
+            }}
+            onResize={(e) => {
+              const { videoWidth, videoHeight } = e.currentTarget
+              if (videoWidth && videoHeight) setProporcaoVideo(videoWidth / videoHeight)
+            }}
+            className="absolute inset-0 h-full w-full object-contain" />
+          {ligada && guiasAtivas && <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            {guias.map((guia) => <div key={guia.slot}
+              className="absolute rounded-md border-2 border-gold bg-gold/10 shadow-[0_0_14px_#f4d48988]"
+              style={{ left: `${guia.x * 100}%`, top: `${guia.y * 100}%`, width: `${guia.largura * 100}%`, height: `${guia.altura * 100}%`, transform: 'translate(-50%, -50%)' }}>
+              <span className="absolute -left-1 -top-2 rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-bold leading-none text-void">{guia.slot + 1}</span>
+            </div>)}
+          </div>}
+          {!ligada && <div className="absolute inset-0 grid place-items-center text-sm text-mist/70">Câmera desligada</div>}
+        </div>
+      </div>}
+
+      {secao === 'camera' && vinculado && <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/65 via-transparent to-black/70" />}
+
+      <button type="button" aria-label={menuAberto ? 'Fechar menu' : 'Abrir menu'} aria-expanded={menuAberto}
+        onClick={() => setMenuAberto((aberto) => !aberto)}
+        className="absolute left-[max(12px,env(safe-area-inset-left))] top-[max(12px,env(safe-area-inset-top))] z-50 grid h-11 w-11 place-items-center rounded-xl border border-white/25 bg-black/75 text-xl shadow-lg">
+        {menuAberto ? '×' : '☰'}
+      </button>
+
+      {secao === 'camera' && vinculado && <div className="absolute inset-x-4 bottom-[max(12px,env(safe-area-inset-bottom))] z-20 flex flex-wrap items-center justify-center gap-2">
+        <button type="button" onClick={() => ligada ? parar() : void ativar()} className="rounded-xl border border-white/25 bg-black/80 px-4 py-2.5 text-sm font-semibold">{ligada ? 'Desligar câmera' : 'Ligar câmera'}</button>
+        {ligada && temMicrofone && <button type="button" onClick={() => { const proximo = !mudo; stream.current?.getAudioTracks().forEach((t) => { t.enabled = !proximo }); setMudo(proximo) }} className="rounded-xl border border-white/25 bg-black/80 px-4 py-2.5 text-sm">{mudo ? 'Ativar microfone' : 'Silenciar'}</button>}
+        <button type="button" onClick={() => void alternarGuias()} disabled={!mesaAtual} aria-pressed={guiasAtivas}
+          className="rounded-xl border border-white/25 bg-black/80 px-4 py-2.5 text-sm disabled:opacity-45">{guiasAtivas ? 'Desabilitar posições' : 'Habilitar posição'}</button>
+      </div>}
+      {secao === 'camera' && vinculado && <div className="absolute right-3 top-[max(12px,env(safe-area-inset-top))] z-20 max-w-[min(60vw,340px)] rounded-xl bg-black/70 px-3 py-2 text-right text-xs text-mist">
+        <p role="status">{ligada && !mesaId ? 'Câmera pronta · aguardando mesa no computador' : estado}</p>
+        {ligada && !telaHorizontal && <p role="alert" className="mt-1 text-gold">Gire o celular e ative a Rotação automática se a tela não acompanhar.</p>}
+        {mesaAtual && <p className="mt-1 text-gold">{spread?.nome ?? 'Layout'} · posições da mesa</p>}
+      </div>}
+
+      {!vinculado && <div className="absolute inset-0 z-20 grid place-items-center overflow-y-auto bg-void p-5">
+        <section className="w-full max-w-md rounded-2xl border border-gold/25 bg-white/[0.04] p-5">
+          <h1 className="font-display text-xl">Vincular este celular</h1>
           <p className="mt-2 text-sm leading-relaxed text-mist">No computador, abra Perfil → Câmera do celular e gere um código. Digite os 8 números aqui. O código expira em 10 minutos.</p>
+          {!dispositivoId && <p className="mt-3 text-sm text-rose">Ative o armazenamento deste navegador para vincular o aparelho.</p>}
           <form onSubmit={(e) => void vincular(e)} className="mt-5 flex gap-2">
-            <input type="text" inputMode="numeric" pattern="[0-9]{8}" maxLength={8} required value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))} aria-label="Código de vinculação" placeholder="00000000" className="min-w-0 flex-1 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-center font-mono text-xl tracking-[0.2em] outline-none focus:border-gold" />
+            <input type="text" inputMode="numeric" pattern="[0-9]{8}" maxLength={8} required value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))} aria-label="Código de vinculação" placeholder="00000000" className="min-w-0 flex-1 rounded-xl border border-white/20 bg-black/40 px-3 py-3 text-center font-mono text-xl tracking-[0.2em] outline-none focus:border-gold" />
             <button type="submit" disabled={!dispositivoId || codigo.length !== 8} className="rounded-xl bg-gold px-4 font-semibold text-void disabled:opacity-40">Vincular</button>
           </form>
+          <p role="status" className="mt-3 text-sm text-mist">{estado}</p>
         </section>
-      ) : (
-        <>
-          <div className="relative mx-auto overflow-hidden rounded-2xl border border-white/15 bg-black"
-            style={{ width: `min(100%, ${proporcaoVideo * 66}svh)`, aspectRatio: proporcaoVideo }}>
-            <video ref={video} autoPlay muted playsInline aria-hidden={!ligada}
-              onLoadedMetadata={(e) => {
-                const { videoWidth, videoHeight } = e.currentTarget
-                if (videoWidth && videoHeight) setProporcaoVideo(videoWidth / videoHeight)
-              }}
-              onResize={(e) => {
-                const { videoWidth, videoHeight } = e.currentTarget
-                if (videoWidth && videoHeight) setProporcaoVideo(videoWidth / videoHeight)
-              }}
-              className="absolute inset-0 h-full w-full object-contain" />
-            {ligada && guiasAtivas && <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-              {guias.map((guia) => <div key={guia.slot}
-                className="absolute rounded-md border-2 border-gold bg-gold/10 shadow-[0_0_14px_#f4d48988]"
-                style={{ left: `${guia.x * 100}%`, top: `${guia.y * 100}%`, width: `${guia.largura * 100}%`, height: `${guia.altura * 100}%`, transform: 'translate(-50%, -50%)' }}>
-                <span className="absolute -left-1 -top-2 rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-bold leading-none text-void">{guia.slot + 1}</span>
-              </div>)}
-            </div>}
-            {!ligada && <div className="absolute inset-0 grid place-items-center text-center text-sm text-mist/60"><span><span aria-hidden className="mb-3 block text-4xl text-gold/70">◉</span>Câmera desligada</span></div>}
-          </div>
-          {ligada && !telaHorizontal && <p role="alert" className="rounded-xl border border-gold/50 bg-gold/10 px-4 py-3 text-center text-sm leading-relaxed text-gold">
-            Gire o celular na horizontal. Se a tela não acompanhar, ative a Rotação automática nas configurações do aparelho. A câmera está configurada para transmitir na horizontal.
-          </p>}
-          <div className="flex gap-2">
-            <button type="button" onClick={() => ligada ? parar() : void ativar()} className={`flex-1 rounded-xl px-5 py-3.5 font-semibold ${ligada ? 'border border-rose/50 text-rose' : 'bg-gold text-void'}`}>{ligada ? 'Desligar câmera' : 'Câmera'}</button>
-            {ligada && temMicrofone ? <button type="button" onClick={() => { const proximo = !mudo; stream.current?.getAudioTracks().forEach((t) => { t.enabled = !proximo }); setMudo(proximo) }} className="rounded-xl border border-white/20 px-4 text-sm">{mudo ? 'Ativar microfone' : 'Silenciar'}</button> : null}
-          </div>
-          <button type="button" onClick={() => void alternarGuias()} disabled={!mesaAtual} aria-pressed={guiasAtivas}
-            className={`rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-45 ${guiasAtivas ? 'border-gold bg-gold/15 text-gold' : 'border-white/20 text-mist'}`}>
-            {guiasAtivas ? 'Desabilitar posições' : 'Habilitar posição'}
-          </button>
-          <p className="text-center text-xs leading-relaxed text-mist/60">
-            {mesaAtual ? `${spread?.nome ?? 'Layout'} · coloque as cartas dentro das marcações. O layout acompanha a mesa.` : 'Abra uma mesa no computador para habilitar as posições das cartas.'}
-          </p>
-          <p className="text-center text-xs text-mist/60">Mantenha o aplicativo aberto e a tela ligada durante a leitura.</p>
-          <p className="text-center text-xs text-mist/60">Sua voz sai pelo microfone do celular. A voz do cliente é ouvida no computador, pela conversa da mesa.</p>
-        </>
-      )}
-      <p role="status" className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm text-mist">{ligada && !mesaId ? `Câmera pronta${temMicrofone ? ' e microfone pronto' : ' sem microfone'}. Aguardando você abrir uma mesa no computador…` : estado}</p>
-      {atualizacaoDisponivel && (ligada || codigo) && <p className="rounded-xl border border-gold/35 px-4 py-2 text-center text-xs text-gold">Nova versão pronta. Ela será aplicada automaticamente {ligada ? 'quando você desligar a câmera' : 'após vincular este celular'}.</p>}
-      {instalar?.prompt && <button type="button" onClick={() => { void instalar.prompt?.(); setInstalar(null) }} className="rounded-xl border border-gold/50 px-4 py-3 text-sm text-gold">Instalar aplicativo neste celular</button>}
-      <p className="text-center text-xs leading-relaxed text-mist/50">No iPhone, use Compartilhar → Adicionar à Tela de Início. No Android, use Instalar aplicativo no menu do navegador.</p>
+      </div>}
+
+      {secao !== 'camera' && <section className="absolute inset-0 z-30 overflow-y-auto bg-void px-5 pb-8 pt-20">
+        <div className="mx-auto max-w-5xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-gold">DigiTarot</p>
+          <h1 className="mb-5 mt-1 font-display text-2xl">{secoes.find((item) => item.id === secao)?.titulo}</h1>
+          {secao === 'geral' && <GeralCamera />}
+          {secao === 'tiragem' && <TiragensCamera />}
+          {secao === 'carta' && <MinhaCartaCamera />}
+        </div>
+      </section>}
+
+      {menuAberto && <>
+        <button type="button" aria-label="Fechar menu" onClick={() => setMenuAberto(false)} className="absolute inset-0 z-40 bg-black/65" />
+        <nav aria-label="Menu do aplicativo" className="absolute inset-y-0 left-0 z-40 w-[min(320px,85vw)] overflow-y-auto border-r border-gold/20 bg-[#171020] pb-6 pl-[max(16px,env(safe-area-inset-left))] pr-4 pt-20 shadow-2xl">
+          <p className="px-3 text-xs uppercase tracking-[0.2em] text-gold">DigiTarot</p>
+          <p className="mb-6 mt-1 truncate px-3 text-sm text-mist">{usuario.nome}</p>
+          <ul className="space-y-2">{secoes.map((item) => <li key={item.id}><button type="button" onClick={() => escolher(item.id)} aria-current={secao === item.id ? 'page' : undefined}
+            className={'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm ' + (secao === item.id ? 'bg-gold/15 text-gold' : 'text-star hover:bg-white/10')}><span aria-hidden>{item.icone}</span>{item.titulo}</button></li>)}</ul>
+          <button type="button" onClick={() => { parar(); void sair() }} className="mt-8 w-full rounded-xl border border-white/20 px-3 py-3 text-left text-sm text-mist">Sair</button>
+          {instalar?.prompt && <button type="button" onClick={() => { void instalar.prompt?.(); setInstalar(null) }} className="mt-3 w-full rounded-xl border border-gold/40 px-3 py-3 text-left text-sm text-gold">Instalar aplicativo</button>}
+          {atualizacaoDisponivel && <p className="mt-4 px-3 text-xs text-gold">Nova versão disponível. Ela será aplicada após desligar a câmera.</p>}
+        </nav>
+      </>}
     </main>
   )
 }

@@ -6,7 +6,7 @@
   "start_url": "/DigiTarot/camera-app.html#/app-camera",
   "scope": "/DigiTarot/",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "landscape",
   "background_color": "#05010f",
   "theme_color": "#05010f",
   "icons": [
