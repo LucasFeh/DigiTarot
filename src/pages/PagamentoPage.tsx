@@ -87,7 +87,7 @@ export default function PagamentoPage({ agendamentoId }: { agendamentoId: string
           Ela pode ter sido cancelada, ou pertencer a outra conta.
         </p>
         <a
-          href="#/tiragem"
+          href="#/perfil/tiragem"
           className="mt-7 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60"
         >
           Voltar ao catálogo
@@ -279,7 +279,7 @@ export default function PagamentoPage({ agendamentoId }: { agendamentoId: string
       )}
 
       <a
-        href={ehTarologo ? '#/perfil' : '#/tiragem'}
+        href={ehTarologo ? '#/perfil' : '#/perfil/tiragem'}
         className="mt-8 inline-block text-[15px] text-mist/70 transition hover:text-star"
       >
         ← {ehTarologo ? 'Voltar à agenda' : 'Voltar ao catálogo'}

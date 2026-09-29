@@ -22,7 +22,7 @@ function Cabecalho({ tema }: { tema: Tema }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
       <div className="pointer-events-auto">
-        <a href="#/temas" className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star">
+        <a href="#/perfil/tiragem/temas" className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star">
           ← Acervo
         </a>
       </div>
@@ -111,7 +111,7 @@ export default function PreviaTemaPage({ temaId }: { temaId: string }) {
             Ele pode ter sido apagado, ou foi criado em outro dispositivo — o acervo ainda é local.
           </p>
           <a
-            href="#/temas"
+            href="#/perfil/tiragem/temas"
             className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60"
           >
             Voltar ao acervo

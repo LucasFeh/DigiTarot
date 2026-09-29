@@ -12,8 +12,8 @@ const ABAS: { id: Aba; rotulo: string }[] = [
 ]
 
 /**
- * A grade das três abas. Serve tanto à página `#/temas` quanto ao painel
- * dentro da sala — daí o modo compacto, que só aperta o espaçamento e a grade.
+ * A grade das três abas no perfil e dentro da sala. O modo compacto aperta
+ * apenas o espaçamento e a grade.
  */
 export default function AcervoTemas({
   tipo,
@@ -92,7 +92,7 @@ export default function AcervoTemas({
                   : 'O acervo está vazio por enquanto.'}
             </p>
             <a
-              href={aba === 'favoritos' ? '#/perfil' : '#/temas/novo'}
+              href={aba === 'favoritos' ? '#/perfil/tiragem/temas' : '#/temas/novo'}
               className="mt-4 inline-block rounded-full border border-white/25 px-5 py-2 text-[14px] text-star transition hover:border-gold/60"
             >
               {aba === 'favoritos' ? 'Ver a comunidade no perfil' : 'Criar um tema'}

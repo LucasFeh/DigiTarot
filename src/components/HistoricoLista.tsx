@@ -36,7 +36,7 @@ export default function HistoricoLista() {
         </span>
         <p className="mt-4 text-[16px] text-mist">Nenhuma consulta por aqui ainda.</p>
         <a
-          href="#/tiragem"
+          href="#/perfil/tiragem"
           className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60"
         >
           Ir para a tiragem digital

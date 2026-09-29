@@ -169,9 +169,9 @@ export default function Header({ caminho }: { caminho: string }) {
             </div>
           ) : (
             <a
-              href="#/tiragem"
-              onPointerEnter={() => prepararRota(() => import('../pages/TiragemPage'))}
-              onFocus={() => prepararRota(() => import('../pages/TiragemPage'))}
+              href="#/perfil"
+              onPointerEnter={() => prepararRota(() => import('../pages/PerfilPage'))}
+              onFocus={() => prepararRota(() => import('../pages/PerfilPage'))}
               className="ml-1 shrink-0 rounded-full px-3 py-2 text-[12px] font-medium tracking-wide text-star transition sm:px-4 sm:text-[15px]"
               style={{
                 background: 'linear-gradient(100deg, #6d3fd4, #c2449d)',

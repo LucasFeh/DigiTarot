@@ -292,7 +292,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
           <p className="font-display text-xl text-star">Sala não encontrada</p>
           <p className="mt-2 text-[15px] text-mist">Ela pode ter sido encerrada.</p>
           <a
-            href="#/tiragem"
+            href="#/perfil/tiragem"
             className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60"
           >
             Voltar
@@ -331,7 +331,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
             quando o Rodrigo abrir a mesa, no horário marcado.
           </p>
           <a
-            href="#/tiragem"
+            href="#/perfil/tiragem"
             className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60"
           >
             Ver minhas consultas
@@ -360,7 +360,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
         <div className="glass max-w-md rounded-2xl px-8 py-10 text-center">
           <p className="font-display text-2xl text-star">Esta leitura foi encerrada</p>
           <p className="mt-3 text-[15px] leading-relaxed text-mist">A sala, a câmera e a conversa foram fechadas para todos os participantes.</p>
-          <a href="#/tiragem" className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60">Voltar</a>
+          <a href="#/perfil/tiragem" className="mt-6 inline-block rounded-full border border-white/25 px-6 py-2.5 text-[15px] text-star transition hover:border-gold/60">Voltar</a>
         </div>
       </main>
     )
@@ -542,7 +542,7 @@ export default function SalaPage({ sessaoId }: { sessaoId: string }) {
               )}
             </div>
             <a
-              href="#/tiragem"
+              href="#/perfil/tiragem"
               className="glass rounded-full px-3 py-1.5 text-[13px] text-mist transition hover:text-star"
             >
               Sair

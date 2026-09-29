@@ -51,7 +51,7 @@ export default function TarologosPage() {
           ) : (
             <div className="tarologos-status">
               <p>Novos tarólogos estão chegando.</p>
-              <a href="#/tiragem">Explore as leituras disponíveis ↗</a>
+              <a href="#/perfil/tiragem">Explore as leituras disponíveis ↗</a>
             </div>
           )}
         </section>

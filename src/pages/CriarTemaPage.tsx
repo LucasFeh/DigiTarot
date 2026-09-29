@@ -167,7 +167,7 @@ export default function CriarTemaPage() {
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
       <header className="mb-6">
-        <a href="#/temas" className="text-[14px] text-mist/70 transition hover:text-star">
+        <a href="#/perfil/tiragem/temas" className="text-[14px] text-mist/70 transition hover:text-star">
           ← Acervo de temas
         </a>
         <h1 className="mt-2 font-display text-2xl text-nebula">Criar um tema</h1>

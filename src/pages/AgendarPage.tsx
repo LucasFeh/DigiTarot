@@ -121,7 +121,7 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
       <main className="mx-auto max-w-2xl px-5 py-20 text-center">
         <h1 className="text-nebula text-3xl">Consulta não encontrada</h1>
         <p className="mt-3 text-mist">Esse serviço não existe mais no catálogo.</p>
-        <a href="#/tiragem" className="mt-7 inline-block text-gold hover:text-star">Ver o catálogo</a>
+        <a href="#/perfil/tiragem" className="mt-7 inline-block text-gold hover:text-star">Ver o catálogo</a>
       </main>
     )
   }
@@ -130,7 +130,7 @@ export default function AgendarPage({ planoId }: { planoId: string }) {
   if (!tarologo) {
     return (
       <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-5xl px-5 py-12">
-        <a href="#/tiragem" className="text-[14px] text-mist/70 hover:text-star">← Voltar ao catálogo</a>
+        <a href="#/perfil/tiragem" className="text-[14px] text-mist/70 hover:text-star">← Voltar ao catálogo</a>
         <p className="mt-8 text-[12px] uppercase tracking-[0.25em] text-gold">{categoria.title}</p>
         <h1 className="text-nebula mt-2 text-3xl sm:text-5xl">Escolha seu tarólogo</h1>
         <p className="mt-3 max-w-2xl text-[16px] leading-relaxed text-mist/80">

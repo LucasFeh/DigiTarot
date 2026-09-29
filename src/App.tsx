@@ -2,12 +2,11 @@ import NebulaBackdrop from './components/NebulaBackdrop'
 import StarCursor from './components/StarCursor'
 import SmokeFilters from './components/SmokeFilters'
 import Header from './components/Header'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { useHashRoute } from './lib/useHashRoute'
 import { AuthProvider } from './lib/AuthProvider'
 import { useAuth } from './lib/useAuth'
 import { haLinkDeEmailNaUrl } from './lib/cadastroPorLink'
-import type { Aba } from './lib/temas/tipos'
 import { useMobileLayout } from './lib/useMobileLayout'
 import { isFirefox } from './lib/browser'
 
@@ -15,9 +14,7 @@ import { isFirefox } from './lib/browser'
  * home animations nor the 3D table before someone navigates to them. */
 const HomePage = lazy(() => import('./pages/HomePage'))
 const SobrePage = lazy(() => import('./pages/SobrePage'))
-const TiragemPage = lazy(() => import('./pages/TiragemPage'))
 const SalaPage = lazy(() => import('./pages/SalaPage'))
-const TemasPage = lazy(() => import('./pages/TemasPage'))
 const CriarTemaPage = lazy(() => import('./pages/CriarTemaPage'))
 const PreviaTemaPage = lazy(() => import('./pages/PreviaTemaPage'))
 const PerfilPage = lazy(() => import('./pages/PerfilPage'))
@@ -33,8 +30,12 @@ const MesaDigitalDemoPage = lazy(() => import('./pages/MesaDigitalDemoPage'))
 const CameraCelularPage = lazy(() => import('./pages/CameraCelularPage'))
 const AppCameraPage = lazy(() => import('./pages/AppCameraPage'))
 
-/** `#/temas/pessoais` e `#/temas/favoritos` abrem o acervo já na aba certa. */
-const ABAS_TEMAS: Record<string, Aba> = { pessoais: 'pessoais', favoritos: 'favoritos' }
+function RedirecionarParaPerfil({ destino }: { destino: string }) {
+  useEffect(() => {
+    window.location.replace(destino)
+  }, [destino])
+  return null
+}
 
 function Rotas() {
   const { caminho, partes } = useHashRoute()
@@ -55,8 +56,9 @@ function Rotas() {
   const naSala = partes[0] === 'tiragem' && Boolean(partes[1])
   const naCamera = partes[0] === 'camera' && Boolean(partes[1]) && Boolean(partes[2])
   const noAppCamera = partes[0] === 'app-camera'
+  const abaAntigaTemas = partes[1] === 'favoritos' || partes[1] === 'pessoais' ? `/${partes[1]}` : ''
 
-  // `#/tiragem/<id>` abre a sala daquela sessão; `#/tiragem` é o lobby.
+  // `#/tiragem/<id>` continua sendo a sala. O antigo lobby mora no perfil.
   const conteudo =
     linkEmail ? (
       <ConcluirCadastroPage />
@@ -67,7 +69,7 @@ function Rotas() {
     ) : partes[0] === 'tiragem' && partes[1] ? (
       <SalaPage sessaoId={partes[1]} />
     ) : partes[0] === 'tiragem' ? (
-      <TiragemPage />
+      <RedirecionarParaPerfil destino="#/perfil/tiragem" />
     ) : partes[0] === 'agendar' && partes[1] ? (
       <AgendarPage planoId={partes[1]} />
     ) : partes[0] === 'convite' && partes[1] ? (
@@ -79,7 +81,7 @@ function Rotas() {
     ) : partes[0] === 'temas' && partes[1] === 'ver' && partes[2] ? (
       <PreviaTemaPage temaId={partes[2]} />
     ) : partes[0] === 'temas' ? (
-      <TemasPage abaInicial={ABAS_TEMAS[partes[1] ?? ''] ?? 'comunidade'} />
+      <RedirecionarParaPerfil destino={`#/perfil/tiragem/temas${abaAntigaTemas}`} />
     ) : partes[0] === 'perfil' ? (
       <PerfilPage />
     ) : partes[0] === 'tarologos' ? (
@@ -89,10 +91,7 @@ function Rotas() {
     ) : partes[0] === 'admin' ? (
       <AdminPage />
     ) : partes[0] === 'historico' ? (
-      // O histórico virou a aba "Conferir agendamento" da tiragem. A rota
-      // antiga continua existindo porque ela foi divulgada em links e no menu
-      // por semanas — mas agora só encaminha para onde o conteúdo mora.
-      <TiragemPage />
+      <RedirecionarParaPerfil destino="#/perfil/tiragem/conferir" />
     ) : partes[0] === 'sobre' ? (
       <SobrePage />
     ) : partes[0] === 'armazenamento' ? (

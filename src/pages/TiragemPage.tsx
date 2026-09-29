@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../lib/useAuth'
 import { usePerfil } from '../lib/perfil'
-import LayoutPainel, { type ItemMenu } from '../components/painel/LayoutPainel'
+import type { ItemMenu } from '../components/painel/LayoutPainel'
+import { useHashRoute } from '../lib/useHashRoute'
 import SessaoParticular from '../components/painel/SessaoParticular'
 import CarrosselPlanos from '../components/CarrosselPlanos'
 import MinhasConsultas from '../components/agenda/MinhasConsultas'
@@ -20,76 +21,45 @@ type Secao = 'agendas' | 'particular' | 'temas'
 type SubAgenda = 'agendar' | 'conferir'
 
 function PainelTiragem({
-  embutido,
-  titulo,
-  subtitulo,
-  avatar,
   itens,
   atual,
   aoEscolher,
   children,
 }: {
-  embutido: boolean
-  titulo: string
-  subtitulo: string
-  avatar: ReactNode
   itens: ItemMenu<Secao>[]
   atual: Secao
   aoEscolher: (secao: Secao) => void
   children: ReactNode
 }) {
-  if (embutido) {
-    return (
-      <div>
-        <div className="mb-7 flex flex-wrap gap-2 border-b border-white/10 pb-5" aria-label="Seções da tiragem">
-          {itens.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => aoEscolher(item.id)}
-              aria-current={atual === item.id ? 'page' : undefined}
-              className={`rounded-full border px-4 py-2 text-[14px] transition ${atual === item.id ? 'border-gold/60 bg-gold/15 text-star' : 'border-white/15 text-mist hover:border-gold/40 hover:text-star'}`}
-            >
-              <span aria-hidden className="mr-2 text-gold">{item.icone}</span>
-              {item.rotulo}
-              {Boolean(item.contagem) && <span className="ml-2 text-gold">{item.contagem}</span>}
-            </button>
-          ))}
-        </div>
-        {children}
+  return (
+    <div>
+      <div className="mb-7 flex flex-wrap gap-2 border-b border-white/10 pb-5" aria-label="Seções da tiragem">
+        {itens.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => aoEscolher(item.id)}
+            aria-current={atual === item.id ? 'page' : undefined}
+            className={`rounded-full border px-4 py-2 text-[14px] transition ${atual === item.id ? 'border-gold/60 bg-gold/15 text-star' : 'border-white/15 text-mist hover:border-gold/40 hover:text-star'}`}
+          >
+            <span aria-hidden className="mr-2 text-gold">{item.icone}</span>
+            {item.rotulo}
+            {Boolean(item.contagem) && <span className="ml-2 text-gold">{item.contagem}</span>}
+          </button>
+        ))}
       </div>
-    )
-  }
-
-  return (
-    <LayoutPainel titulo={titulo} subtitulo={subtitulo} avatar={avatar} itens={itens} atual={atual} aoEscolher={aoEscolher}>
       {children}
-    </LayoutPainel>
+    </div>
   )
 }
 
-/** Avatar do menu: foto do perfil, ou a inicial do nome. */
-function Avatar({ nome, foto }: { nome: string; foto?: string }) {
-  if (foto) return <img src={foto} alt="" className="h-11 w-11 rounded-full object-cover" />
-  return (
-    <span className="grid h-11 w-11 place-items-center rounded-full bg-violet/40 text-[18px] font-semibold text-star">
-      {nome.slice(0, 1).toUpperCase()}
-    </span>
-  )
-}
-
-/**
- * A seção de temas, que antes vivia no perfil.
- *
- * Mudou de lugar porque o tema é escolhido para a MESA, e é na tiragem que a
- * pessoa está quando pensa nele — no perfil, ao lado do e-mail e da senha, ele
- * parecia configuração de conta.
- */
+/** Acervo e padrão visual, dentro de Perfil → Minha tiragem → Temas. */
 function SecaoTemas() {
   const { usuario } = useAuth()
   const { perfil, salvar } = usePerfil(usuario)
+  const { partes } = useHashRoute()
   const [tipo, setTipo] = useState<TipoTema>('baralho')
-  const [aba, setAba] = useState<Aba>('comunidade')
+  const aba: Aba = partes[3] === 'favoritos' || partes[3] === 'pessoais' ? partes[3] : 'comunidade'
   const [selecao, setSelecao] = useState<Tema | null>(null)
 
   const padraoBaralho = useTema<TemaBaralho>(perfil.padrao.baralhoId, 'baralho')
@@ -202,7 +172,7 @@ function SecaoTemas() {
             tipo={tipo}
             aba={aba}
             onAba={(a) => {
-              setAba(a)
+              window.location.hash = a === 'comunidade' ? '#/perfil/tiragem/temas' : `#/perfil/tiragem/temas/${a}`
               setSelecao(null)
             }}
             selecionado={selecao?.id ?? null}
@@ -214,11 +184,17 @@ function SecaoTemas() {
   )
 }
 
-export default function TiragemPage({ embutido = false }: { embutido?: boolean }) {
+export default function TiragemPage() {
   const { usuario, carregando, backend } = useAuth()
-  const { perfil, nomeExibido } = usePerfil(usuario)
-  const [secao, setSecao] = useState<Secao>('agendas')
-  const [sub, setSub] = useState<SubAgenda>('agendar')
+  const { partes } = useHashRoute()
+  const secao: Secao = partes[2] === 'temas' || partes[2] === 'particular' ? partes[2] : 'agendas'
+  const setSecao = (novaSecao: Secao) => {
+    window.location.hash = novaSecao === 'agendas' ? '#/perfil/tiragem' : `#/perfil/tiragem/${novaSecao}`
+  }
+  const sub: SubAgenda = partes[2] === 'conferir' ? 'conferir' : 'agendar'
+  const setSub = (novaSub: SubAgenda) => {
+    window.location.hash = novaSub === 'agendar' ? '#/perfil/tiragem' : '#/perfil/tiragem/conferir'
+  }
   const [minhas, setMinhas] = useState<Agendamento[]>([])
   const [abertas, setAbertas] = useState<Sessao[]>([])
 
@@ -243,8 +219,6 @@ export default function TiragemPage({ embutido = false }: { embutido?: boolean }
   if (!usuario) return <LoginPage />
 
   const ehTarologo = usuario.papel === 'tarologo'
-  const foto = perfil.foto || usuario.foto
-  const avatar = <Avatar nome={nomeExibido} foto={foto} />
 
   // ═══════════════════════════ visão do tarólogo ═══════════════════════════
   if (ehTarologo) {
@@ -257,10 +231,6 @@ export default function TiragemPage({ embutido = false }: { embutido?: boolean }
 
     return (
       <PainelTiragem
-        embutido={embutido}
-        titulo={nomeExibido}
-        subtitulo="sua mesa digital"
-        avatar={avatar}
         itens={itens}
         atual={secao}
         aoEscolher={setSecao}
@@ -324,10 +294,6 @@ export default function TiragemPage({ embutido = false }: { embutido?: boolean }
 
   return (
     <PainelTiragem
-      embutido={embutido}
-      titulo={nomeExibido}
-      subtitulo="tiragem digital"
-      avatar={avatar}
       itens={itens}
       atual={secao === 'particular' ? 'agendas' : secao}
       aoEscolher={setSecao}

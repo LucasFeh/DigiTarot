@@ -236,7 +236,7 @@ export default function PerfilPage() {
       {secao === 'servicos' && usuario.papel === 'tarologo' && <EditorServicosTarologo />}
       {secao === 'mesa' && usuario.papel === 'tarologo' && <ConfigurarMesa valor={perfil.configuracaoMesa ?? CONFIGURACAO_MESA_PADRAO} salvar={(configuracaoMesa) => salvar({ configuracaoMesa })} />}
       {secao === 'camera' && usuario.papel === 'tarologo' && <VincularCamera />}
-      {secao === 'tiragem' && <Suspense fallback={<p className="text-mist/70">Abrindo tiragem…</p>}><TiragemPage embutido /></Suspense>}
+      {secao === 'tiragem' && <Suspense fallback={<p className="text-mist/70">Abrindo tiragem…</p>}><TiragemPage /></Suspense>}
       {secao === 'gestao' && usuario.admin && <Suspense fallback={<p className="text-mist/70">Abrindo gestão…</p>}><AdminPage embutido /></Suspense>}
     </LayoutPainel>
   )
