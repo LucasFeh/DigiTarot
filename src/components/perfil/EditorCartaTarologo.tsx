@@ -7,7 +7,36 @@ import { TAROLOGO_RODRIGO } from '../../lib/backend/tarologo'
 import type { TarologoPublico } from '../../lib/backend'
 
 const EXEMPLO_CHIBI = `${import.meta.env.BASE_URL}rodrigo.png`
-const PROMPT = `Use minha foto anexada para criar um personagem chibi tarólogo que se pareça comigo. Use o PNG do chibi do Rodrigo anexado somente como referência de estilo: personagem 3D delicado, expressão acolhedora, iluminação suave, detalhes de tarot e acabamento em tons roxos e dourados. Preserve minhas características reais (cabelo, pele, rosto e acessórios) sem copiar o rosto ou os acessórios do Rodrigo. Entregue uma única imagem PNG com fundo totalmente transparente, personagem centralizado, da cabeça até a cintura, sem texto, moldura ou cenário. Deixe espaço transparente ao redor para caber no verso de uma carta vertical.`
+const PROMPT = `Use a foto da pessoa anexada como referência obrigatória de identidade e a imagem do chibi anexada como referência obrigatória de estilo, composição e proporções.
+Crie um personagem chibi 3D cartoon fofo, mantendo o máximo possível das características reconhecíveis da pessoa da foto: formato do rosto, tom de pele, cabelo, cor e corte do cabelo, óculos, barba, maquiagem, acessórios e demais características visuais importantes.
+PADRÃO VISUAL OBRIGATÓRIO: salvo quando o usuário pedir explicitamente algo diferente, todos os personagens devem seguir sempre esta mesma composição:
+- personagem chibi centralizado atrás de uma pequena mesa de madeira;
+- enquadramento aproximadamente da cabeça até a cintura;
+- cabeça levemente maior que o corpo, proporções fofas e arredondadas;
+- expressão simpática, acolhedora e delicada;
+- uma das mãos segurando um leque de cartas de Tarot;
+- a outra mão interagindo com, mostrando ou posicionando uma carta;
+- algumas cartas de Tarot sobre a mesa;
+- pequenos elementos místicos discretos, como cristais e uma vela;
+- roupa de tarólogo/mago em tons roxos, violeta, azul-noturno e dourado;
+- tecido com pequenos detalhes de estrelas, constelações ou elementos celestiais;
+- iluminação suave de estúdio, acabamento polido de animação 3D;
+- visual cartoon/chibi, nunca fotorrealista;
+- olhos grandes e expressivos, mas ainda lembrando a pessoa original;
+- formas arredondadas, textura macia e aparência de personagem colecionável;
+- cartas pequenas e fofas, com ilustrações simplificadas de Tarot.
+A mesa, pose geral, enquadramento, proporção corporal, estilo das cartas, acabamento 3D e linguagem visual devem permanecer consistentes com o chibi de referência em todas as gerações. Mude principalmente a aparência física necessária para representar a nova pessoa.
+Não copie a identidade física do personagem da imagem de referência. Não reutilize cabelo, óculos, piercing, barba ou características pessoais dele caso essas características não estejam presentes na foto da nova pessoa.
+A imagem de referência serve para definir ESTILO, enquanto a fotografia enviada serve para definir IDENTIDADE.
+Prioridades:
+1. Semelhança com a pessoa da foto.
+2. Manter a composição do chibi de referência.
+3. Manter o mesmo estilo cartoon 3D fofo.
+4. Manter a temática Tarot roxa e dourada.
+Não adicionar textos, nomes, logos ou marcas d'água.
+IMPORTANTE: somente altere mesa, pose, roupa, temática, objetos, enquadramento ou estilo quando o usuário pedir isso explicitamente. Caso contrário, utilize automaticamente este padrão.
+
+Entregue uma única imagem PNG com fundo totalmente transparente e espaço transparente ao redor para caber no verso de uma carta vertical.`
 
 type Rascunho = { foto: string; personagem: string; alterado: boolean }
 
