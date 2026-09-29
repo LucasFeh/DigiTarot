@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { formatPriceFull } from '../data/plans'
 import { EMAIL_TAROLOGO } from '../lib/backend/tarologo'
-import type { Agendamento } from '../lib/backend'
+import type { Agendamento, Convite } from '../lib/backend'
 import { useAuth } from '../lib/useAuth'
 import { useTarologos } from '../lib/tarologos'
+import { registrosGestao, resumoGestao, type RegistroGestao } from '../lib/gestao'
 import SeloStatus from '../components/agenda/SeloStatus'
 
 type Secao = 'resumo' | 'profissionais'
@@ -48,8 +49,8 @@ function IndicadorCircular({ rotulo, numero, detalhe, proporcao, cor, simbolo }:
   )
 }
 
-function TarologoNaLista({ atendimento, tarologos }: { atendimento: Agendamento; tarologos: ReturnType<typeof useTarologos>['tarologos'] }) {
-  const perfil = tarologos.find((item) => item.uid === (atendimento.tarologoUid || EMAIL_TAROLOGO))
+function TarologoNaLista({ atendimento, tarologos }: { atendimento: RegistroGestao; tarologos: ReturnType<typeof useTarologos>['tarologos'] }) {
+  const perfil = tarologos.find((item) => item.uid === atendimento.tarologoPerfilId)
   const nome = atendimento.tarologoNome || perfil?.nome || 'Tarólogo'
   return (
     <span className="inline-flex min-w-0 items-center gap-2.5">
@@ -72,8 +73,11 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const [filtroStatus, setFiltroStatus] = useState<'todos' | Agendamento['status']>('todos')
   const [filtroTarologo, setFiltroTarologo] = useState('todos')
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
+  const [convites, setConvites] = useState<Convite[]>([])
   const [carregandoAgendamentos, setCarregandoAgendamentos] = useState(true)
+  const [carregandoConvites, setCarregandoConvites] = useState(true)
   const [erroAgendamentos, setErroAgendamentos] = useState<string | null>(null)
+  const [erroConvites, setErroConvites] = useState<string | null>(null)
   const [selecionado, setSelecionado] = useState<string | null>(null)
   const [formulario, setFormulario] = useState<Formulario>(novoFormulario)
   const [salvando, setSalvando] = useState(false)
@@ -101,6 +105,26 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   }, [backend, usuario?.papel, usuario?.email])
 
   useEffect(() => {
+    if (!backend || usuario?.papel !== 'tarologo') return
+    try {
+      return backend.observarConvitesGestao(
+        (lista) => {
+          setConvites(lista)
+          setCarregandoConvites(false)
+          setErroConvites(null)
+        },
+        (erro) => {
+          setCarregandoConvites(false)
+          setErroConvites(`Não foi possível carregar as sessões particulares: ${erro.message}`)
+        },
+      )
+    } catch (erro) {
+      setCarregandoConvites(false)
+      setErroConvites(erro instanceof Error ? erro.message : 'Não foi possível carregar as sessões particulares.')
+    }
+  }, [backend, usuario?.papel, usuario?.uid])
+
+  useEffect(() => {
     if (!selecionado) return
     const existente = tarologos.find((tarologo) => tarologo.uid === selecionado)
     if (!existente) return
@@ -120,55 +144,21 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const inicioChave = chaveDia(inicio)
   const fimChave = chaveDia(fim)
 
-  const agendamentosVisiveis = useMemo(() => usuario?.admin
-    ? agendamentos
-    : agendamentos.filter((item) => (item.tarologoUid || EMAIL_TAROLOGO) === usuario?.email.toLowerCase()),
-  [agendamentos, usuario?.admin, usuario?.email])
-
-  const porProfissional = useMemo(() => {
-    const mapa = new Map<string, { agendados: number; confirmados: number; concluidos: number; valor: number; aguardando: number; pagosInformados: number }>()
-    for (const atendimento of agendamentosVisiveis) {
-      if (atendimento.data < inicioChave || atendimento.data > fimChave) continue
-      // Reservas anteriores ao cadastro de vários tarólogos pertenciam ao Rodrigo.
-      const uid = atendimento.tarologoUid || EMAIL_TAROLOGO
-      const linha = mapa.get(uid) ?? { agendados: 0, confirmados: 0, concluidos: 0, valor: 0, aguardando: 0, pagosInformados: 0 }
-      if (atendimento.status !== 'cancelado') linha.agendados += 1
-      if (atendimento.atendidoEm) linha.concluidos += 1
-      if (atendimento.status === 'confirmado') {
-        linha.confirmados += 1
-        linha.valor += Number.isFinite(atendimento.preco) ? atendimento.preco : 0
-      } else if (atendimento.status === 'pago') {
-        linha.pagosInformados += 1
-      } else if (atendimento.status === 'aguardando') {
-        linha.aguardando += 1
-      }
-      mapa.set(uid, linha)
-    }
-    return mapa
-  }, [agendamentosVisiveis, inicioChave, fimChave])
-
-  const totais = useMemo(() => {
-    const total = { agendados: 0, confirmados: 0, concluidos: 0, valor: 0, aguardando: 0, pagosInformados: 0 }
-    for (const linha of porProfissional.values()) {
-      total.agendados += linha.agendados
-      total.confirmados += linha.confirmados
-      total.concluidos += linha.concluidos
-      total.valor += linha.valor
-      total.aguardando += linha.aguardando
-      total.pagosInformados += linha.pagosInformados
-    }
-    return total
-  }, [porProfissional])
-  const agendamentosDaSemana = useMemo(() => agendamentosVisiveis.filter((item) => item.data >= inicioChave && item.data <= fimChave), [agendamentosVisiveis, inicioChave, fimChave])
-  const valorReservado = agendamentosDaSemana.reduce((total, item) => total + (item.status !== 'cancelado' && Number.isFinite(item.preco) ? item.preco : 0), 0)
+  const registros = useMemo(() => usuario ? registrosGestao(agendamentos, convites, usuario) : [], [agendamentos, convites, usuario])
+  const registrosDoTarologo = useMemo(() => usuario?.admin && filtroTarologo !== 'todos'
+    ? registros.filter((item) => item.tarologoPerfilId === filtroTarologo)
+    : registros,
+  [registros, usuario?.admin, filtroTarologo])
+  const { semana: registrosDaSemana, totais } = useMemo(() => resumoGestao(registrosDoTarologo, inicioChave, fimChave), [registrosDoTarologo, inicioChave, fimChave])
+  const carregandoRegistros = carregandoAgendamentos || carregandoConvites
+  const erroRegistros = erroAgendamentos || erroConvites
   const linhasFiltradas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR')
-    return agendamentosDaSemana
+    return registrosDaSemana
       .filter((item) => filtroStatus === 'todos' || item.status === filtroStatus)
-      .filter((item) => filtroTarologo === 'todos' || (item.tarologoUid || EMAIL_TAROLOGO) === filtroTarologo)
-      .filter((item) => !termo || [item.clienteNome, item.planoTitulo, item.tarologoNome, item.codigo].some((valor) => valor?.toLocaleLowerCase('pt-BR').includes(termo)))
+      .filter((item) => !termo || [item.clienteNome, item.titulo, item.tarologoNome, item.codigo].some((valor) => valor?.toLocaleLowerCase('pt-BR').includes(termo)))
       .sort((a, b) => `${b.data}T${b.hora}`.localeCompare(`${a.data}T${a.hora}`))
-  }, [agendamentosDaSemana, busca, filtroStatus, filtroTarologo])
+  }, [registrosDaSemana, busca, filtroStatus])
 
   const escolher = (uid: string | null) => {
     setSelecionado(uid)
@@ -284,7 +274,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-xl text-star">Semana de {rotuloDia(inicio)} a {rotuloDia(fim)}</h2>
-              <p className="mt-1 text-[13px] text-mist/60">Os números usam a data marcada para a consulta.</p>
+              <p className="mt-1 text-[13px] text-mist/60">Consultas pela data agendada; particulares confirmadas pela confirmação e pendentes pela criação.</p>
             </div>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setSemanaDeslocada((n) => n - 1)} aria-label="Semana anterior" className="rounded-full border border-white/20 px-3 py-2 text-star transition hover:border-gold/60">←</button>
@@ -292,17 +282,20 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
               <button type="button" onClick={() => setSemanaDeslocada((n) => n + 1)} aria-label="Próxima semana" className="rounded-full border border-white/20 px-3 py-2 text-star transition hover:border-gold/60">→</button>
             </div>
           </div>
-          {erroAgendamentos && <p role="alert" className="mb-5 rounded-xl border border-rose/40 bg-rose/10 p-4 text-[14px] text-rose">{erroAgendamentos}</p>}
-          <div className="grid grid-cols-2 overflow-hidden rounded-[24px] border border-white/10 bg-[#171025]/90 shadow-[0_18px_55px_-40px_#05010d] md:grid-cols-4 md:divide-x md:divide-white/10">
-            <IndicadorCircular rotulo="Reservas" numero={totais.agendados} detalhe="Agendadas nesta semana" proporcao={totais.agendados ? 1 : 0} cor="#a580ef" simbolo="✦" />
-            <IndicadorCircular rotulo="Confirmadas" numero={totais.confirmados} detalhe="Pagamento conferido" proporcao={totais.agendados ? totais.confirmados / totais.agendados : 0} cor="#f2d492" simbolo="◇" />
-            <IndicadorCircular rotulo="Concluídas" numero={totais.concluidos} detalhe="Atendimento realizado" proporcao={totais.agendados ? totais.concluidos / totais.agendados : 0} cor="#7ddba4" simbolo="☾" />
-            <IndicadorCircular rotulo="Valor confirmado" numero={formatPriceFull(totais.valor)} detalhe="Conferido manualmente" proporcao={valorReservado ? totais.valor / valorReservado : 0} cor="#eaa5cf" simbolo="✧" />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 px-1 text-[12px] text-mist/60">
+          {erroRegistros && <p role="alert" className="mb-5 rounded-xl border border-rose/40 bg-rose/10 p-4 text-[14px] text-rose">{erroRegistros}</p>}
+          {carregandoRegistros ? (
+            <div className="rounded-[24px] border border-white/10 bg-[#171025]/90 px-6 py-12 text-center text-[14px] text-mist/65">Carregando resumo financeiro…</div>
+          ) : !erroRegistros && <div className="grid grid-cols-2 overflow-hidden rounded-[24px] border border-white/10 bg-[#171025]/90 shadow-[0_18px_55px_-40px_#05010d] md:grid-cols-4 md:divide-x md:divide-white/10">
+            <IndicadorCircular rotulo="Solicitações" numero={totais.agendados} detalhe="Agenda e particulares" proporcao={totais.agendados ? 1 : 0} cor="#a580ef" simbolo="✦" />
+            <IndicadorCircular rotulo="Confirmadas" numero={totais.confirmados} detalhe="Pagamento confirmado" proporcao={totais.agendados ? totais.confirmados / totais.agendados : 0} cor="#f2d492" simbolo="◇" />
+            <IndicadorCircular rotulo="Concluídas" numero={totais.concluidos} detalhe="Da agenda" proporcao={totais.agendadosAgenda ? totais.concluidos / totais.agendadosAgenda : 0} cor="#7ddba4" simbolo="☾" />
+            <IndicadorCircular rotulo="Valor confirmado" numero={formatPriceFull(totais.valor)} detalhe="Agenda e particulares" proporcao={totais.valorReservado ? totais.valor / totais.valorReservado : 0} cor="#eaa5cf" simbolo="✧" />
+          </div>}
+          {!carregandoRegistros && !erroRegistros && <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 px-1 text-[12px] text-mist/60">
+            <span><strong className="font-medium text-star">{totais.particularesConfirmadas}</strong> sessões particulares confirmadas · <strong className="font-medium text-star">{formatPriceFull(totais.valorParticulares)}</strong></span>
             <span><strong className="font-medium text-star">{totais.pagosInformados}</strong> pagamentos informados, ainda em conferência</span>
             <span><strong className="font-medium text-star">{totais.aguardando}</strong> aguardando pagamento</span>
-          </div>
+          </div>}
           <section aria-labelledby="titulo-atendimentos" className="mt-8 overflow-hidden rounded-[24px] border border-white/10 bg-[#151020]/90">
             <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/10 px-5 py-5 sm:px-6">
               <div>
@@ -334,9 +327,9 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
                 </label>}
               </div>
             </div>
-            {carregandoAgendamentos ? (
+            {carregandoRegistros ? (
               <p className="px-6 py-12 text-center text-[14px] text-mist/65">Carregando atendimentos…</p>
-            ) : erroAgendamentos ? (
+            ) : erroRegistros ? (
               <p role="alert" className="px-6 py-10 text-center text-[14px] text-rose">Não foi possível mostrar a lista de atendimentos.</p>
             ) : linhasFiltradas.length === 0 ? (
               <div className="px-6 py-12 text-center">
@@ -349,7 +342,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
                 {linhasFiltradas.map((atendimento) => (
                   <li key={atendimento.id} className="px-5 py-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0"><p className="font-medium text-star">{atendimento.clienteNome || 'Cliente'}</p><p className="mt-0.5 truncate text-[12px] text-mist/60">{atendimento.planoTitulo || atendimento.categoriaTitulo}</p></div>
+                      <div className="min-w-0"><p className="font-medium text-star">{atendimento.clienteNome}</p><p className="mt-0.5 truncate text-[12px] text-mist/60">{atendimento.origem === 'particular' ? 'Sessão particular · ' : ''}{atendimento.titulo}</p></div>
                       <span className={`shrink-0 font-display text-[17px] tabular-nums ${atendimento.status === 'cancelado' ? 'text-mist/45 line-through' : 'text-gold'}`}>{formatPriceFull(atendimento.preco)}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><SeloStatus status={atendimento.status} /><span className="text-[12px] tabular-nums text-mist/60">{atendimento.data.split('-').reverse().join('/')} · {atendimento.hora}</span></div>
@@ -366,7 +359,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
                   <tbody className="divide-y divide-white/8">
                     {linhasFiltradas.map((atendimento) => (
                       <tr key={atendimento.id} className="transition-colors hover:bg-white/[0.045]">
-                        <td className="px-5 py-3.5 sm:px-6"><span className="block font-medium text-star">{atendimento.clienteNome || 'Cliente'}</span><span className="block max-w-[16rem] truncate text-[12px] text-mist/55">{atendimento.planoTitulo || atendimento.categoriaTitulo}</span></td>
+                        <td className="px-5 py-3.5 sm:px-6"><span className="block font-medium text-star">{atendimento.clienteNome}</span><span className="block max-w-[16rem] truncate text-[12px] text-mist/55">{atendimento.origem === 'particular' ? 'Sessão particular · ' : ''}{atendimento.titulo}</span></td>
                         <td className="whitespace-nowrap px-4 py-3.5 tabular-nums text-mist/75">{atendimento.data.split('-').reverse().join('/')} · {atendimento.hora}</td>
                         <td className="px-4 py-3.5 text-mist/75"><TarologoNaLista atendimento={atendimento} tarologos={tarologos} /></td>
                         <td className="px-4 py-3.5"><SeloStatus status={atendimento.status} /></td>
@@ -380,7 +373,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
             )}
           </section>
           <p className="mt-6 max-w-3xl text-[12px] leading-relaxed text-mist/55">
-            “Confirmado” significa que o pagamento foi conferido manualmente no site. O Pix estático não informa automaticamente se o valor entrou na conta; confira o extrato para apurar receita liquidada.
+            O total soma os valores confirmados de agendamentos e sessões particulares. Nas sessões antigas, a data foi recuperada da abertura da mesa. O Pix atual é conferido manualmente; confira o extrato para apurar a receita liquidada.
           </p>
         </section>
       ) : (

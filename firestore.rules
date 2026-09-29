@@ -476,11 +476,12 @@ service cloud.firestore {
       allow create: if ehTarologo()
                     && token.matches('^[0-9a-f]{32}$')
                     && request.resource.data.keys().hasOnly([
-                         'token', 'tarologoUid', 'tarologoNome', 'titulo', 'descricao',
+                         'token', 'tarologoUid', 'tarologoNome', 'tarologoPerfilId', 'titulo', 'descricao',
                          'preco', 'pix', 'convidadoNome', 'status', 'codigo', 'criadoEm'
                        ])
                     && request.resource.data.token == token
                     && request.resource.data.tarologoUid == uid()
+                    && request.resource.data.get('tarologoPerfilId', perfilId()) == perfilId()
                     && request.resource.data.tarologoNome is string
                     && request.resource.data.tarologoNome.size() <= 100
                     && request.resource.data.titulo is string
@@ -506,9 +507,11 @@ service cloud.firestore {
       // mesa — nem que reescreva a requisição à mão.
       allow update: if (ehTarologo()
                         && resource.data.tarologoUid == uid()
-                        && mexeuSoEm(['status', 'sessaoId'])
+                        && mexeuSoEm(['status', 'sessaoId', 'confirmadoEm'])
                         && resource.data.status in ['aguardando', 'pago']
                         && request.resource.data.status == 'confirmado'
+                        && request.resource.data.get('confirmadoEm', '') is string
+                        && request.resource.data.get('confirmadoEm', '').size() <= 40
                         && request.resource.data.sessaoId is string
                         && get(/databases/$(database)/documents/sessoes/$(request.resource.data.sessaoId)).data.tarologoUid == uid()
                         && get(/databases/$(database)/documents/sessoes/$(request.resource.data.sessaoId)).data.conviteToken == token)

@@ -699,6 +699,16 @@ export class LocalBackend implements Backend {
     return () => this.ouvintesAgenda.delete(emitir)
   }
 
+  observarConvitesGestao(cb: (c: Convite[]) => void): Unsubscribe {
+    const emitir = () => {
+      const u = ler<Usuario | null>(CHAVE_USER, null, 'sessao')
+      cb(u?.admin ? this.convites() : this.convites().filter((c) => c.tarologoUid === u?.uid))
+    }
+    this.ouvintesAgenda.add(emitir)
+    emitir()
+    return () => this.ouvintesAgenda.delete(emitir)
+  }
+
   async atualizarConvite(token: string, patch: Partial<Convite>) {
     gravar(
       CHAVE_CONVITES,

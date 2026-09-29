@@ -276,6 +276,8 @@ export type Convite = {
   token: string
   tarologoUid: string
   tarologoNome: string
+  /** ID público (e-mail) para agrupar o faturamento; convites antigos não têm. */
+  tarologoPerfilId?: string
 
   /** O que foi combinado. Texto livre: não vem do catálogo. */
   titulo: string
@@ -290,6 +292,8 @@ export type Convite = {
   /** Código curto que vai no txid do Pix. */
   codigo: string
   criadoEm: string
+  /** Quando o pagamento foi confirmado, independentemente do método usado. */
+  confirmadoEm?: string
   /** A mesa, depois que o tarólogo a abre. */
   sessaoId?: string
 }
@@ -453,6 +457,8 @@ export interface Backend {
   observarConvite(token: string, cb: (c: Convite | null) => void): Unsubscribe
   /** Os convites deste tarólogo. */
   observarMeusConvites(uid: string, cb: (c: Convite[]) => void): Unsubscribe
+  /** Rodrigo vê todos os convites; cada tarólogo vê apenas os próprios. */
+  observarConvitesGestao(cb: (c: Convite[]) => void, aoFalhar?: (erro: Error) => void): Unsubscribe
   atualizarConvite(token: string, patch: Partial<Convite>): Promise<void>
 
   // ------------------------------- sessões -------------------------------

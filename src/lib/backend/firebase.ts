@@ -708,6 +708,18 @@ export class FirebaseBackend implements Backend {
     )
   }
 
+  observarConvitesGestao(cb: (c: Convite[]) => void, aoFalhar?: (erro: Error) => void): Unsubscribe {
+    const u = this.auth.currentUser
+    const admin = Boolean(u?.emailVerified && ehEmailDeTarologo(u.email))
+    const q = admin
+      ? collection(this.db, 'convites')
+      : query(collection(this.db, 'convites'), where('tarologoUid', '==', u?.uid ?? ''))
+    return onSnapshot(q,
+      (s) => cb(s.docs.map((d) => ({ ...(d.data() as Convite), token: d.id }))),
+      (erro) => aoFalhar?.(erro),
+    )
+  }
+
   async atualizarConvite(token: string, patch: Partial<Convite>) {
     await updateDoc(doc(this.db, 'convites', token), semVazios(patch))
   }

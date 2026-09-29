@@ -111,18 +111,30 @@ test('convite é legível pelo link, mas preço e Pix ficam imutáveis', async (
   const anon = env.unauthenticatedContext().firestore()
   const convite = {
     token: TOKEN, tarologoUid: 'pro-uid', tarologoNome: 'Profissional',
+    tarologoPerfilId: PRO,
     titulo: 'Leitura', descricao: '', preco: 50, pix: PIX,
     convidadoNome: '', status: 'aguardando', codigo: 'DIGI123', criadoEm: new Date().toISOString(),
   }
   await assertFails(setDoc(doc(pro, 'convites', 'curto'), { ...convite, token: 'curto' }))
   await assertFails(setDoc(doc(pro, 'convites', TOKEN), { ...convite, pix: { ...PIX, chave: 'outra' } }))
+  await assertFails(setDoc(doc(pro, 'convites', TOKEN), { ...convite, tarologoPerfilId: 'outro@example.com' }))
   await assertSucceeds(setDoc(doc(pro, 'convites', TOKEN), convite))
   await assertSucceeds(getDoc(doc(anon, 'convites', TOKEN)))
   await assertFails(getDocs(collection(anon, 'convites')))
+  const meus = await assertSucceeds(getDocs(query(collection(pro, 'convites'), where('tarologoUid', '==', 'pro-uid'))))
+  if (meus.size !== 1) throw new Error('O profissional não recebeu o próprio convite')
+  await assertFails(getDocs(collection(pro, 'convites')))
+  const equipe = await assertSucceeds(getDocs(collection(conta('admin-uid', ADMIN), 'convites')))
+  if (equipe.size !== 1) throw new Error('Rodrigo não recebeu o convite da equipe')
   await assertFails(updateDoc(doc(anon, 'convites', TOKEN), { preco: 1 }))
   await assertFails(updateDoc(doc(anon, 'convites', TOKEN), { pix: { ...PIX, chave: 'outra' } }))
   await assertSucceeds(updateDoc(doc(anon, 'convites', TOKEN), { convidadoNome: 'Convidado' }))
   await assertSucceeds(updateDoc(doc(anon, 'convites', TOKEN), { status: 'pago' }))
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'sessoes', 'mesa-convite'), { tarologoUid: 'pro-uid', conviteToken: TOKEN })
+  })
+  await assertFails(updateDoc(doc(pro, 'convites', TOKEN), { status: 'confirmado', sessaoId: 'mesa-convite', tarologoPerfilId: 'outro@example.com' }))
+  await assertSucceeds(updateDoc(doc(pro, 'convites', TOKEN), { status: 'confirmado', sessaoId: 'mesa-convite', confirmadoEm: '2026-09-29T12:00:00.000Z' }))
 })
 
 test('cliente não pode falar como tarólogo no chat privado', async () => {

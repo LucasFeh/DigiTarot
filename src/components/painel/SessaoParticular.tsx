@@ -186,6 +186,7 @@ export default function SessaoParticular() {
       const token = await backend.criarConvite({
         tarologoUid: usuario.uid,
         tarologoNome: usuario.nome,
+        tarologoPerfilId: usuario.email.trim().toLowerCase(),
         titulo: dados.titulo,
         descricao: dados.descricao,
         preco: dados.preco,
@@ -237,7 +238,7 @@ export default function SessaoParticular() {
           publica: true,
           conviteToken: c.token,
         }))
-      await backend.atualizarConvite(c.token, { status: 'confirmado', sessaoId: id })
+      await backend.atualizarConvite(c.token, { status: 'confirmado', confirmadoEm: new Date().toISOString(), sessaoId: id })
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível abrir a mesa.')
     } finally {
