@@ -6,6 +6,7 @@ import { useAuth } from '../lib/useAuth'
 import { useTarologos } from '../lib/tarologos'
 import { calcularFaturamento } from '../lib/faturamento'
 import GraficoFaturamento from '../components/admin/GraficoFaturamento'
+import SeloStatus from '../components/agenda/SeloStatus'
 
 type Secao = 'resumo' | 'profissionais'
 type Formulario = { nome: string; email: string }
@@ -31,13 +32,21 @@ function rotuloDia(data: Date): string {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(data)
 }
 
-function CardNumero({ rotulo, numero, detalhe }: { rotulo: string; numero: string | number; detalhe?: string }) {
+function IndicadorCircular({ rotulo, numero, detalhe, proporcao, cor, simbolo }: { rotulo: string; numero: string | number; detalhe: string; proporcao: number; cor: string; simbolo: string }) {
+  const percentual = Math.max(0, Math.min(100, proporcao * 100))
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-      <p className="text-[12px] uppercase tracking-[0.16em] text-mist/65">{rotulo}</p>
-      <p className="mt-2 font-display text-2xl text-star sm:text-3xl">{numero}</p>
-      {detalhe && <p className="mt-2 text-[12px] leading-relaxed text-mist/55">{detalhe}</p>}
-    </div>
+    <article className="flex min-w-0 flex-col items-center px-3 py-5 text-center sm:px-4">
+      <div className="relative grid h-24 w-24 place-items-center">
+        <svg aria-hidden="true" viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
+          <circle cx="50" cy="50" r="43" fill="none" stroke="#ffffff14" strokeWidth="5" />
+          <circle cx="50" cy="50" r="43" fill="none" stroke={cor} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${percentual * 2.702} 270.2`} />
+        </svg>
+        <span aria-hidden className="font-display text-3xl" style={{ color: cor }}>{simbolo}</span>
+      </div>
+      <h3 className="mt-3 text-[12px] uppercase tracking-[0.13em] text-mist/65">{rotulo}</h3>
+      <p className="mt-1 font-display text-2xl tabular-nums text-star">{numero}</p>
+      <p className="mt-1 max-w-[12rem] text-[12px] leading-snug text-mist/55">{detalhe}</p>
+    </article>
   )
 }
 
@@ -46,6 +55,9 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const { tarologos, carregando: carregandoTarologos, erro: erroTarologos } = useTarologos()
   const [secao, setSecao] = useState<Secao>('resumo')
   const [semanaDeslocada, setSemanaDeslocada] = useState(0)
+  const [busca, setBusca] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | Agendamento['status']>('todos')
+  const [filtroTarologo, setFiltroTarologo] = useState('todos')
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
   const [carregandoAgendamentos, setCarregandoAgendamentos] = useState(true)
   const [erroAgendamentos, setErroAgendamentos] = useState<string | null>(null)
@@ -124,6 +136,16 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     return total
   }, [porProfissional])
   const historicoFaturamento = useMemo(() => calcularFaturamento(agendamentos), [agendamentos])
+  const agendamentosDaSemana = useMemo(() => agendamentos.filter((item) => item.data >= inicioChave && item.data <= fimChave), [agendamentos, inicioChave, fimChave])
+  const valorReservado = agendamentosDaSemana.reduce((total, item) => total + (item.status !== 'cancelado' && Number.isFinite(item.preco) ? item.preco : 0), 0)
+  const linhasFiltradas = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase('pt-BR')
+    return agendamentosDaSemana
+      .filter((item) => filtroStatus === 'todos' || item.status === filtroStatus)
+      .filter((item) => filtroTarologo === 'todos' || (item.tarologoUid || EMAIL_TAROLOGO) === filtroTarologo)
+      .filter((item) => !termo || [item.clienteNome, item.planoTitulo, item.tarologoNome, item.codigo].some((valor) => valor?.toLocaleLowerCase('pt-BR').includes(termo)))
+      .sort((a, b) => `${b.data}T${b.hora}`.localeCompare(`${a.data}T${a.hora}`))
+  }, [agendamentosDaSemana, busca, filtroStatus, filtroTarologo])
 
   const escolher = (uid: string | null) => {
     setSelecionado(uid)
@@ -214,9 +236,9 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
       <div className="mb-8 flex flex-col justify-between gap-5 border-b border-white/10 pb-7 sm:flex-row sm:items-end">
         <div>
           <p className="text-[12px] uppercase tracking-[0.24em] text-gold">DigiTarot · Administração</p>
-          <h1 className="mt-2 font-display text-3xl text-star sm:text-4xl">Visão dos atendimentos</h1>
+          <h1 className="mt-2 font-display text-3xl text-star sm:text-4xl">Gestão DigiTarot</h1>
           <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-mist/70">
-            Acompanhe os profissionais e cadastre o acesso de novos tarólogos.
+            Reservas, pagamentos e atendimentos da equipe em um só lugar.
           </p>
         </div>
         <div className="flex rounded-full border border-white/15 bg-white/[0.04] p-1" aria-label="Seções da administração">
@@ -248,14 +270,92 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
             </div>
           </div>
           {erroAgendamentos && <p role="alert" className="mb-5 rounded-xl border border-rose/40 bg-rose/10 p-4 text-[14px] text-rose">{erroAgendamentos}</p>}
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <CardNumero rotulo="Reservas agendadas" numero={totais.agendados} detalhe="Reservas da semana, excluindo as canceladas." />
-            <CardNumero rotulo="Atendimentos confirmados" numero={totais.confirmados} />
-            <CardNumero rotulo="Atendimentos concluídos" numero={totais.concluidos} detalhe="Marcados como atendidos pelo tarólogo." />
-            <CardNumero rotulo="Valor confirmado manualmente" numero={formatPriceFull(totais.valor)} detalhe="Soma dos preços dos atendimentos confirmados. Não representa conciliação bancária." />
-            <CardNumero rotulo="Pagamento informado" numero={totais.pagosInformados} detalhe="Clientes avisaram que pagaram; ainda requer conferência." />
-            <CardNumero rotulo="Aguardando pagamento" numero={totais.aguardando} />
+          <div className="grid grid-cols-2 overflow-hidden rounded-[24px] border border-white/10 bg-[#171025]/90 shadow-[0_18px_55px_-40px_#05010d] md:grid-cols-4 md:divide-x md:divide-white/10">
+            <IndicadorCircular rotulo="Reservas" numero={totais.agendados} detalhe="Agendadas nesta semana" proporcao={totais.agendados ? 1 : 0} cor="#a580ef" simbolo="✦" />
+            <IndicadorCircular rotulo="Confirmadas" numero={totais.confirmados} detalhe="Pagamento conferido" proporcao={totais.agendados ? totais.confirmados / totais.agendados : 0} cor="#f2d492" simbolo="◇" />
+            <IndicadorCircular rotulo="Concluídas" numero={totais.concluidos} detalhe="Atendimento realizado" proporcao={totais.agendados ? totais.concluidos / totais.agendados : 0} cor="#7ddba4" simbolo="☾" />
+            <IndicadorCircular rotulo="Valor confirmado" numero={formatPriceFull(totais.valor)} detalhe="Conferido manualmente" proporcao={valorReservado ? totais.valor / valorReservado : 0} cor="#eaa5cf" simbolo="✧" />
           </div>
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 px-1 text-[12px] text-mist/60">
+            <span><strong className="font-medium text-star">{totais.pagosInformados}</strong> pagamentos informados, ainda em conferência</span>
+            <span><strong className="font-medium text-star">{totais.aguardando}</strong> aguardando pagamento</span>
+          </div>
+          <section aria-labelledby="titulo-atendimentos" className="mt-8 overflow-hidden rounded-[24px] border border-white/10 bg-[#151020]/90">
+            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/10 px-5 py-5 sm:px-6">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-gold">Lista da semana</p>
+                <h3 id="titulo-atendimentos" className="mt-1 font-display text-xl text-star">Atendimentos</h3>
+                <p className="mt-1 text-[12px] text-mist/60">{linhasFiltradas.length} {linhasFiltradas.length === 1 ? 'resultado' : 'resultados'} no período selecionado</p>
+              </div>
+              <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                <label className="min-w-[10rem] flex-1 sm:flex-none">
+                  <span className="sr-only">Buscar atendimento</span>
+                  <input type="search" value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder="Buscar cliente ou leitura" className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-[13px] text-star outline-none placeholder:text-mist/45 focus:border-gold/60" />
+                </label>
+                <label>
+                  <span className="sr-only">Filtrar por status</span>
+                  <select value={filtroStatus} onChange={(evento) => setFiltroStatus(evento.target.value as typeof filtroStatus)} className="rounded-xl border border-white/15 bg-[#21172e] px-3 py-2.5 text-[13px] text-star outline-none focus:border-gold/60">
+                    <option value="todos">Todos os status</option>
+                    <option value="aguardando">Aguardando pagamento</option>
+                    <option value="pago">Pagamento informado</option>
+                    <option value="confirmado">Confirmado</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="sr-only">Filtrar por tarólogo</span>
+                  <select value={filtroTarologo} onChange={(evento) => setFiltroTarologo(evento.target.value)} className="rounded-xl border border-white/15 bg-[#21172e] px-3 py-2.5 text-[13px] text-star outline-none focus:border-gold/60">
+                    <option value="todos">Todos os tarólogos</option>
+                    {tarologos.map((tarologo) => <option key={tarologo.uid} value={tarologo.uid}>{tarologo.nome}</option>)}
+                  </select>
+                </label>
+              </div>
+            </div>
+            {carregandoAgendamentos ? (
+              <p className="px-6 py-12 text-center text-[14px] text-mist/65">Carregando atendimentos…</p>
+            ) : erroAgendamentos ? (
+              <p role="alert" className="px-6 py-10 text-center text-[14px] text-rose">Não foi possível mostrar a lista de atendimentos.</p>
+            ) : linhasFiltradas.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <p className="font-display text-lg text-star">Nenhum atendimento encontrado</p>
+                <p className="mt-1 text-[13px] text-mist/60">Confira outra semana ou ajuste os filtros.</p>
+              </div>
+            ) : (
+              <>
+              <ul className="divide-y divide-white/10 md:hidden">
+                {linhasFiltradas.map((atendimento) => (
+                  <li key={atendimento.id} className="px-5 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0"><p className="font-medium text-star">{atendimento.clienteNome || 'Cliente'}</p><p className="mt-0.5 truncate text-[12px] text-mist/60">{atendimento.planoTitulo || atendimento.categoriaTitulo}</p></div>
+                      <span className={`shrink-0 font-display text-[17px] tabular-nums ${atendimento.status === 'cancelado' ? 'text-mist/45 line-through' : 'text-gold'}`}>{formatPriceFull(atendimento.preco)}</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><SeloStatus status={atendimento.status} /><span className="text-[12px] tabular-nums text-mist/60">{atendimento.data.split('-').reverse().join('/')} · {atendimento.hora}</span></div>
+                    <p className="mt-2 text-[12px] text-mist/50">Com {atendimento.tarologoNome || tarologos.find((item) => item.uid === (atendimento.tarologoUid || EMAIL_TAROLOGO))?.nome || 'tarólogo'}</p>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[760px] border-collapse text-left text-[13px]">
+                  <caption className="sr-only">Atendimentos de {rotuloDia(inicio)} a {rotuloDia(fim)}</caption>
+                  <thead className="bg-white/[0.035] text-[11px] uppercase tracking-[0.12em] text-mist/55">
+                    <tr><th scope="col" className="px-5 py-3 font-medium sm:px-6">Cliente / leitura</th><th scope="col" className="px-4 py-3 font-medium">Data</th><th scope="col" className="px-4 py-3 font-medium">Tarólogo</th><th scope="col" className="px-4 py-3 font-medium">Status</th><th scope="col" className="px-5 py-3 text-right font-medium sm:px-6">Preço</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/8">
+                    {linhasFiltradas.map((atendimento) => (
+                      <tr key={atendimento.id} className="transition-colors hover:bg-white/[0.045]">
+                        <td className="px-5 py-3.5 sm:px-6"><span className="block font-medium text-star">{atendimento.clienteNome || 'Cliente'}</span><span className="block max-w-[16rem] truncate text-[12px] text-mist/55">{atendimento.planoTitulo || atendimento.categoriaTitulo}</span></td>
+                        <td className="whitespace-nowrap px-4 py-3.5 tabular-nums text-mist/75">{atendimento.data.split('-').reverse().join('/')} · {atendimento.hora}</td>
+                        <td className="px-4 py-3.5 text-mist/75">{atendimento.tarologoNome || tarologos.find((item) => item.uid === (atendimento.tarologoUid || EMAIL_TAROLOGO))?.nome || 'Tarólogo'}</td>
+                        <td className="px-4 py-3.5"><SeloStatus status={atendimento.status} /></td>
+                        <td className={`whitespace-nowrap px-5 py-3.5 text-right font-medium tabular-nums sm:px-6 ${atendimento.status === 'cancelado' ? 'text-mist/45 line-through' : 'text-gold'}`}>{formatPriceFull(atendimento.preco)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              </>
+            )}
+          </section>
           {!erroAgendamentos && <GraficoFaturamento historico={historicoFaturamento} carregando={carregandoAgendamentos} />}
           <h3 className="mt-9 font-display text-xl text-star">Por tarólogo</h3>
           {carregandoTarologos && <p className="mt-4 text-[14px] text-mist/65">Carregando perfis…</p>}
