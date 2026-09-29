@@ -617,18 +617,19 @@ export class FirebaseBackend implements Backend {
     )
   }
 
-  observarTodosAgendamentos(cb: (a: Agendamento[]) => void): Unsubscribe {
+  observarTodosAgendamentos(cb: (a: Agendamento[]) => void, aoFalhar?: (erro: Error) => void): Unsubscribe {
     const u = this.auth.currentUser
     const admin = Boolean(u?.emailVerified && ehEmailDeTarologo(u.email))
     const q = admin
       ? query(collection(this.db, 'agendamentos'), orderBy('data'))
       : query(collection(this.db, 'agendamentos'), where('tarologoUid', '==', idTarologo(u?.email)))
-    return onSnapshot(q, (s) =>
-      cb(
+    return onSnapshot(q,
+      (s) => cb(
         s.docs
           .map((d) => ({ ...(d.data() as Omit<Agendamento, 'id'>), id: d.id }))
           .sort((a, b) => `${a.data}T${a.hora}`.localeCompare(`${b.data}T${b.hora}`)),
       ),
+      (erro) => aoFalhar?.(erro),
     )
   }
 

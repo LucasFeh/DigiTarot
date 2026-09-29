@@ -435,8 +435,8 @@ export interface Backend {
   criarAgendamento(dados: Omit<Agendamento, 'id' | 'criadoEm'>): Promise<string>
   observarAgendamento(id: string, cb: (a: Agendamento | null) => void): Unsubscribe
   observarMeusAgendamentos(uid: string, cb: (a: Agendamento[]) => void): Unsubscribe
-  /** Todos os agendamentos — só o tarólogo consegue ler. */
-  observarTodosAgendamentos(cb: (a: Agendamento[]) => void): Unsubscribe
+  /** Rodrigo vê a equipe; cada outro tarólogo vê apenas os próprios agendamentos. */
+  observarTodosAgendamentos(cb: (a: Agendamento[]) => void, aoFalhar?: (erro: Error) => void): Unsubscribe
   atualizarAgendamento(id: string, patch: Partial<Agendamento>): Promise<void>
   /**
    * Os encaixes já tomados, no formato `YYYY-MM-DDTHH:MM`. É público para quem

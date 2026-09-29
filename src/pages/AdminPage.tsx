@@ -4,8 +4,6 @@ import { EMAIL_TAROLOGO } from '../lib/backend/tarologo'
 import type { Agendamento } from '../lib/backend'
 import { useAuth } from '../lib/useAuth'
 import { useTarologos } from '../lib/tarologos'
-import { calcularFaturamento } from '../lib/faturamento'
-import GraficoFaturamento from '../components/admin/GraficoFaturamento'
 import SeloStatus from '../components/agenda/SeloStatus'
 
 type Secao = 'resumo' | 'profissionais'
@@ -50,9 +48,24 @@ function IndicadorCircular({ rotulo, numero, detalhe, proporcao, cor, simbolo }:
   )
 }
 
+function TarologoNaLista({ atendimento, tarologos }: { atendimento: Agendamento; tarologos: ReturnType<typeof useTarologos>['tarologos'] }) {
+  const perfil = tarologos.find((item) => item.uid === (atendimento.tarologoUid || EMAIL_TAROLOGO))
+  const nome = atendimento.tarologoNome || perfil?.nome || 'Tarólogo'
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2.5">
+      {perfil?.foto ? (
+        <img src={perfil.foto} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+      ) : (
+        <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-violet/40 text-xs text-star">{nome.slice(0, 1).toUpperCase()}</span>
+      )}
+      <span className="truncate">{nome}</span>
+    </span>
+  )
+}
+
 export default function AdminPage({ embutido = false }: { embutido?: boolean }) {
   const { usuario, backend, carregando: carregandoConta } = useAuth()
-  const { tarologos, carregando: carregandoTarologos, erro: erroTarologos } = useTarologos()
+  const { tarologos, carregando: carregandoTarologos } = useTarologos()
   const [secao, setSecao] = useState<Secao>('resumo')
   const [semanaDeslocada, setSemanaDeslocada] = useState(0)
   const [busca, setBusca] = useState('')
@@ -68,18 +81,24 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const [erroEdicao, setErroEdicao] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!backend || !usuario?.admin) return
+    if (!backend || usuario?.papel !== 'tarologo') return
     try {
-      return backend.observarTodosAgendamentos((lista) => {
-        setAgendamentos(lista)
-        setCarregandoAgendamentos(false)
-        setErroAgendamentos(null)
-      })
+      return backend.observarTodosAgendamentos(
+        (lista) => {
+          setAgendamentos(lista)
+          setCarregandoAgendamentos(false)
+          setErroAgendamentos(null)
+        },
+        (erro) => {
+          setCarregandoAgendamentos(false)
+          setErroAgendamentos(`Não foi possível carregar os agendamentos: ${erro.message}`)
+        },
+      )
     } catch (erro) {
       setCarregandoAgendamentos(false)
       setErroAgendamentos(erro instanceof Error ? erro.message : 'Não foi possível carregar os agendamentos.')
     }
-  }, [backend, usuario?.admin])
+  }, [backend, usuario?.papel, usuario?.email])
 
   useEffect(() => {
     if (!selecionado) return
@@ -101,9 +120,14 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const inicioChave = chaveDia(inicio)
   const fimChave = chaveDia(fim)
 
+  const agendamentosVisiveis = useMemo(() => usuario?.admin
+    ? agendamentos
+    : agendamentos.filter((item) => (item.tarologoUid || EMAIL_TAROLOGO) === usuario?.email.toLowerCase()),
+  [agendamentos, usuario?.admin, usuario?.email])
+
   const porProfissional = useMemo(() => {
     const mapa = new Map<string, { agendados: number; confirmados: number; concluidos: number; valor: number; aguardando: number; pagosInformados: number }>()
-    for (const atendimento of agendamentos) {
+    for (const atendimento of agendamentosVisiveis) {
       if (atendimento.data < inicioChave || atendimento.data > fimChave) continue
       // Reservas anteriores ao cadastro de vários tarólogos pertenciam ao Rodrigo.
       const uid = atendimento.tarologoUid || EMAIL_TAROLOGO
@@ -121,7 +145,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
       mapa.set(uid, linha)
     }
     return mapa
-  }, [agendamentos, inicioChave, fimChave])
+  }, [agendamentosVisiveis, inicioChave, fimChave])
 
   const totais = useMemo(() => {
     const total = { agendados: 0, confirmados: 0, concluidos: 0, valor: 0, aguardando: 0, pagosInformados: 0 }
@@ -135,8 +159,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     }
     return total
   }, [porProfissional])
-  const historicoFaturamento = useMemo(() => calcularFaturamento(agendamentos), [agendamentos])
-  const agendamentosDaSemana = useMemo(() => agendamentos.filter((item) => item.data >= inicioChave && item.data <= fimChave), [agendamentos, inicioChave, fimChave])
+  const agendamentosDaSemana = useMemo(() => agendamentosVisiveis.filter((item) => item.data >= inicioChave && item.data <= fimChave), [agendamentosVisiveis, inicioChave, fimChave])
   const valorReservado = agendamentosDaSemana.reduce((total, item) => total + (item.status !== 'cancelado' && Number.isFinite(item.preco) ? item.preco : 0), 0)
   const linhasFiltradas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR')
@@ -221,11 +244,11 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   if (carregandoConta) {
     return <main className="grid min-h-[60vh] place-items-center text-mist">Carregando acesso…</main>
   }
-  if (!usuario?.admin) {
+  if (usuario?.papel !== 'tarologo') {
     return (
       <main className="mx-auto max-w-2xl px-5 py-20 text-center">
         <h1 className="font-display text-3xl text-star">Acesso restrito</h1>
-        <p className="mt-3 text-mist/75">Esta área está disponível apenas para a administração do DigiTarot.</p>
+        <p className="mt-3 text-mist/75">Esta área está disponível apenas para tarólogos.</p>
       </main>
     )
   }
@@ -235,13 +258,13 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     <Container className={embutido ? 'mx-auto max-w-7xl' : 'mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-5 py-10 sm:px-8'}>
       <div className="mb-8 flex flex-col justify-between gap-5 border-b border-white/10 pb-7 sm:flex-row sm:items-end">
         <div>
-          <p className="text-[12px] uppercase tracking-[0.24em] text-gold">DigiTarot · Administração</p>
-          <h1 className="mt-2 font-display text-3xl text-star sm:text-4xl">Gestão DigiTarot</h1>
+          <p className="text-[12px] uppercase tracking-[0.24em] text-gold">DigiTarot · {usuario.admin ? 'Administração' : 'Seu faturamento'}</p>
+          <h1 className="mt-2 font-display text-3xl text-star sm:text-4xl">{usuario.admin ? 'Gestão DigiTarot' : 'Meu faturamento'}</h1>
           <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-mist/70">
-            Reservas, pagamentos e atendimentos da equipe em um só lugar.
+            {usuario.admin ? 'Reservas, pagamentos e atendimentos da equipe em um só lugar.' : 'Seus atendimentos e valores confirmados em um só lugar.'}
           </p>
         </div>
-        <div className="flex rounded-full border border-white/15 bg-white/[0.04] p-1" aria-label="Seções da administração">
+        {usuario.admin && <div className="flex rounded-full border border-white/15 bg-white/[0.04] p-1" aria-label="Seções da administração">
           {([['resumo', 'Resumo semanal'], ['profissionais', 'Tarólogos']] as const).map(([id, rotulo]) => (
             <button
               key={id}
@@ -253,10 +276,10 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
               {rotulo}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
-      {secao === 'resumo' ? (
+      {secao === 'resumo' || !usuario.admin ? (
         <section aria-label="Resumo semanal">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -302,13 +325,13 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
                     <option value="cancelado">Cancelado</option>
                   </select>
                 </label>
-                <label>
+                {usuario.admin && <label>
                   <span className="sr-only">Filtrar por tarólogo</span>
                   <select value={filtroTarologo} onChange={(evento) => setFiltroTarologo(evento.target.value)} className="rounded-xl border border-white/15 bg-[#21172e] px-3 py-2.5 text-[13px] text-star outline-none focus:border-gold/60">
                     <option value="todos">Todos os tarólogos</option>
                     {tarologos.map((tarologo) => <option key={tarologo.uid} value={tarologo.uid}>{tarologo.nome}</option>)}
                   </select>
-                </label>
+                </label>}
               </div>
             </div>
             {carregandoAgendamentos ? (
@@ -330,7 +353,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
                       <span className={`shrink-0 font-display text-[17px] tabular-nums ${atendimento.status === 'cancelado' ? 'text-mist/45 line-through' : 'text-gold'}`}>{formatPriceFull(atendimento.preco)}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><SeloStatus status={atendimento.status} /><span className="text-[12px] tabular-nums text-mist/60">{atendimento.data.split('-').reverse().join('/')} · {atendimento.hora}</span></div>
-                    <p className="mt-2 text-[12px] text-mist/50">Com {atendimento.tarologoNome || tarologos.find((item) => item.uid === (atendimento.tarologoUid || EMAIL_TAROLOGO))?.nome || 'tarólogo'}</p>
+                    <p className="mt-2 text-[12px] text-mist/50"><TarologoNaLista atendimento={atendimento} tarologos={tarologos} /></p>
                   </li>
                 ))}
               </ul>
@@ -345,7 +368,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
                       <tr key={atendimento.id} className="transition-colors hover:bg-white/[0.045]">
                         <td className="px-5 py-3.5 sm:px-6"><span className="block font-medium text-star">{atendimento.clienteNome || 'Cliente'}</span><span className="block max-w-[16rem] truncate text-[12px] text-mist/55">{atendimento.planoTitulo || atendimento.categoriaTitulo}</span></td>
                         <td className="whitespace-nowrap px-4 py-3.5 tabular-nums text-mist/75">{atendimento.data.split('-').reverse().join('/')} · {atendimento.hora}</td>
-                        <td className="px-4 py-3.5 text-mist/75">{atendimento.tarologoNome || tarologos.find((item) => item.uid === (atendimento.tarologoUid || EMAIL_TAROLOGO))?.nome || 'Tarólogo'}</td>
+                        <td className="px-4 py-3.5 text-mist/75"><TarologoNaLista atendimento={atendimento} tarologos={tarologos} /></td>
                         <td className="px-4 py-3.5"><SeloStatus status={atendimento.status} /></td>
                         <td className={`whitespace-nowrap px-5 py-3.5 text-right font-medium tabular-nums sm:px-6 ${atendimento.status === 'cancelado' ? 'text-mist/45 line-through' : 'text-gold'}`}>{formatPriceFull(atendimento.preco)}</td>
                       </tr>
@@ -356,36 +379,6 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
               </>
             )}
           </section>
-          {!erroAgendamentos && <GraficoFaturamento historico={historicoFaturamento} carregando={carregandoAgendamentos} />}
-          <h3 className="mt-9 font-display text-xl text-star">Por tarólogo</h3>
-          {carregandoTarologos && <p className="mt-4 text-[14px] text-mist/65">Carregando perfis…</p>}
-          {erroTarologos && <p role="alert" className="mt-4 text-[14px] text-rose">{erroTarologos}</p>}
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            {tarologos.map((tarologo) => {
-              const numeros = porProfissional.get(tarologo.uid) ?? { agendados: 0, confirmados: 0, concluidos: 0, valor: 0, aguardando: 0, pagosInformados: 0 }
-              return (
-                <article key={tarologo.uid} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                  <div className="flex items-center gap-3">
-                    {tarologo.foto ? <img src={tarologo.foto} alt="" className="h-12 w-12 rounded-full object-cover" /> : <span className="grid h-12 w-12 place-items-center rounded-full bg-violet/40 text-star">{tarologo.nome.slice(0, 1).toUpperCase()}</span>}
-                    <div className="min-w-0">
-                      <h4 className="truncate font-display text-lg text-star">{tarologo.nome}</h4>
-                      <p className="truncate text-[12px] text-mist/55">{tarologo.email}</p>
-                    </div>
-                    {!tarologo.ativo && <span className="ml-auto rounded-full border border-white/15 px-2 py-1 text-[11px] text-mist/60">Inativo</span>}
-                  </div>
-                  <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/10 pt-4 text-[13px] sm:grid-cols-3">
-                    <div><dt className="text-mist/55">Agendados</dt><dd className="mt-1 text-lg text-star">{numeros.agendados}</dd></div>
-                    <div><dt className="text-mist/55">Confirmados</dt><dd className="mt-1 text-lg text-star">{numeros.confirmados}</dd></div>
-                    <div><dt className="text-mist/55">Concluídos</dt><dd className="mt-1 text-lg text-star">{numeros.concluidos}</dd></div>
-                    <div><dt className="text-mist/55">Valor manual</dt><dd className="mt-1 text-lg text-gold">{formatPriceFull(numeros.valor)}</dd></div>
-                    <div><dt className="text-mist/55">Pagamento informado</dt><dd className="mt-1 text-lg text-star">{numeros.pagosInformados}</dd></div>
-                    <div><dt className="text-mist/55">Aguardando</dt><dd className="mt-1 text-lg text-star">{numeros.aguardando}</dd></div>
-                  </dl>
-                </article>
-              )
-            })}
-          </div>
-          {!carregandoTarologos && tarologos.length === 0 && <p className="mt-5 text-[14px] text-mist/65">Nenhum tarólogo cadastrado ainda.</p>}
           <p className="mt-6 max-w-3xl text-[12px] leading-relaxed text-mist/55">
             “Confirmado” significa que o pagamento foi conferido manualmente no site. O Pix estático não informa automaticamente se o valor entrou na conta; confira o extrato para apurar receita liquidada.
           </p>

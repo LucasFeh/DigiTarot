@@ -85,7 +85,7 @@ export default function PerfilPage() {
     GERAL,
     ...(usuario.papel === 'tarologo' ? [{ id: 'camera' as const, rotulo: 'Câmera do celular', icone: '◉' }] : []),
     { id: 'tiragem', rotulo: 'Agenda', icone: '☷' },
-    ...(usuario.admin ? [{ id: 'gestao' as const, rotulo: 'Gestão DigiTarot', icone: '✧' }] : []),
+    ...(usuario.papel === 'tarologo' ? [{ id: 'gestao' as const, rotulo: usuario.admin ? 'Gestão DigiTarot' : 'Meu faturamento', icone: '✧' }] : []),
     ...(usuario.papel === 'tarologo' ? [{ id: 'mesa' as const, rotulo: 'Configurar a mesa', icone: '▣' }] : []),
   ]
   const secao = partes[1] === 'conta' ? 'conta' : secoes.find((item) => item.id === partes[1])?.id ?? 'geral'
@@ -255,7 +255,7 @@ export default function PerfilPage() {
       {secao === 'mesa' && usuario.papel === 'tarologo' && <ConfigurarMesa valor={perfil.configuracaoMesa ?? CONFIGURACAO_MESA_PADRAO} salvar={(configuracaoMesa) => salvar({ configuracaoMesa })} />}
       {secao === 'camera' && usuario.papel === 'tarologo' && <VincularCamera />}
       {secao === 'tiragem' && <Suspense fallback={<p className="text-mist/70">Abrindo tiragem…</p>}><TiragemPage /></Suspense>}
-      {secao === 'gestao' && usuario.admin && <Suspense fallback={<p className="text-mist/70">Abrindo gestão…</p>}><AdminPage embutido /></Suspense>}
+      {secao === 'gestao' && usuario.papel === 'tarologo' && <Suspense fallback={<p className="text-mist/70">Abrindo gestão…</p>}><AdminPage embutido /></Suspense>}
     </LayoutPainel>
   )
 }

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { after, before, beforeEach, test } from 'node:test'
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore'
 
 const ADMIN = 'rodriv.l680@gmail.com'
 const PRO = 'pro@example.com'
@@ -65,6 +65,24 @@ test('tarólogo altera próprios preços e Pix sem editar nome ou avaliações',
   await assertSucceeds(updateDoc(doc(pro, 'pixTarologos', PRO), { cidade: 'RECIFE' }))
   await assertFails(getDoc(doc(outro, 'pixTarologos', PRO)))
   await assertFails(getDocs(collection(outro, 'pixTarologos')))
+})
+
+test('tarólogo lista só os próprios atendimentos; apenas Rodrigo lista a equipe', async () => {
+  await prepararProfissional()
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'agendamentos', 'do-pro'), { clienteUid: 'alice', tarologoUid: PRO, preco: 35 })
+    await setDoc(doc(ctx.firestore(), 'agendamentos', 'do-rodrigo'), { clienteUid: 'bob', tarologoUid: ADMIN, preco: 90 })
+  })
+  const pro = conta('pro-uid', PRO)
+  const admin = conta('admin-uid', ADMIN)
+  const cliente = conta('alice', 'alice@example.com')
+  const propria = await assertSucceeds(getDocs(query(collection(pro, 'agendamentos'), where('tarologoUid', '==', PRO))))
+  if (propria.size !== 1 || propria.docs[0].id !== 'do-pro') throw new Error('A consulta do profissional retornou dados de outra pessoa')
+  await assertFails(getDocs(collection(pro, 'agendamentos')))
+  await assertFails(getDocs(query(collection(pro, 'agendamentos'), where('tarologoUid', '==', ADMIN))))
+  await assertFails(getDocs(collection(cliente, 'agendamentos')))
+  const equipe = await assertSucceeds(getDocs(collection(admin, 'agendamentos')))
+  if (equipe.size !== 2) throw new Error('Rodrigo não recebeu todos os atendimentos')
 })
 
 test('perfil privado rejeita acesso cruzado e campos extras', async () => {
