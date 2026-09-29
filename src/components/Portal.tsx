@@ -8,6 +8,7 @@ import {
 } from 'framer-motion'
 import { noise } from '../lib/fan'
 import type { Side } from '../lib/usePortalPull'
+import { isFirefox } from '../lib/browser'
 
 /**
  * Proporção da fenda: largura = altura × isto. Baixo de propósito — é uma
@@ -111,7 +112,7 @@ export default function Portal({
   const spin = useMotionValue(0)
   useAnimationFrame((_, delta) => {
     const o = open.get()
-    if (reduce || o < 0.01) return
+    if (isFirefox || reduce || o < 0.01) return
     spin.set((spin.get() + (delta / 1000) * (6 + o * 22)) % 360)
   })
 
@@ -184,7 +185,12 @@ export default function Portal({
 
       {/* Fumaça em volta — transborda a caixa de propósito */}
       <motion.div className="absolute inset-0" style={{ scale: smokeScale }}>
-        {PUFFS.map((p) => (
+        {isFirefox ? (
+          <span
+            className="absolute -inset-[30%] rounded-[50%]"
+            style={{ background: 'radial-gradient(ellipse at center, #6d3fd48c 0%, #4a2a9e5e 34%, #7c4fe02e 55%, transparent 75%)' }}
+          />
+        ) : PUFFS.map((p) => (
           <motion.div
             key={p.id}
             className="absolute"

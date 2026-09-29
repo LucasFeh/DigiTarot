@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { motion, useInView } from 'framer-motion'
+import { useRef, useState } from 'react'
 import { site } from '../data/site'
 import CardBackArt from './CardBackArt'
 import SocialLinks from './SocialLinks'
@@ -58,6 +58,8 @@ function FloatingCard({ left, top, rot, delay, dur, size }: (typeof FLOATERS)[nu
 
 export default function Hero() {
   const mobile = useMobileLayout()
+  const heroRef = useRef<HTMLElement>(null)
+  const heroVisible = useInView(heroRef, { margin: '350px', initial: true })
   // Some se o arquivo não estiver configurado, ou se estiver configurado e faltar.
   const [hasAvatar, setHasAvatar] = useState(Boolean(site.avatar))
   const [glow, setGlow] = useState(false)
@@ -65,6 +67,7 @@ export default function Hero() {
 
   return (
     <header
+      ref={heroRef}
       className="relative flex min-h-[92vh] flex-col overflow-hidden"
       onPointerMove={mobile ? undefined : onPointerMove}
       onPointerLeave={mobile ? undefined : onPointerLeave}
@@ -97,9 +100,9 @@ export default function Hero() {
             <div className="relative" ref={smokeRef}>
               {mobile ? (
                 <div className="absolute inset-0 z-0 rounded-full bg-[radial-gradient(ellipse_at_center,#7b4fd666,transparent_68%)]" />
-              ) : (
+              ) : heroVisible ? (
                 <div className="absolute inset-0 z-0"><SmokeCloud field={smokeField} /></div>
-              )}
+              ) : null}
 
               <picture>
                 <source srcSet={site.avatarWebp} type="image/webp" />
@@ -116,7 +119,7 @@ export default function Hero() {
                 />
               </picture>
 
-              {!mobile && <div className="absolute inset-0 z-20"><SmokeCloud field={smokeField} front /></div>}
+              {!mobile && heroVisible && <div className="absolute inset-0 z-20"><SmokeCloud field={smokeField} front /></div>}
 
               {/* A ilustração inteira é o link. Fica por cima da fumaça (que é
                   pointer-events-none) só para capturar o clique — é transparente. */}

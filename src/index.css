@@ -94,6 +94,20 @@
     -webkit-backface-visibility: hidden;
   }
 
+  /* No Firefox, o filtro no botão pode achatar o flip 3D e exibir as duas
+     faces ao mesmo tempo. A troca de opacidade ocorre quando a carta está de
+     lado; o movimento e o conteúdo continuam iguais. */
+  @supports (-moz-appearance: none) {
+    .tarot-card-visual .tarot-card-front { opacity: 0; transition: opacity 0s linear 250ms; }
+    .tarot-card-visual .tarot-card-back { opacity: 1; transition: opacity 0s linear 250ms; }
+    .tarot-card-visual.is-revealed .tarot-card-front { opacity: 1; }
+    .tarot-card-visual.is-revealed .tarot-card-back { opacity: 0; }
+    @media (prefers-reduced-motion: reduce) {
+      .tarot-card-visual .tarot-card-front,
+      .tarot-card-visual .tarot-card-back { transition-delay: 0s; }
+    }
+  }
+
   /* Vidro fosco arroxeado usado nos painéis */
   .glass {
     background: linear-gradient(160deg, #ffffff10, #ffffff04 40%, #0000001a);
@@ -281,6 +295,19 @@ html.star-cursor [contenteditable='true'] {
 .stage {
   overflow: clip;
   overflow-clip-margin: 260px;
+}
+
+/* No Firefox, mover quatro camadas enormes com blur obriga a repintar o fundo
+   inteiro. Um único fundo com quatro gradientes mantém a paleta sem emendas. */
+@supports (-moz-appearance: none) {
+  .nebula-backdrop {
+    background-image:
+      radial-gradient(ellipse 60vw 60vh at 15% 18%, #39239d8c, transparent 78%),
+      radial-gradient(ellipse 58vw 55vh at 86% 33%, #9a307b70, transparent 78%),
+      radial-gradient(ellipse 65vw 62vh at 52% 60%, #5537a259, transparent 80%),
+      radial-gradient(ellipse 66vw 50vh at 24% 92%, #2943a05c, transparent 78%);
+  }
+  .nebula-cloud { display: none !important; }
 }
 
 @media (max-width: 767px), (max-width: 1023px) and (hover: none) and (pointer: coarse) {

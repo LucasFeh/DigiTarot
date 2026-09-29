@@ -19,7 +19,7 @@ export default function CardVisual({
 }) {
   return (
     <div
-      className="preserve-3d relative h-full w-full transition-transform duration-500"
+      className={`tarot-card-visual preserve-3d relative h-full w-full transition-transform duration-500${revealed ? ' is-revealed' : ''}`}
       style={{
         transform: revealed ? 'rotateY(180deg)' : 'rotateY(0deg)',
         transitionTimingFunction: 'cubic-bezier(.2,.8,.2,1)',
@@ -27,7 +27,7 @@ export default function CardVisual({
     >
       {/* ---------------------------- VERSO ---------------------------- */}
       <div
-        className="backface-hidden absolute inset-0 overflow-hidden rounded-[14px] border border-gold/30"
+        className="tarot-card-back backface-hidden absolute inset-0 overflow-hidden rounded-[14px] border border-gold/30"
         style={{
           background: 'linear-gradient(158deg, #2a1668 0%, #170b42 42%, #0d0526 100%)',
           boxShadow: 'inset 0 0 40px #00000080, 0 18px 40px -16px #000',
@@ -44,7 +44,7 @@ export default function CardVisual({
 
       {/* ---------------------------- FRENTE ---------------------------- */}
       <div
-        className="backface-hidden absolute inset-0 flex flex-col overflow-hidden rounded-[14px] border p-4"
+        className="tarot-card-front backface-hidden absolute inset-0 flex flex-col overflow-hidden rounded-[14px] border p-4"
         style={{
           transform: 'rotateY(180deg)',
           borderColor: `${accent}8c`,

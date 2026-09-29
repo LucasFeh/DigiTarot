@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useInView, useReducedMotion } from 'framer-motion'
 import { noise } from '../lib/fan'
+import { isFirefox } from '../lib/browser'
 
 /** Quanto a perspectiva empurra o centro visível para baixo, em frações da largura. */
 const PERSPECTIVE_DROP = 0.148
@@ -89,7 +90,9 @@ export default function MagicCircle({
   // da tela custa uma refiltragem por quadro sem ninguém ver.
   const onScreen = useInView(box, { margin: '120px' })
   const reduce = useReducedMotion()
-  const running = onScreen && !reduce
+  // Animar grupos dentro de um SVG filtrado repinta o círculo inteiro a cada
+  // quadro no Firefox. O anel fica visível, e a invocação das cartas continua.
+  const running = onScreen && !reduce && !isFirefox
   const runes = useMemo(() => RUNES.map((i) => ({ i, d: rune(i) })), [])
   const intensity = dimmed ? 0.35 : summoning ? 1 : 0.78
   const speed = summoning ? 0.35 : 1

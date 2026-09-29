@@ -2,6 +2,7 @@ import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } fro
 import { useMemo } from 'react'
 import { noise } from '../lib/fan'
 import type { SmokeField } from '../lib/useSmokeField'
+import { isFirefox } from '../lib/browser'
 
 /** Alcance do cursor, em % da largura do retrato. */
 const REACH = 54
@@ -209,6 +210,19 @@ function PuffLayer({ puff, field: smoke }: { puff: Puff; field?: SmokeField }) {
  * uma mão atravessando fumaça de verdade. Sem `field`, elas só rodopiam.
  */
 export default function SmokeCloud({ field, front = false }: { field?: SmokeField; front?: boolean }) {
+  if (isFirefox) {
+    return (
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: front
+            ? 'radial-gradient(ellipse 70% 29% at 50% 86%, #a87cf04d, transparent 75%), radial-gradient(ellipse 28% 38% at 12% 70%, #e878c426, transparent 75%), radial-gradient(ellipse 28% 38% at 88% 70%, #e878c426, transparent 75%)'
+            : 'radial-gradient(ellipse 72% 62% at 50% 63%, #7c4fe080, transparent 74%), radial-gradient(ellipse 38% 44% at 16% 65%, #8b5cf64d, transparent 75%), radial-gradient(ellipse 38% 44% at 84% 65%, #c2449d40, transparent 75%)',
+        }}
+      />
+    )
+  }
   return (
     <>
       {(front ? FRONT : BEHIND).map((p) => (

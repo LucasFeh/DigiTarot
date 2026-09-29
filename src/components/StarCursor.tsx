@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { isFirefox } from '../lib/browser'
 
 type Mote = {
   x: number
@@ -113,6 +114,7 @@ export default function StarCursor() {
     let h = 0
     let raf = 0
     let prevT = 0
+    let lastDraw = 0
     /** Já houve um primeiro mousemove? Antes disso não desenhamos nada. */
     let seen = false
     /** Molas de aparição e de "está sobre algo clicável". */
@@ -131,7 +133,7 @@ export default function StarCursor() {
     }
 
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const dpr = Math.min(window.devicePixelRatio || 1, isFirefox ? 1 : 2)
       // Medir o elemento, nunca a janela: o canvas é `fixed inset-0`, então a
       // caixa dele EXCLUI os 10px da barra de rolagem que `innerWidth` inclui.
       // Com innerWidth o bitmap era espremido e a estrela ficava desenhada até
@@ -144,7 +146,7 @@ export default function StarCursor() {
     }
 
     const spawn = (x: number, y: number, vx: number, vy: number, scale = 1) => {
-      if (motes.length > 190) motes.shift()
+      if (motes.length > (isFirefox ? 110 : 190)) motes.shift()
       const max = 520 + Math.random() * 760
       motes.push({
         x,
@@ -256,6 +258,11 @@ export default function StarCursor() {
 
     const draw = (t: number) => {
       raf = 0
+      if (isFirefox && lastDraw && t - lastDraw < 1000 / 30 - 1) {
+        schedule()
+        return
+      }
+      lastDraw = t
       // Primeiro quadro (e volta de aba parada) não pode render dt gigante.
       const dt = Math.min(prevT ? t - prevT : 16, 48)
       prevT = t
@@ -465,6 +472,7 @@ export default function StarCursor() {
         ctx.clearRect(0, 0, w, h)
       } else {
         prevT = 0
+        lastDraw = 0
         schedule()
       }
     }

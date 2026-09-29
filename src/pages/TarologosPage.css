@@ -365,6 +365,22 @@
 
 .tarologo-back-mark { position: absolute; z-index: 5; top: 47%; right: 28px; color: #f2d492; font-size: 1.8rem; }
 
+/* O Firefox às vezes compõe as duas faces apesar de backface-visibility.
+   A opacidade muda no meio da rotação, quando a carta está de perfil. */
+@supports (-moz-appearance: none) {
+  .tarologo-front { opacity: 1; transition: opacity 0s linear 425ms; }
+  .tarologo-back { opacity: 0; transition: opacity 0s linear 425ms; }
+  .tarologo-stage:is(.is-revealed, :focus-visible) .tarologo-front { opacity: 0; }
+  .tarologo-stage:is(.is-revealed, :focus-visible) .tarologo-back { opacity: 1; }
+  @media (hover: hover) and (pointer: fine) {
+    .tarologo-stage:hover .tarologo-front { opacity: 0; }
+    .tarologo-stage:hover .tarologo-back { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tarologo-front, .tarologo-back { transition-delay: 0s; }
+  }
+}
+
 .tarologos-status { min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: #cbbde8c9; text-align: center; }
 .tarologos-status a { color: #f2d492; text-decoration: underline; text-underline-offset: 5px; }
 

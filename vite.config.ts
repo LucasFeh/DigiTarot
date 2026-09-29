@@ -12,8 +12,8 @@ import { resolve } from 'node:path'
  */
 const REPO = '/DigiTarot/'
 
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? REPO : '/',
+export default defineConfig(({ command, isPreview }) => ({
+  base: command === 'build' || isPreview ? REPO : '/',
   plugins: [react(), tailwindcss()],
   build: { rollupOptions: { input: {
     main: resolve(import.meta.dirname, 'index.html'),

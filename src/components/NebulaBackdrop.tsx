@@ -9,7 +9,7 @@ import { useMobileLayout } from '../lib/useMobileLayout'
 export default function NebulaBackdrop() {
   const mobile = useMobileLayout()
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-void">
+    <div aria-hidden className="nebula-backdrop pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-void">
       {/* Nuvem azul-violeta — canto superior esquerdo */}
       <div
         className="nebula-cloud absolute -left-[15%] -top-[20%] h-[85vh] w-[75vw] rounded-full blur-[90px] opacity-55"

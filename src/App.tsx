@@ -9,6 +9,7 @@ import { useAuth } from './lib/useAuth'
 import { haLinkDeEmailNaUrl } from './lib/cadastroPorLink'
 import type { Aba } from './lib/temas/tipos'
 import { useMobileLayout } from './lib/useMobileLayout'
+import { isFirefox } from './lib/browser'
 
 /** Each route loads its own interface; public inner pages need neither the
  * home animations nor the 3D table before someone navigates to them. */
@@ -102,7 +103,7 @@ function Rotas() {
 
   return (
     <>
-      {!mobile && (!partes[0] || partes[0] === 'sobre') && <SmokeFilters />}
+      {!mobile && !isFirefox && (!partes[0] || partes[0] === 'sobre') && <SmokeFilters />}
       {!naSala && !naCamera && !noAppCamera && <NebulaBackdrop />}
       {!naCamera && !noAppCamera && <Header caminho={caminho} />}
       <Suspense

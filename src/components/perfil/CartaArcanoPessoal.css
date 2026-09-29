@@ -90,6 +90,20 @@
 .arcano-pessoal-reading { position: relative; margin-top: 22px; color: #eee7f8; font-size: .87rem; line-height: 1.65; }
 .arcano-pessoal-back-hint { position: absolute; z-index: 2; bottom: 23px; color: #cbbde885; font-size: .64rem; letter-spacing: .07em; }
 
+@supports (-moz-appearance: none) {
+  .arcano-pessoal-front { opacity: 1; transition: opacity 0s linear 400ms; }
+  .arcano-pessoal-back { opacity: 0; transition: opacity 0s linear 400ms; }
+  .arcano-pessoal-stage.is-turned .arcano-pessoal-front { opacity: 0; }
+  .arcano-pessoal-stage.is-turned .arcano-pessoal-back { opacity: 1; }
+  @media (hover: hover) and (pointer: fine) {
+    .arcano-pessoal-stage:hover .arcano-pessoal-front { opacity: 0; }
+    .arcano-pessoal-stage:hover .arcano-pessoal-back { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .arcano-pessoal-front, .arcano-pessoal-back { transition-delay: 0s; }
+  }
+}
+
 .arcano-pessoal-stage:focus-visible { outline: 2px solid #f2d492; outline-offset: 7px; }
 
 @keyframes arcano-pessoal-float {

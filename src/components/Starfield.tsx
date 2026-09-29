@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { isFirefox } from '../lib/browser'
 
 type Star = {
   x: number
@@ -29,7 +30,9 @@ export default function Starfield({ density = 1 }: { density?: number }) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    // O Firefox mantém o campo de estrelas estático. O desenho não muda de
+    // lugar entre rotas e deixa de ocupar o compositor durante o leque.
+    const reduced = isFirefox || window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let stars: Star[] = []
     let raf = 0
     let w = 0
@@ -38,7 +41,7 @@ export default function Starfield({ density = 1 }: { density?: number }) {
     let lastFrame = 0
 
     const build = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const dpr = Math.min(window.devicePixelRatio || 1, isFirefox ? 1 : 2)
       const width = canvas.clientWidth
       const height = canvas.clientHeight
       if (width === w && height === h && dpr === pixelRatio) return
@@ -49,7 +52,7 @@ export default function Starfield({ density = 1 }: { density?: number }) {
       canvas.height = Math.floor(h * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-      const count = Math.round(((w * h) / 5200) * density)
+      const count = Math.round(((w * h) / 5200) * density * (isFirefox ? 0.6 : 1))
       stars = Array.from({ length: count }, () => {
         const roll = Math.random()
         // 78% minúsculas, 18% médias, 4% grandes com halo
@@ -70,8 +73,7 @@ export default function Starfield({ density = 1 }: { density?: number }) {
     const draw = (t: number) => {
       if (!reduced) {
         raf = requestAnimationFrame(draw)
-        // The stars move only a few pixels per second. Updating at 30 fps
-        // looks the same while halving full-screen canvas work.
+        // O movimento é lento; 30 quadros bastam quando animado.
         if (t - lastFrame < 1000 / 30 - 1) return
         lastFrame = t
       }
