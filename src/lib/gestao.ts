@@ -68,6 +68,13 @@ export function registrosGestao(agendamentos: Agendamento[], convites: Convite[]
   return [...agenda, ...particulares]
 }
 
+/** A remoção afeta somente o painel financeiro; os registros operacionais continuam intactos. */
+export function registrosVisiveisNoFaturamento(registros: RegistroGestao[], idsRemovidos: string[], idsAtivos: string[]): RegistroGestao[] {
+  const removidos = new Set(idsRemovidos)
+  const ativos = new Set(idsAtivos)
+  return registros.filter((item) => !removidos.has(item.tarologoPerfilId) || ativos.has(item.tarologoPerfilId))
+}
+
 export function resumoGestao(registros: RegistroGestao[], inicio: string, fim: string) {
   const semana = registros.filter((item) => item.data >= inicio && item.data <= fim)
   const totais = {

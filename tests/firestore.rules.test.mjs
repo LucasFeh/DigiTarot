@@ -52,6 +52,27 @@ test('somente o administrador com e-mail verificado cadastra tarólogo', async (
   await assertSucceeds(updateDoc(caminho(conta('admin-uid', ADMIN)), { nome: 'Nome corrigido' }))
 })
 
+test('somente Rodrigo retira do faturamento um tarólogo removido e pode restaurar', async () => {
+  const id = 'romeu@example.com'
+  const admin = conta('admin-uid', ADMIN)
+  const pro = conta('pro-uid', PRO)
+  const anon = env.unauthenticatedContext().firestore()
+  const registro = { removidoEm: '2026-09-29T12:00:00.000Z' }
+  await assertFails(getDocs(collection(pro, 'historicosFaturamentoRemovidos')))
+  await assertFails(getDoc(doc(anon, 'historicosFaturamentoRemovidos', id)))
+  await assertFails(setDoc(doc(pro, 'historicosFaturamentoRemovidos', id), registro))
+  await assertFails(setDoc(doc(conta('impostor', ADMIN, false), 'historicosFaturamentoRemovidos', id), registro))
+  await assertFails(setDoc(doc(admin, 'historicosFaturamentoRemovidos', ADMIN), registro))
+  await prepararProfissional()
+  await assertFails(setDoc(doc(admin, 'historicosFaturamentoRemovidos', PRO), registro))
+  await assertSucceeds(setDoc(doc(admin, 'historicosFaturamentoRemovidos', id), registro))
+  const historicos = await assertSucceeds(getDocs(collection(admin, 'historicosFaturamentoRemovidos')))
+  if (historicos.size !== 1 || historicos.docs[0].id !== id) throw new Error('A lista privada de históricos não corresponde ao registro removido')
+  await assertFails(updateDoc(doc(admin, 'historicosFaturamentoRemovidos', id), { removidoEm: 'outro' }))
+  await assertFails(deleteDoc(doc(pro, 'historicosFaturamentoRemovidos', id)))
+  await assertSucceeds(deleteDoc(doc(admin, 'historicosFaturamentoRemovidos', id)))
+})
+
 test('tarólogo altera próprios preços e Pix sem editar nome ou avaliações', async () => {
   await prepararProfissional()
   const pro = conta('pro-uid', PRO)

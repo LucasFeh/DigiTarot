@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { registrosGestao, resumoGestao } from '../src/lib/gestao.ts'
+import { registrosGestao, registrosVisiveisNoFaturamento, resumoGestao } from '../src/lib/gestao.ts'
 
 const rodrigo = { uid: 'uid-rodrigo', email: 'rodriv.l680@gmail.com', admin: true }
 const luna = { uid: 'uid-luna', email: 'luna@example.com', admin: false }
@@ -52,4 +52,17 @@ test('convites antigos sem data de confirmação usam a data de criação até a
   const registros = registrosGestao([], [antigo], rodrigo)
   assert.equal(registros[0].tarologoPerfilId, rodrigo.email)
   assert.equal(resumoGestao(registros, '2026-09-14', '2026-09-20').totais.valor, 120)
+})
+
+test('um profissional removido sai só do faturamento e volta se for restaurado ou recadastrado', () => {
+  const registros = registrosGestao(
+    [agendamento('agenda-rodrigo', rodrigo.email, 90), agendamento('agenda-romeu', 'romeu@example.com', 35)],
+    [convite('particular-romeu', 'uid-romeu', 'romeu@example.com', 120)],
+    rodrigo,
+  )
+  const visiveis = registrosVisiveisNoFaturamento(registros, ['romeu@example.com'], [rodrigo.email])
+  assert.deepEqual(visiveis.map((item) => item.id), ['agenda:agenda-rodrigo'])
+  assert.equal(resumoGestao(visiveis, '2026-09-28', '2026-10-04').totais.valor, 90)
+  assert.equal(registrosVisiveisNoFaturamento(registros, [], [rodrigo.email]).length, 3)
+  assert.equal(registrosVisiveisNoFaturamento(registros, ['romeu@example.com'], [rodrigo.email, 'romeu@example.com']).length, 3)
 })

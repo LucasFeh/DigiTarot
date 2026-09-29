@@ -4,7 +4,7 @@ import { EMAIL_TAROLOGO } from '../lib/backend/tarologo'
 import type { Agendamento, Convite } from '../lib/backend'
 import { useAuth } from '../lib/useAuth'
 import { useTarologos } from '../lib/tarologos'
-import { registrosGestao, resumoGestao, type RegistroGestao } from '../lib/gestao'
+import { registrosGestao, registrosVisiveisNoFaturamento, resumoGestao, type RegistroGestao } from '../lib/gestao'
 import SeloStatus from '../components/agenda/SeloStatus'
 
 type Secao = 'resumo' | 'profissionais'
@@ -74,6 +74,11 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const [filtroTarologo, setFiltroTarologo] = useState('todos')
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
   const [convites, setConvites] = useState<Convite[]>([])
+  const [historicosRemovidos, setHistoricosRemovidos] = useState<string[]>([])
+  const [carregandoHistoricos, setCarregandoHistoricos] = useState(true)
+  const [erroHistoricos, setErroHistoricos] = useState<string | null>(null)
+  const [alterandoHistorico, setAlterandoHistorico] = useState<string | null>(null)
+  const [mensagemHistorico, setMensagemHistorico] = useState<string | null>(null)
   const [carregandoAgendamentos, setCarregandoAgendamentos] = useState(true)
   const [carregandoConvites, setCarregandoConvites] = useState(true)
   const [erroAgendamentos, setErroAgendamentos] = useState<string | null>(null)
@@ -125,6 +130,26 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   }, [backend, usuario?.papel, usuario?.uid])
 
   useEffect(() => {
+    if (!backend || !usuario?.admin) return
+    try {
+      return backend.observarHistoricosFaturamentoRemovidos(
+        (ids) => {
+          setHistoricosRemovidos(ids)
+          setCarregandoHistoricos(false)
+          setErroHistoricos(null)
+        },
+        (erro) => {
+          setCarregandoHistoricos(false)
+          setErroHistoricos(`Não foi possível carregar os históricos removidos: ${erro.message}`)
+        },
+      )
+    } catch (erro) {
+      setCarregandoHistoricos(false)
+      setErroHistoricos(erro instanceof Error ? erro.message : 'Não foi possível carregar os históricos removidos.')
+    }
+  }, [backend, usuario?.admin])
+
+  useEffect(() => {
     if (!selecionado) return
     const existente = tarologos.find((tarologo) => tarologo.uid === selecionado)
     if (!existente) return
@@ -144,14 +169,32 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const inicioChave = chaveDia(inicio)
   const fimChave = chaveDia(fim)
 
-  const registros = useMemo(() => usuario ? registrosGestao(agendamentos, convites, usuario) : [], [agendamentos, convites, usuario])
+  const registrosBrutos = useMemo(() => usuario ? registrosGestao(agendamentos, convites, usuario) : [], [agendamentos, convites, usuario])
+  const registros = useMemo(() => usuario?.admin
+    ? registrosVisiveisNoFaturamento(registrosBrutos, historicosRemovidos, tarologos.map((item) => item.uid))
+    : registrosBrutos,
+  [usuario?.admin, registrosBrutos, historicosRemovidos, tarologos])
+  const profissionaisRemovidos = useMemo(() => {
+    if (!usuario?.admin) return []
+    const ativos = new Set(tarologos.map((item) => item.uid))
+    const grupos = new Map<string, { id: string; nome: string; quantidade: number; confirmado: number }>()
+    for (const item of registrosBrutos) {
+      const id = item.tarologoPerfilId
+      if (!id || id === EMAIL_TAROLOGO || ativos.has(id)) continue
+      const grupo = grupos.get(id) ?? { id, nome: item.tarologoNome || id, quantidade: 0, confirmado: 0 }
+      grupo.quantidade++
+      if (item.status === 'confirmado') grupo.confirmado += item.preco
+      grupos.set(id, grupo)
+    }
+    return [...grupos.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  }, [usuario?.admin, tarologos, registrosBrutos])
   const registrosDoTarologo = useMemo(() => usuario?.admin && filtroTarologo !== 'todos'
     ? registros.filter((item) => item.tarologoPerfilId === filtroTarologo)
     : registros,
   [registros, usuario?.admin, filtroTarologo])
   const { semana: registrosDaSemana, totais } = useMemo(() => resumoGestao(registrosDoTarologo, inicioChave, fimChave), [registrosDoTarologo, inicioChave, fimChave])
-  const carregandoRegistros = carregandoAgendamentos || carregandoConvites
-  const erroRegistros = erroAgendamentos || erroConvites
+  const carregandoRegistros = carregandoAgendamentos || carregandoConvites || (usuario?.admin && (carregandoHistoricos || carregandoTarologos))
+  const erroRegistros = erroAgendamentos || erroConvites || (usuario?.admin ? erroHistoricos : null)
   const linhasFiltradas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR')
     return registrosDaSemana
@@ -228,6 +271,23 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
       setErroEdicao(erro instanceof Error ? `Não foi possível remover: ${erro.message}` : 'Não foi possível remover o tarólogo.')
     } finally {
       setSalvando(false)
+    }
+  }
+
+  const alterarHistorico = async (id: string, nome: string, ocultar: boolean) => {
+    if (!backend || !usuario?.admin || alterandoHistorico) return
+    if (ocultar && !window.confirm(`Apagar o histórico de faturamento de ${nome} do painel?\n\nOs registros de agendamentos, pagamentos e sessões serão preservados. É possível restaurar este histórico depois.`)) return
+    setAlterandoHistorico(id)
+    setMensagemHistorico(null)
+    setErroHistoricos(null)
+    try {
+      if (ocultar) await backend.removerHistoricoFaturamento(id)
+      else await backend.restaurarHistoricoFaturamento(id)
+      setMensagemHistorico(ocultar ? `Histórico de ${nome} retirado do faturamento.` : `Histórico de ${nome} restaurado no faturamento.`)
+    } catch (erro) {
+      setErroHistoricos(erro instanceof Error ? erro.message : 'Não foi possível alterar o histórico.')
+    } finally {
+      setAlterandoHistorico(null)
     }
   }
 
@@ -414,6 +474,28 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
               <button type="button" onClick={() => void salvar()} disabled={salvando} className="rounded-full bg-gold px-7 py-3 text-[14px] font-medium text-void transition hover:brightness-110 disabled:opacity-50">{salvando ? 'Salvando…' : selecionado ? 'Salvar nome' : 'Cadastrar acesso'}</button>
             </div>
           </div>
+          {!carregandoRegistros && profissionaisRemovidos.length > 0 && (
+            <section aria-labelledby="historicos-removidos" className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-7 lg:col-span-2">
+              <h2 id="historicos-removidos" className="font-display text-xl text-star">Histórico de tarólogos removidos</h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-mist/65">Retire do painel financeiro os valores de profissionais que já saíram da equipe. As reservas, pagamentos e sessões originais continuam guardados.</p>
+              {erroHistoricos && <p role="alert" className="mt-4 text-[13px] text-rose">{erroHistoricos}</p>}
+              {mensagemHistorico && <p role="status" className="mt-4 text-[13px] text-gold">{mensagemHistorico}</p>}
+              <ul className="mt-5 divide-y divide-white/10 border-t border-white/10">
+                {profissionaisRemovidos.map((profissional) => {
+                  const removido = historicosRemovidos.includes(profissional.id)
+                  return <li key={profissional.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
+                    <div className="min-w-0">
+                      <p className="font-medium text-star">{profissional.nome} {removido && <span className="ml-2 rounded-full border border-gold/35 px-2 py-0.5 text-[11px] text-gold">Fora do faturamento</span>}</p>
+                      <p className="mt-1 break-all text-[12px] text-mist/60">{profissional.id} · {profissional.quantidade} {profissional.quantidade === 1 ? 'atendimento' : 'atendimentos'} · {formatPriceFull(profissional.confirmado)} confirmado</p>
+                    </div>
+                    <button type="button" onClick={() => void alterarHistorico(profissional.id, profissional.nome, !removido)} disabled={Boolean(alterandoHistorico)} className={`rounded-full border px-4 py-2 text-[13px] transition disabled:opacity-50 ${removido ? 'border-gold/40 text-gold hover:bg-gold/10' : 'border-rose/40 text-rose hover:bg-rose/10'}`}>
+                      {alterandoHistorico === profissional.id ? 'Salvando…' : removido ? 'Restaurar no faturamento' : 'Apagar do faturamento'}
+                    </button>
+                  </li>
+                })}
+              </ul>
+            </section>
+          )}
         </section>
       )}
     </Container>

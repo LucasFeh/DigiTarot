@@ -324,6 +324,21 @@ service cloud.firestore {
       allow delete: if ehAdmin() && tarologoId != 'rodriv.l680@gmail.com';
     }
 
+    // Apenas Rodrigo gerencia a visibilidade financeira de profissionais
+    // removidos. Agendamentos, pagamentos e convites continuam preservados.
+    match /historicosFaturamentoRemovidos/{tarologoId} {
+      allow get, list: if ehAdmin();
+      allow create: if ehAdmin()
+                    && tarologoId != 'rodriv.l680@gmail.com'
+                    && tarologoId.matches('^[^/]+@[^/]+[.][^/]+$')
+                    && !exists(/databases/$(database)/documents/tarologos/$(tarologoId))
+                    && request.resource.data.keys().hasOnly(['removidoEm'])
+                    && request.resource.data.removidoEm is string
+                    && request.resource.data.removidoEm.size() <= 40;
+      allow update: if false;
+      allow delete: if ehAdmin();
+    }
+
     // A chave Pix é legível pelo recebedor, admin e cliente com reserva válida.
     // Ela nunca sai na consulta pública da vitrine.
     match /pixTarologos/{tarologoId} {

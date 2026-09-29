@@ -33,6 +33,7 @@ const CHAVE_SINAIS = 'digitarot.sinais'
 const CHAVE_VINCULACAO_CAMERA = 'digitarot.vinculacaoCamera'
 const CHAVE_TAROLOGOS = 'digitarot.tarologos'
 const CHAVE_PIX_TAROLOGOS = 'digitarot.pixTarologos'
+const CHAVE_HISTORICOS_REMOVIDOS = 'digitarot.historicosFaturamentoRemovidos'
 const CANAL = 'tarot.sync'
 
 /**
@@ -196,7 +197,7 @@ export class LocalBackend implements Backend {
         if (e.key === CHAVE_SESSOES || e.key === CHAVE_MENSAGENS) this.receber('sessoes')
         if (e.key === CHAVE_AGENDA || e.key === CHAVE_HORARIOS) this.receber('agenda')
         if (e.key === CHAVE_PERFIS) this.receber('perfis')
-        if (e.key === CHAVE_TAROLOGOS || e.key === CHAVE_PIX_TAROLOGOS) this.receber('tarologos')
+        if (e.key === CHAVE_TAROLOGOS || e.key === CHAVE_PIX_TAROLOGOS || e.key === CHAVE_HISTORICOS_REMOVIDOS) this.receber('tarologos')
         if (e.key === CHAVE_VINCULACAO_CAMERA) this.receber('sessoes')
       })
     }
@@ -571,6 +572,31 @@ export class LocalBackend implements Backend {
     delete pix[id]
     gravar(CHAVE_TAROLOGOS, tarologos)
     gravar(CHAVE_PIX_TAROLOGOS, pix)
+    this.avisar('tarologos')
+  }
+
+  observarHistoricosFaturamentoRemovidos(cb: (ids: string[]) => void): Unsubscribe {
+    const emitir = () => cb(ler<Usuario | null>(CHAVE_USER, null, 'sessao')?.admin
+      ? ler<string[]>(CHAVE_HISTORICOS_REMOVIDOS, [])
+      : [])
+    this.ouvintesTarologos.add(emitir)
+    emitir()
+    return () => this.ouvintesTarologos.delete(emitir)
+  }
+
+  async removerHistoricoFaturamento(uid: string) {
+    if (!ler<Usuario | null>(CHAVE_USER, null, 'sessao')?.admin) throw new Error('Apenas Rodrigo pode alterar o faturamento da equipe.')
+    const id = uid.trim().toLowerCase()
+    if (!id || !id.includes('@') || id === EMAIL_TAROLOGO || this.tarologos()[id]) throw new Error('Selecione um tarólogo removido.')
+    const atuais = ler<string[]>(CHAVE_HISTORICOS_REMOVIDOS, [])
+    gravar(CHAVE_HISTORICOS_REMOVIDOS, [...new Set([...atuais, id])])
+    this.avisar('tarologos')
+  }
+
+  async restaurarHistoricoFaturamento(uid: string) {
+    if (!ler<Usuario | null>(CHAVE_USER, null, 'sessao')?.admin) throw new Error('Apenas Rodrigo pode alterar o faturamento da equipe.')
+    const id = uid.trim().toLowerCase()
+    gravar(CHAVE_HISTORICOS_REMOVIDOS, ler<string[]>(CHAVE_HISTORICOS_REMOVIDOS, []).filter((item) => item !== id))
     this.avisar('tarologos')
   }
 

@@ -29,6 +29,7 @@ import {
 } from 'firebase/auth'
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -542,6 +543,26 @@ export class FirebaseBackend implements Backend {
     lote.delete(doc(this.db, 'pixTarologos', id))
     lote.delete(doc(this.db, 'tarologos', id))
     await lote.commit()
+  }
+
+  observarHistoricosFaturamentoRemovidos(cb: (ids: string[]) => void, aoFalhar?: (erro: Error) => void): Unsubscribe {
+    return onSnapshot(
+      collection(this.db, 'historicosFaturamentoRemovidos'),
+      (s) => cb(s.docs.map((d) => d.id)),
+      (erro) => aoFalhar?.(erro),
+    )
+  }
+
+  async removerHistoricoFaturamento(uid: string) {
+    const id = idTarologo(uid)
+    if (!id || !id.includes('@') || id === TAROLOGO_RODRIGO.uid) throw new Error('Selecione um tarólogo removido.')
+    await setDoc(doc(this.db, 'historicosFaturamentoRemovidos', id), { removidoEm: new Date().toISOString() })
+  }
+
+  async restaurarHistoricoFaturamento(uid: string) {
+    const id = idTarologo(uid)
+    if (!id || !id.includes('@')) throw new Error('Selecione um histórico válido.')
+    await deleteDoc(doc(this.db, 'historicosFaturamentoRemovidos', id))
   }
 
   async salvarModalidadesTarologo(uid: string, modalidades: Record<string, number>) {
