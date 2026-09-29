@@ -4,6 +4,8 @@ import { EMAIL_TAROLOGO } from '../lib/backend/tarologo'
 import type { Agendamento } from '../lib/backend'
 import { useAuth } from '../lib/useAuth'
 import { useTarologos } from '../lib/tarologos'
+import { calcularFaturamento } from '../lib/faturamento'
+import GraficoFaturamento from '../components/admin/GraficoFaturamento'
 
 type Secao = 'resumo' | 'profissionais'
 type Formulario = { nome: string; email: string }
@@ -45,6 +47,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
   const [secao, setSecao] = useState<Secao>('resumo')
   const [semanaDeslocada, setSemanaDeslocada] = useState(0)
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
+  const [carregandoAgendamentos, setCarregandoAgendamentos] = useState(true)
   const [erroAgendamentos, setErroAgendamentos] = useState<string | null>(null)
   const [selecionado, setSelecionado] = useState<string | null>(null)
   const [formulario, setFormulario] = useState<Formulario>(novoFormulario)
@@ -57,9 +60,11 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     try {
       return backend.observarTodosAgendamentos((lista) => {
         setAgendamentos(lista)
+        setCarregandoAgendamentos(false)
         setErroAgendamentos(null)
       })
     } catch (erro) {
+      setCarregandoAgendamentos(false)
       setErroAgendamentos(erro instanceof Error ? erro.message : 'Não foi possível carregar os agendamentos.')
     }
   }, [backend, usuario?.admin])
@@ -118,6 +123,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
     }
     return total
   }, [porProfissional])
+  const historicoFaturamento = useMemo(() => calcularFaturamento(agendamentos), [agendamentos])
 
   const escolher = (uid: string | null) => {
     setSelecionado(uid)
@@ -250,6 +256,7 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
             <CardNumero rotulo="Pagamento informado" numero={totais.pagosInformados} detalhe="Clientes avisaram que pagaram; ainda requer conferência." />
             <CardNumero rotulo="Aguardando pagamento" numero={totais.aguardando} />
           </div>
+          {!erroAgendamentos && <GraficoFaturamento historico={historicoFaturamento} carregando={carregandoAgendamentos} />}
           <h3 className="mt-9 font-display text-xl text-star">Por tarólogo</h3>
           {carregandoTarologos && <p className="mt-4 text-[14px] text-mist/65">Carregando perfis…</p>}
           {erroTarologos && <p role="alert" className="mt-4 text-[14px] text-rose">{erroTarologos}</p>}
