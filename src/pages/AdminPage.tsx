@@ -4,7 +4,7 @@ import { EMAIL_TAROLOGO } from '../lib/backend/tarologo'
 import type { Agendamento, Convite } from '../lib/backend'
 import { useAuth } from '../lib/useAuth'
 import { useTarologos } from '../lib/tarologos'
-import { registrosGestao, registrosVisiveisNoFaturamento, resumoGestao, type RegistroGestao } from '../lib/gestao'
+import { destinoConferencia, registrosGestao, registrosVisiveisNoFaturamento, resumoGestao, type RegistroGestao } from '../lib/gestao'
 import SeloStatus from '../components/agenda/SeloStatus'
 
 type Secao = 'resumo' | 'profissionais'
@@ -399,16 +399,21 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
             ) : (
               <>
               <ul className="divide-y divide-white/10 md:hidden">
-                {linhasFiltradas.map((atendimento) => (
-                  <li key={atendimento.id} className="px-5 py-4">
+                {linhasFiltradas.map((atendimento) => {
+                  const destino = destinoConferencia(atendimento, usuario)
+                  const Conteudo = destino ? 'a' : 'div'
+                  return <li key={atendimento.id}>
+                    <Conteudo href={destino ?? undefined} className={`block px-5 py-4 ${destino ? 'transition-colors hover:bg-white/[0.05] focus-visible:bg-white/[0.05] focus-visible:outline-gold' : ''}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0"><p className="font-medium text-star">{atendimento.clienteNome}</p><p className="mt-0.5 truncate text-[12px] text-mist/60">{atendimento.origem === 'particular' ? 'Sessão particular · ' : ''}{atendimento.titulo}</p></div>
                       <span className={`shrink-0 font-display text-[17px] tabular-nums ${atendimento.status === 'cancelado' ? 'text-mist/45 line-through' : 'text-gold'}`}>{formatPriceFull(atendimento.preco)}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><SeloStatus status={atendimento.status} /><span className="text-[12px] tabular-nums text-mist/60">{atendimento.data.split('-').reverse().join('/')} · {atendimento.hora}</span></div>
                     <p className="mt-2 text-[12px] text-mist/50"><TarologoNaLista atendimento={atendimento} tarologos={tarologos} /></p>
+                    {destino && <p className="mt-3 text-[12px] font-medium text-gold">Abrir na Agenda para conferir ↗</p>}
+                    </Conteudo>
                   </li>
-                ))}
+                })}
               </ul>
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[760px] border-collapse text-left text-[13px]">
@@ -417,15 +422,19 @@ export default function AdminPage({ embutido = false }: { embutido?: boolean }) 
                     <tr><th scope="col" className="px-5 py-3 font-medium sm:px-6">Cliente / leitura</th><th scope="col" className="px-4 py-3 font-medium">Data</th><th scope="col" className="px-4 py-3 font-medium">Tarólogo</th><th scope="col" className="px-4 py-3 font-medium">Status</th><th scope="col" className="px-5 py-3 text-right font-medium sm:px-6">Preço</th></tr>
                   </thead>
                   <tbody className="divide-y divide-white/8">
-                    {linhasFiltradas.map((atendimento) => (
-                      <tr key={atendimento.id} className="transition-colors hover:bg-white/[0.045]">
-                        <td className="px-5 py-3.5 sm:px-6"><span className="block font-medium text-star">{atendimento.clienteNome}</span><span className="block max-w-[16rem] truncate text-[12px] text-mist/55">{atendimento.origem === 'particular' ? 'Sessão particular · ' : ''}{atendimento.titulo}</span></td>
+                    {linhasFiltradas.map((atendimento) => {
+                      const destino = destinoConferencia(atendimento, usuario)
+                      return <tr key={atendimento.id} onClick={destino ? () => { window.location.hash = destino } : undefined} className={`transition-colors hover:bg-white/[0.045] ${destino ? 'cursor-pointer' : ''}`} title={destino ? 'Abrir na Agenda para conferir' : undefined}>
+                        <td className="px-5 py-3.5 sm:px-6">
+                          {destino ? <a href={destino} className="block rounded outline-none focus-visible:ring-2 focus-visible:ring-gold"><span className="block font-medium text-star">{atendimento.clienteNome}</span><span className="block max-w-[16rem] truncate text-[12px] text-mist/55">{atendimento.origem === 'particular' ? 'Sessão particular · ' : ''}{atendimento.titulo}</span><span className="mt-1 block text-[11px] font-medium text-gold">Conferir na Agenda ↗</span></a>
+                            : <><span className="block font-medium text-star">{atendimento.clienteNome}</span><span className="block max-w-[16rem] truncate text-[12px] text-mist/55">{atendimento.origem === 'particular' ? 'Sessão particular · ' : ''}{atendimento.titulo}</span></>}
+                        </td>
                         <td className="whitespace-nowrap px-4 py-3.5 tabular-nums text-mist/75">{atendimento.data.split('-').reverse().join('/')} · {atendimento.hora}</td>
                         <td className="px-4 py-3.5 text-mist/75"><TarologoNaLista atendimento={atendimento} tarologos={tarologos} /></td>
                         <td className="px-4 py-3.5"><SeloStatus status={atendimento.status} /></td>
                         <td className={`whitespace-nowrap px-5 py-3.5 text-right font-medium tabular-nums sm:px-6 ${atendimento.status === 'cancelado' ? 'text-mist/45 line-through' : 'text-gold'}`}>{formatPriceFull(atendimento.preco)}</td>
                       </tr>
-                    ))}
+                    })}
                   </tbody>
                 </table>
               </div>

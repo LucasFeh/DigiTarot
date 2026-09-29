@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { registrosGestao, registrosVisiveisNoFaturamento, resumoGestao } from '../src/lib/gestao.ts'
+import { destinoConferencia, registrosGestao, registrosVisiveisNoFaturamento, resumoGestao } from '../src/lib/gestao.ts'
 
 const rodrigo = { uid: 'uid-rodrigo', email: 'rodriv.l680@gmail.com', admin: true }
 const luna = { uid: 'uid-luna', email: 'luna@example.com', admin: false }
@@ -65,4 +65,16 @@ test('um profissional removido sai só do faturamento e volta se for restaurado 
   assert.equal(resumoGestao(visiveis, '2026-09-28', '2026-10-04').totais.valor, 90)
   assert.equal(registrosVisiveisNoFaturamento(registros, [], [rodrigo.email]).length, 3)
   assert.equal(registrosVisiveisNoFaturamento(registros, ['romeu@example.com'], [rodrigo.email, 'romeu@example.com']).length, 3)
+})
+
+test('pagamentos pendentes abrem a ficha certa; sessão particular de outro dono não abre para o admin', () => {
+  const [agenda, particular] = registrosGestao(
+    [agendamento('reserva 1', rodrigo.email, 90, 'pago')],
+    [convite('convite-luna', luna.uid, luna.email, 75, 'aguardando')],
+    rodrigo,
+  )
+  assert.equal(destinoConferencia(agenda, rodrigo), '#/perfil/tiragem/agenda/reserva%201')
+  assert.equal(destinoConferencia(particular, rodrigo), null)
+  assert.equal(destinoConferencia(particular, luna), '#/perfil/tiragem/particular/convite-luna')
+  assert.equal(destinoConferencia({ ...agenda, status: 'confirmado' }, rodrigo), null)
 })

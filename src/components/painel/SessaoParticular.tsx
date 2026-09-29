@@ -5,6 +5,7 @@ import { SPREADS } from '../../data/spreads'
 import { formatPriceFull } from '../../data/plans'
 import SeloStatus from '../agenda/SeloStatus'
 import type { Convite, Sessao } from '../../lib/backend'
+import { lerParteRota, useHashRoute } from '../../lib/useHashRoute'
 
 const CAMPO =
   'w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] text-star outline-none transition placeholder:text-mist/40 focus:border-lilac/60'
@@ -146,6 +147,8 @@ function JanelaNovaSessao({
  */
 export default function SessaoParticular() {
   const { usuario, backend } = useAuth()
+  const { partes } = useHashRoute()
+  const conviteAlvo = partes[2] === 'particular' ? lerParteRota(partes[3]) : null
   const { perfil, pronto: perfilPronto } = usePerfil(usuario)
   const [convites, setConvites] = useState<Convite[]>([])
   const [sessoes, setSessoes] = useState<Sessao[] | null>(null)
@@ -166,6 +169,7 @@ export default function SessaoParticular() {
   }, [backend, usuario])
 
   if (!usuario) return null
+  const convitesVisiveis = conviteAlvo ? convites.filter((c) => c.token === conviteAlvo) : convites
   const sessoesPorId = new Map((sessoes ?? []).map((sessao) => [sessao.id, sessao]))
 
   const copiar = async (token: string) => {
@@ -258,6 +262,10 @@ export default function SessaoParticular() {
 
   return (
     <div>
+      {conviteAlvo && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/35 bg-gold/10 px-4 py-3 text-[13px] text-gold">
+        <span>Sessão selecionada para conferência</span>
+        <a href="#/perfil/tiragem/particular" className="font-medium underline underline-offset-4 hover:text-star">Ver todas as sessões</a>
+      </div>}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="mb-1 font-display text-xl text-star">Sessão particular</h2>
@@ -289,9 +297,9 @@ export default function SessaoParticular() {
         </p>
       )}
 
-      {convites.length === 0 ? (
+      {convitesVisiveis.length === 0 ? (
         <p className="glass rounded-2xl px-5 py-10 text-center text-[15px] text-mist/70">
-          Nenhuma sessão particular ainda. Crie uma e mande o link para quem quiser.
+          {conviteAlvo ? 'Sessão não encontrada entre seus convites.' : 'Nenhuma sessão particular ainda. Crie uma e mande o link para quem quiser.'}
         </p>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-white/10">
@@ -309,12 +317,12 @@ export default function SessaoParticular() {
           </div>
 
           <ul className="divide-y divide-white/8">
-            {convites.map((c) => {
+            {convitesVisiveis.map((c) => {
               const mesa = c.sessaoId ? sessoesPorId.get(c.sessaoId) : undefined
               return (
               <li
                 key={c.token}
-                className="grid items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-white/[0.03] lg:grid"
+                className={`grid items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-white/[0.03] lg:grid ${conviteAlvo ? 'bg-gold/[0.07]' : ''}`}
                 style={{ gridTemplateColumns: COLUNAS }}
               >
                 <div className="min-w-0">

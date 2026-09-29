@@ -75,6 +75,21 @@ export function registrosVisiveisNoFaturamento(registros: RegistroGestao[], idsR
   return registros.filter((item) => !removidos.has(item.tarologoPerfilId) || ativos.has(item.tarologoPerfilId))
 }
 
+/** Leva um pagamento pendente à ficha exata onde seu responsável pode conferi-lo. */
+export function destinoConferencia(registro: RegistroGestao, usuario: Pick<Usuario, 'uid' | 'email' | 'admin'>): string | null {
+  if (registro.status !== 'aguardando' && registro.status !== 'pago') return null
+  const [origem, id] = registro.id.split(':', 2)
+  if (!id) return null
+  if (registro.origem === 'agenda' && origem === 'agenda') {
+    return `#/perfil/tiragem/agenda/${encodeURIComponent(id)}`
+  }
+  if (registro.origem === 'particular' && origem === 'particular'
+    && registro.tarologoPerfilId === usuario.email.trim().toLowerCase()) {
+    return `#/perfil/tiragem/particular/${encodeURIComponent(id)}`
+  }
+  return null
+}
+
 export function resumoGestao(registros: RegistroGestao[], inicio: string, fim: string) {
   const semana = registros.filter((item) => item.data >= inicio && item.data <= fim)
   const totais = {

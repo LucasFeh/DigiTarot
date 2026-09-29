@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../lib/useAuth'
 import { usePerfil } from '../../lib/perfil'
-import { irPara } from '../../lib/useHashRoute'
+import { irPara, lerParteRota, useHashRoute } from '../../lib/useHashRoute'
 import { SPREADS } from '../../data/spreads'
 import { formatPriceFull } from '../../data/plans'
 import { faltam, jaPassou, naJanela, rotuloCompleto, rotuloDia } from '../../data/agenda'
@@ -59,6 +59,8 @@ function Rosto({ nome, foto, tamanho = 46 }: { nome: string; foto?: string; tama
  */
 export default function AgendaTarologo() {
   const { usuario, backend } = useAuth()
+  const { partes } = useHashRoute()
+  const atendimentoAlvo = partes[2] === 'agenda' ? lerParteRota(partes[3]) : null
   const { perfil, pronto: perfilPronto } = usePerfil(usuario)
   const [lista, setLista] = useState<Agendamento[]>([])
   const [perfis, setPerfis] = useState<Record<string, Perfil>>({})
@@ -98,6 +100,7 @@ export default function AgendaTarologo() {
     const ordenada = [...lista].sort((a, b) =>
       `${a.data}T${a.hora}`.localeCompare(`${b.data}T${b.hora}`),
     )
+    if (atendimentoAlvo) return ordenada.filter((a) => a.id === atendimentoAlvo)
     if (filtro === 'pendentes') {
       return ordenada.filter((a) => a.status === 'aguardando' || a.status === 'pago')
     }
@@ -105,7 +108,13 @@ export default function AgendaTarologo() {
       return ordenada.filter((a) => a.status !== 'cancelado' && !jaPassou(a.data, a.hora, agora))
     }
     return ordenada.reverse()
-  }, [lista, filtro, agora])
+  }, [lista, filtro, agora, atendimentoAlvo])
+
+  useEffect(() => {
+    if (!atendimentoAlvo || !lista.some((a) => a.id === atendimentoAlvo)) return
+    const quadro = requestAnimationFrame(() => document.getElementById(`agenda-atendimento-${atendimentoAlvo}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+    return () => cancelAnimationFrame(quadro)
+  }, [atendimentoAlvo, lista])
 
   /** Agrupado por dia, para a visualização de agenda. */
   const porDia = useMemo(() => {
@@ -274,8 +283,12 @@ export default function AgendaTarologo() {
 
   return (
     <div>
+      {atendimentoAlvo && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/35 bg-gold/10 px-4 py-3 text-[13px] text-gold">
+        <span>Atendimento selecionado para conferência</span>
+        <a href="#/perfil/tiragem" className="font-medium underline underline-offset-4 hover:text-star">Ver agenda completa</a>
+      </div>}
       {/* ------------------------- filtros e visualização ------------------------- */}
-      <div className="mb-5 flex flex-wrap items-center gap-3">
+      {!atendimentoAlvo && <div className="mb-5 flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap gap-1.5">
           {FILTROS.map((f) => {
             const on = f.id === filtro
@@ -326,7 +339,7 @@ export default function AgendaTarologo() {
             )
           })}
         </div>
-      </div>
+      </div>}
 
       {erro && (
         <p className="mb-4 rounded-lg border border-rose/40 bg-rose/10 px-3 py-2 text-[14px] text-rose">
@@ -336,13 +349,13 @@ export default function AgendaTarologo() {
 
       {visiveis.length === 0 ? (
         <p className="glass rounded-2xl px-5 py-10 text-center text-[15px] text-mist/70">
-          Nada por aqui{filtro === 'proximas' ? ' — nenhuma consulta marcada à frente.' : '.'}
+          {atendimentoAlvo ? 'Atendimento não encontrado na sua agenda.' : `Nada por aqui${filtro === 'proximas' ? ' — nenhuma consulta marcada à frente.' : '.'}`}
         </p>
-      ) : visual === 'lista' ? (
+      ) : (atendimentoAlvo ? 'lista' : visual) === 'lista' ? (
         // ------------------------------- lista -------------------------------
         <ul className="flex flex-col gap-3">
           {visiveis.map((a) => (
-            <li key={a.id} className="glass rounded-2xl px-5 py-4">
+            <li key={a.id} id={`agenda-atendimento-${a.id}`} className={`glass rounded-2xl px-5 py-4 ${atendimentoAlvo ? 'border-gold/50 shadow-[0_0_32px_-22px_#f2d492]' : ''}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <Pessoa a={a} />

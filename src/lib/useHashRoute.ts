@@ -22,6 +22,15 @@ export function irPara(caminho: string) {
   window.location.hash = caminho === '/' ? '/' : `#${caminho}`.replace(/^##/, '#')
 }
 
+export function lerParteRota(parte: string | undefined): string | null {
+  if (!parte) return null
+  try {
+    return decodeURIComponent(parte)
+  } catch {
+    return null
+  }
+}
+
 export function useHashRoute(): Rota {
   const [rota, setRota] = useState(readRoute)
 
