@@ -165,6 +165,7 @@ export default function ConvitePage({ token }: { token: string }) {
             valor={convite.preco}
             codigo={convite.codigo}
             descricao={`${convite.titulo} — ${convite.codigo}`}
+            pix={convite.pix ? { ...convite.pix, configurado: true } : undefined}
           />
 
           <ol className="mt-6 flex flex-col gap-2 border-t border-white/10 pt-5 text-[14px] leading-relaxed text-mist/80">

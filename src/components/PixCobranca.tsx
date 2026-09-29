@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { dadosPix, payloadPix, type DadosPix } from '../lib/pix'
+import { payloadPix, type DadosPix } from '../lib/pix'
 import { formatPriceFull } from '../data/plans'
 
 /**
@@ -21,7 +21,7 @@ export default function PixCobranca({
   descricao: string
   pix?: DadosPix
 }) {
-  const pix = pixInformado ?? dadosPix()
+  const pix = pixInformado ?? { chave: '', nome: '', cidade: '', configurado: false }
   const [copiado, setCopiado] = useState(false)
 
   const payload = useMemo(

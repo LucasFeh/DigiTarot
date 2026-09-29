@@ -1,5 +1,4 @@
 import { EMAIL_TAROLOGO, ehEmailDeTarologo, TAROLOGO_RODRIGO } from './tarologo'
-import { dadosPix } from '../pix'
 import { guardarCadastroPendente, lerCadastroPendente, limparCadastroPendente } from '../cadastroPorLink'
 import { PERFIL_VAZIO } from './types'
 import type {
@@ -590,10 +589,7 @@ export class LocalBackend implements Backend {
   observarPixTarologo(uid: string, cb: (pix: TarologoPix | null) => void): Unsubscribe {
     const emitir = () => {
       const pix = ler<Record<string, TarologoPix>>(CHAVE_PIX_TAROLOGOS, {})
-      const configurado = dadosPix()
-      cb(pix[uid.toLowerCase()] ?? (uid.toLowerCase() === EMAIL_TAROLOGO && configurado.configurado
-        ? { chave: configurado.chave, nome: configurado.nome, cidade: configurado.cidade }
-        : null))
+      cb(pix[uid.toLowerCase()] ?? null)
     }
     this.ouvintesTarologos.add(emitir)
     emitir()
@@ -679,9 +675,11 @@ export class LocalBackend implements Backend {
     return ler<Convite[]>(CHAVE_CONVITES, [])
   }
 
-  async criarConvite(dados: Omit<Convite, 'token' | 'criadoEm'>) {
+  async criarConvite(dados: Omit<Convite, 'token' | 'criadoEm' | 'pix'>) {
     const token = novoToken()
-    const novo: Convite = { ...dados, token, criadoEm: new Date().toISOString() }
+    const pix = ler<Record<string, TarologoPix>>(CHAVE_PIX_TAROLOGOS, {})[this.contaAtual().email.toLowerCase()]
+    if (!pix) throw new Error('Configure seu Pix profissional antes de criar a sessão.')
+    const novo: Convite = { ...dados, pix, token, criadoEm: new Date().toISOString() }
     gravar(CHAVE_CONVITES, [novo, ...this.convites()])
     this.avisar('agenda')
     return token

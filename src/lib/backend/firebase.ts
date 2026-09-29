@@ -44,7 +44,6 @@ import {
 } from 'firebase/firestore'
 import { novoToken } from './local'
 import { ehEmailDeTarologo, TAROLOGO_RODRIGO } from './tarologo'
-import { dadosPix } from '../pix'
 import {
   guardarCadastroPendente,
   limparCadastroPendente,
@@ -236,12 +235,6 @@ export class FirebaseBackend implements Backend {
   private async semearRodrigo() {
     const ref = doc(this.db, 'tarologos', TAROLOGO_RODRIGO.uid)
     if (!(await getDoc(ref)).exists()) await setDoc(ref, TAROLOGO_RODRIGO)
-    const pix = dadosPix()
-    if (!pix.configurado || !pix.nome || !pix.cidade) return
-    const pixRef = doc(this.db, 'pixTarologos', TAROLOGO_RODRIGO.uid)
-    if (!(await getDoc(pixRef)).exists()) {
-      await setDoc(pixRef, { chave: pix.chave, nome: pix.nome, cidade: pix.cidade })
-    }
   }
 
   async entrarComGoogle() {
@@ -590,7 +583,6 @@ export class FirebaseBackend implements Backend {
       // Os três registros nascem juntos; falha em qualquer um não prende o horário.
       const lote = writeBatch(this.db)
       lote.set(slot, {
-        uid: dados.clienteUid,
         tarologoUid: perfilId,
         agendamentoId: ref.id,
         criadoEm: new Date().toISOString(),
@@ -669,14 +661,17 @@ export class FirebaseBackend implements Backend {
 
   // ------------------------ sessões particulares ------------------------
 
-  async criarConvite(dados: Omit<Convite, 'token' | 'criadoEm'>) {
+  async criarConvite(dados: Omit<Convite, 'token' | 'criadoEm' | 'pix'>) {
     const token = novoToken()
+    const pixDoc = await getDoc(doc(this.db, 'pixTarologos', idTarologo(this.exigirUsuario().email)))
+    if (!pixDoc.exists()) throw new Error('Configure seu Pix profissional antes de criar a sessão.')
+    const pix = pixDoc.data() as TarologoPix
     // O token é o ID do documento, e não um campo: é isso que permite a regra
     // liberar `get` sem `list`. Quem tem o endereço lê aquele documento; quem
     // não tem não consegue nem descobrir que ele existe.
     await setDoc(
       doc(this.db, 'convites', token),
-      semVazios({ ...dados, token, criadoEm: new Date().toISOString() }),
+      semVazios({ ...dados, pix, token, criadoEm: new Date().toISOString() }),
     )
     return token
   }

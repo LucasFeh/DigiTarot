@@ -130,7 +130,7 @@ export default function EditorServicosTarologo() {
 
     <section className="rounded-2xl border border-white/15 bg-white/[0.04] p-5 sm:p-7" aria-labelledby="pix-titulo">
       <h3 id="pix-titulo" className="font-display text-xl text-star">Pix profissional</h3>
-      <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-mist/65">A chave fica em área privada e aparece ao cliente após a reserva. Confira os dados antes de salvar.</p>
+      <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-mist/65">A chave fica em área privada e aparece ao cliente após a reserva. Convites particulares já enviados guardam o Pix da criação; se mudar a chave, emita novos convites.</p>
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <label className="block text-[13px] text-mist/75 sm:col-span-3">Chave Pix<input className={CAMPO} value={pix.chave} onChange={(e) => { setPix((atual) => ({ ...atual, chave: e.target.value })); setAlterouPix(true); setMensagem('') }} maxLength={140} autoComplete="off" /></label>
         <label className="block text-[13px] text-mist/75 sm:col-span-2">Nome do recebedor<input className={CAMPO} value={pix.nome} onChange={(e) => { setPix((atual) => ({ ...atual, nome: e.target.value })); setAlterouPix(true); setMensagem('') }} maxLength={25} /></label>

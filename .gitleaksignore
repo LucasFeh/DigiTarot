@@ -1,0 +1,4 @@
+# Falso positivo histórico: senha literal descartável de um usuário de teste
+# criado e removido por scripts/verificar-firebase.mjs. O script agora gera
+# uma senha aleatória. Ignoramos somente este achado de um commit antigo.
+ee487b5fbdc00a04c891ecbde997e2a9a2fa0e67:scripts/verificar-firebase.mjs:generic-api-key:115

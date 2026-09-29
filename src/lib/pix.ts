@@ -101,19 +101,3 @@ export function payloadPix({ chave, nome, cidade, valor, txid }: CobrancaPix): s
 }
 
 export type DadosPix = { chave: string; nome: string; cidade: string; configurado: boolean }
-
-/**
- * Os dados do recebedor vêm do `.env`. Enquanto a chave estiver em branco, a
- * tela de pagamento diz isso em voz alta em vez de gerar um QR Code que leva o
- * dinheiro a lugar nenhum.
- */
-export function dadosPix(): DadosPix {
-  const env = import.meta.env
-  const chave = (env.VITE_PIX_CHAVE ?? '').trim()
-  return {
-    chave,
-    nome: (env.VITE_PIX_NOME ?? '').trim(),
-    cidade: (env.VITE_PIX_CIDADE ?? '').trim(),
-    configurado: chave.length > 0,
-  }
-}

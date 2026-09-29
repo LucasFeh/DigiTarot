@@ -16,6 +16,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { randomBytes } from 'node:crypto'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -112,7 +113,7 @@ if (bancoExiste) {
   const email = `verificacao.${Date.now().toString(36)}@exemplo-teste.invalid`
   const conta = await post('accounts:signUp', {
     email,
-    password: 'verificacao-temporaria-123',
+    password: randomBytes(24).toString('base64url'),
     returnSecureToken: true,
   })
 
@@ -140,11 +141,7 @@ if (bancoExiste) {
   }
 }
 
-// -------------------------------------------------------------- pix
-{
-  const temPix = Boolean(env.VITE_PIX_CHAVE)
-  anotar(temPix, 'Chave Pix', temPix ? env.VITE_PIX_CHAVE : 'VITE_PIX_CHAVE vazia no .env')
-}
+// Pix é configurado por profissional no perfil e nunca deve ir para o bundle.
 
 // ------------------------------------------------------------ relatório
 const VERDE = '\x1b[32m'

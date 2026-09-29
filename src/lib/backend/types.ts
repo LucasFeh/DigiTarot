@@ -281,6 +281,8 @@ export type Convite = {
   titulo: string
   descricao: string
   preco: number
+  /** Dados de pagamento legíveis somente por quem tem o link do convite. */
+  pix?: TarologoPix
 
   /** Quem recebeu o link se apresenta aqui. Sem conta, sem e-mail. */
   convidadoNome: string
@@ -446,7 +448,7 @@ export interface Backend {
   // -------------------------- sessões particulares --------------------------
 
   /** Cria o convite e devolve o token, que é o que vai na URL. */
-  criarConvite(dados: Omit<Convite, 'token' | 'criadoEm'>): Promise<string>
+  criarConvite(dados: Omit<Convite, 'token' | 'criadoEm' | 'pix'>): Promise<string>
   /** Aberto a quem tem o link — inclusive sem nenhuma conta. */
   observarConvite(token: string, cb: (c: Convite | null) => void): Unsubscribe
   /** Os convites deste tarólogo. */

@@ -135,10 +135,7 @@ service cloud.firestore {
     }
 
     function precoValido(modalidades, plano) {
-      return !(plano in modalidades)
-             || (modalidades[plano] is number
-                 && modalidades[plano] > 0
-                 && modalidades[plano] <= 10000);
+      return modalidades.get(plano, 1) is number;
     }
 
     function modalidadesValidas(modalidades) {
@@ -202,12 +199,74 @@ service cloud.firestore {
              && dados.ativo == true;
     }
 
+    function perfilValido(dados) {
+      let foto = dados.get('foto', '');
+      let padrao = dados.get('padrao', {});
+      let mesa = dados.get('configuracaoMesa', {});
+      return dados.keys().hasOnly([
+               'nome', 'dataNascimento', 'contato', 'instagram', 'foto',
+               'desempenho', 'configuracaoMesa', 'padrao'
+             ])
+             && dados.get('nome', '') is string && dados.get('nome', '').size() <= 100
+             && dados.get('dataNascimento', '') is string
+             && (dados.get('dataNascimento', '') == '' || dados.get('dataNascimento', '').matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
+             && dados.get('contato', '') is string && dados.get('contato', '').size() <= 40
+             && dados.get('instagram', '') is string && dados.get('instagram', '').size() <= 40
+             && foto is string && foto.size() <= 300000
+             && (foto == '' || foto.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
+                 || foto.matches('^https://lh[0-9]+[.]googleusercontent[.]com/.+$'))
+             && dados.get('desempenho', 'auto') in ['auto', 'leve', 'completo']
+             && padrao is map && padrao.keys().hasOnly(['baralhoId', 'panoId'])
+             && (padrao.get('baralhoId', null) == null || (padrao.get('baralhoId', null) is string && padrao.get('baralhoId', '').size() <= 120))
+             && (padrao.get('panoId', null) == null || (padrao.get('panoId', null) is string && padrao.get('panoId', '').size() <= 120))
+             && mesa is map && mesa.keys().hasOnly(['cameraPosicao', 'cameraTamanho', 'chatLado', 'painelLado', 'barraLado'])
+             && (mesa.size() == 0 || (
+                  mesa.get('cameraPosicao', {}) is map
+                  && mesa.get('cameraPosicao', {}).keys().hasOnly(['x', 'y'])
+                  && mesa.get('cameraPosicao', {}).get('x', -1) is number
+                  && mesa.get('cameraPosicao', {}).get('x', -1) >= 0
+                  && mesa.get('cameraPosicao', {}).get('x', 101) <= 100
+                  && mesa.get('cameraPosicao', {}).get('y', -1) is number
+                  && mesa.get('cameraPosicao', {}).get('y', -1) >= 0
+                  && mesa.get('cameraPosicao', {}).get('y', 101) <= 100
+                  && mesa.get('cameraTamanho', 0) is number
+                  && mesa.get('cameraTamanho', 0) >= 10
+                  && mesa.get('cameraTamanho', 101) <= 100
+                  && mesa.get('chatLado', '') in ['esquerda', 'direita']
+                  && mesa.get('painelLado', '') in ['esquerda', 'direita']
+                  && mesa.get('barraLado', '') in ['esquerda', 'direita']
+                ));
+    }
+
+    function agendamentoNovoValido(dados) {
+      return dados.keys().hasOnly([
+               'clienteUid', 'clienteNome', 'clienteEmail', 'contato',
+               'tarologoUid', 'tarologoNome', 'planoId', 'planoTitulo',
+               'categoriaTitulo', 'duracao', 'preco', 'data', 'hora',
+               'formato', 'observacao', 'status', 'codigo', 'criadoEm'
+             ])
+             && dados.clienteNome is string && dados.clienteNome.size() > 0 && dados.clienteNome.size() <= 100
+             && dados.clienteEmail == request.auth.token.get('email', '')
+             && dados.contato is string && dados.contato.size() > 0 && dados.contato.size() <= 40
+             && dados.tarologoNome == perfilTarologo(dados.tarologoUid).nome
+             && dados.planoTitulo is string && dados.planoTitulo.size() <= 100
+             && dados.categoriaTitulo is string && dados.categoriaTitulo.size() <= 100
+             && dados.duracao is string && dados.duracao.size() <= 60
+             && dados.data is string && dados.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+             && dados.hora is string && dados.hora.matches('^[0-2][0-9]:[0-5][0-9]$')
+             && dados.formato in ['organica', 'fotos', 'digital', 'chamada', 'audio', 'escrito']
+             && dados.observacao is string && dados.observacao.size() <= 3000
+             && dados.codigo is string && dados.codigo.size() > 0 && dados.codigo.size() <= 40
+             && dados.criadoEm is string && dados.criadoEm.size() <= 40;
+    }
+
     // ------------------------------- perfis -------------------------------
     // O registro de cada pessoa. É dela, e só dela; o atendimento usa os dados
     // mínimos já copiados no agendamento.
     match /perfis/{usuarioId} {
       allow read: if contaConfirmada() && (uid() == usuarioId || ehAdmin());
-      allow write: if contaConfirmada() && uid() == usuarioId;
+      allow create, update: if contaConfirmada() && uid() == usuarioId && perfilValido(request.resource.data);
+      allow delete: if contaConfirmada() && uid() == usuarioId;
     }
 
     // Código de 8 dígitos por dez minutos. Só a conta do próprio tarólogo
@@ -273,7 +332,9 @@ service cloud.firestore {
         return contaConfirmada()
                && exists(caminho)
                && get(caminho).data.clienteUid == uid()
-               && get(caminho).data.tarologoUid == tarologoId;
+               && get(caminho).data.tarologoUid == tarologoId
+               && get(/databases/$(database)/documents/agendamentos/$(get(caminho).data.agendamentoId)).data.clienteUid == uid()
+               && get(/databases/$(database)/documents/agendamentos/$(get(caminho).data.agendamentoId)).data.status != 'cancelado';
       }
       allow get: if ehAdmin() || donoTarologo(tarologoId) || acessoCliente();
       allow list: if false;
@@ -311,12 +372,14 @@ service cloud.firestore {
     // tela não resolve — terminam com um reservado e outro avisado.
     //
     // A leitura é aberta a quem está logado porque o calendário precisa saber
-    // quais minutos caíram. E por isso o documento guarda só o uid de quem
-    // reservou: nome, contato e valor ficam em `agendamentos`, que é fechado.
+    // quais minutos caíram. O documento guarda só a referência da reserva;
+    // identidade, nome, contato e valor ficam em `agendamentos`, que é fechado.
     match /horarios/{slot} {
       allow read: if contaConfirmada();
       allow create: if contaConfirmada()
-                    && request.resource.data.uid == uid()
+                    && request.resource.data.keys().hasOnly(['tarologoUid', 'agendamentoId', 'criadoEm'])
+                    && request.resource.data.criadoEm is string
+                    && request.resource.data.criadoEm.size() <= 40
                     && !exists(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId))
                     && slot == request.resource.data.tarologoUid + '_'
                                + getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.data
@@ -327,7 +390,9 @@ service cloud.firestore {
                     && getAfter(/databases/$(database)/documents/agendamentos/$(request.resource.data.agendamentoId)).data.tarologoUid == request.resource.data.tarologoUid;
       allow update: if false;
       allow delete: if contaConfirmada()
-                    && (ehAdmin() || resource.data.uid == uid() || donoTarologo(resource.data.get('tarologoUid', '')))
+                    && (ehAdmin()
+                        || getAfter(/databases/$(database)/documents/agendamentos/$(resource.data.agendamentoId)).data.clienteUid == uid()
+                        || donoTarologo(resource.data.get('tarologoUid', '')))
                     && getAfter(/databases/$(database)/documents/agendamentos/$(resource.data.agendamentoId)).data.status == 'cancelado';
     }
 
@@ -339,6 +404,7 @@ service cloud.firestore {
 
       allow create: if contaConfirmada()
                     && request.resource.data.clienteUid == uid()
+                    && agendamentoNovoValido(request.resource.data)
                     // Ninguém nasce pago: quem confirma pagamento é o tarólogo.
                     && request.resource.data.status == 'aguardando'
                     // Nem já com mesa aberta.
@@ -407,21 +473,57 @@ service cloud.firestore {
       // negativa chegava calada na assinatura.
       allow list: if ehAdmin() || (ehTarologo() && resource.data.tarologoUid == uid());
 
-      allow create: if ehTarologo() && request.resource.data.tarologoUid == uid();
+      allow create: if ehTarologo()
+                    && token.matches('^[0-9a-f]{32}$')
+                    && request.resource.data.keys().hasOnly([
+                         'token', 'tarologoUid', 'tarologoNome', 'titulo', 'descricao',
+                         'preco', 'pix', 'convidadoNome', 'status', 'codigo', 'criadoEm'
+                       ])
+                    && request.resource.data.token == token
+                    && request.resource.data.tarologoUid == uid()
+                    && request.resource.data.tarologoNome is string
+                    && request.resource.data.tarologoNome.size() <= 100
+                    && request.resource.data.titulo is string
+                    && request.resource.data.titulo.size() > 0
+                    && request.resource.data.titulo.size() <= 100
+                    && request.resource.data.descricao is string
+                    && request.resource.data.descricao.size() <= 2000
+                    && request.resource.data.preco is number
+                    && request.resource.data.preco > 0
+                    && request.resource.data.preco <= 10000
+                    && request.resource.data.pix == get(/databases/$(database)/documents/pixTarologos/$(perfilId())).data
+                    && request.resource.data.convidadoNome == ''
+                    && request.resource.data.status == 'aguardando'
+                    && request.resource.data.codigo is string
+                    && request.resource.data.codigo.size() > 0
+                    && request.resource.data.codigo.size() <= 40
+                    && request.resource.data.criadoEm is string
+                    && request.resource.data.criadoEm.size() <= 40;
 
       // O tarólogo dono manda no convite. O convidado, sem conta nenhuma, pode
       // exatamente duas coisas: dizer como se chama e avisar que pagou. Não
       // pode mexer no valor, não pode se dar por confirmado, não pode abrir a
       // mesa — nem que reescreva a requisição à mão.
-      allow update: if (ehTarologo() && resource.data.tarologoUid == uid())
-                    || mexeuSoEm(['convidadoNome'])
+      allow update: if (ehTarologo()
+                        && resource.data.tarologoUid == uid()
+                        && mexeuSoEm(['status', 'sessaoId'])
+                        && resource.data.status in ['aguardando', 'pago']
+                        && request.resource.data.status == 'confirmado'
+                        && request.resource.data.sessaoId is string
+                        && get(/databases/$(database)/documents/sessoes/$(request.resource.data.sessaoId)).data.tarologoUid == uid()
+                        && get(/databases/$(database)/documents/sessoes/$(request.resource.data.sessaoId)).data.conviteToken == token)
+                    || (mexeuSoEm(['convidadoNome'])
+                        && resource.data.status in ['aguardando', 'pago']
+                        && request.resource.data.convidadoNome is string
+                        && request.resource.data.convidadoNome.size() > 0
+                        && request.resource.data.convidadoNome.size() <= 100)
                     || (
                       mexeuSoEm(['status'])
                       && resource.data.status == 'aguardando'
                       && request.resource.data.status == 'pago'
                     );
 
-      allow delete: if ehTarologo() && resource.data.tarologoUid == uid();
+      allow delete: if false;
     }
 
     // -------------------------------- mesas --------------------------------
@@ -510,7 +612,11 @@ service cloud.firestore {
         // o chat parou de funcionar sem motivo.
         allow create: if participa()
                       && request.resource.data.keys().hasOnly(['autor', 'nome', 'texto', 'imagem', 'audio', 'em'])
-                      && request.resource.data.autor in ['tarologo', 'cliente']
+                      && ((request.resource.data.autor == 'tarologo'
+                           && contaConfirmada() && mesa().tarologoUid == uid())
+                          || (request.resource.data.autor == 'cliente'
+                              && (mesa().get('publica', false) == true
+                                  || (contaConfirmada() && mesa().get('clienteUid', null) == uid()))))
                       && request.resource.data.nome is string
                       && request.resource.data.nome.size() <= 100
                       && request.resource.data.em is string

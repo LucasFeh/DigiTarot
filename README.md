@@ -51,7 +51,7 @@ minutos.
 
 As chaves são opcionais no workflow. Para ativar, cadastre em **Settings ›
 Secrets and variables › Actions** os mesmos nomes do `.env.example`
-(`VITE_FIREBASE_*`, `VITE_PIX_*` e `VITE_WHATSAPP`) e
+(`VITE_FIREBASE_*` e `VITE_WHATSAPP`) e
 republique. O passo a passo do console está em
 [Ligando o Firebase](#ligando-o-firebase).
 
@@ -359,8 +359,9 @@ Cada reserva ganha um identificador (`DIGI…`) para conferir o comprovante.
 manualmente após verificar o extrato. O painel chama essa soma de valor
 confirmado manualmente, não de faturamento liquidado.
 
-Os antigos `VITE_PIX_*` podem preencher o perfil inicial do Rodrigo. Depois,
-edite o Pix de cada profissional em `#/admin`. Um perfil ativo precisa ter
+Cada tarólogo configura o próprio Pix em **Perfil › Atendimentos e Pix**. A
+chave fica no Firestore privado e é entregue apenas ao cliente com reserva ou
+ao convidado que recebeu um link de sessão particular. Um perfil precisa ter
 chave, nome do recebedor e cidade antes de receber reservas.
 
 ### Ligando o Firebase
@@ -386,13 +387,12 @@ No [console do Firebase](https://console.firebase.google.com), use o projeto já
    arquivo; a publicação do site no GitHub Pages não publica as regras.
 5. Entre como administrador (`rodriv.l680@gmail.com`) com e-mail verificado.
    A primeira entrada cria o perfil do Rodrigo com as modalidades e preços
-   atuais. Em `#/admin`, cadastre outros tarólogos pelo e-mail e configure
-   foto, modalidades, preços e Pix. Eles entram com o mesmo e-mail verificado;
+   atuais. Em **Perfil › Gestão DigiTarot**, cadastre outros tarólogos pelo
+   e-mail. Cada profissional configura foto, modalidades, preços e Pix no próprio perfil. Eles entram com o mesmo e-mail verificado;
    não é necessário copiar UID do Authentication.
 6. Se necessário, copie `.env.example` para `.env` e preencha a configuração
-   do projeto e o WhatsApp. Configure o Pix pelo painel administrativo. Os
-   antigos `VITE_PIX_*` servem apenas para migrar os dados de Rodrigo e devem
-   sair do build depois da conferência.
+   do projeto e o WhatsApp. Configure o Pix no perfil de cada tarólogo. Nunca
+   use `VITE_PIX_*`: variáveis `VITE_*` são incluídas no JavaScript público.
 7. **Authentication › Settings › Authorized domains**: acrescente o domínio onde
    o site é publicado (`<usuario>.github.io`), senão o login com Google é
    recusado em produção.
