@@ -4,7 +4,7 @@ import { usePerfil } from '../../lib/perfil'
 import { SPREADS } from '../../data/spreads'
 import { formatPriceFull } from '../../data/plans'
 import SeloStatus from '../agenda/SeloStatus'
-import type { Convite } from '../../lib/backend'
+import type { Convite, Sessao } from '../../lib/backend'
 
 const CAMPO =
   'w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] text-star outline-none transition placeholder:text-mist/40 focus:border-lilac/60'
@@ -148,6 +148,7 @@ export default function SessaoParticular() {
   const { usuario, backend } = useAuth()
   const { perfil, pronto: perfilPronto } = usePerfil(usuario)
   const [convites, setConvites] = useState<Convite[]>([])
+  const [sessoes, setSessoes] = useState<Sessao[] | null>(null)
   const [janela, setJanela] = useState(false)
   const [criando, setCriando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -159,7 +160,13 @@ export default function SessaoParticular() {
     return backend.observarMeusConvites(usuario.uid, setConvites)
   }, [backend, usuario])
 
+  useEffect(() => {
+    if (!backend || !usuario) return
+    return backend.observarMinhasSessoes(usuario.uid, setSessoes)
+  }, [backend, usuario])
+
   if (!usuario) return null
+  const sessoesPorId = new Map((sessoes ?? []).map((sessao) => [sessao.id, sessao]))
 
   const copiar = async (token: string) => {
     try {
@@ -301,7 +308,9 @@ export default function SessaoParticular() {
           </div>
 
           <ul className="divide-y divide-white/8">
-            {convites.map((c) => (
+            {convites.map((c) => {
+              const mesa = c.sessaoId ? sessoesPorId.get(c.sessaoId) : undefined
+              return (
               <li
                 key={c.token}
                 className="grid items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-white/[0.03] lg:grid"
@@ -338,7 +347,11 @@ export default function SessaoParticular() {
                     {copiado === c.token ? 'Copiado' : 'Copiar link'}
                   </button>
 
-                  {c.sessaoId ? (
+                  {mesa?.encerrada ? (
+                    <span role="status" className="rounded-full border border-white/20 bg-white/5 px-4 py-1.5 text-[14px] text-mist/70">
+                      Mesa encerrada
+                    </span>
+                  ) : c.sessaoId && mesa ? (
                     <a
                       href={`#/tiragem/${c.sessaoId}`}
                       className="rounded-full px-4 py-1.5 text-[14px] font-medium text-star transition"
@@ -349,6 +362,10 @@ export default function SessaoParticular() {
                     >
                       Entrar na mesa
                     </a>
+                  ) : c.sessaoId ? (
+                    <span className="rounded-full border border-white/15 px-4 py-1.5 text-[14px] text-mist/55">
+                      {sessoes ? 'Mesa indisponível' : 'Verificando mesa…'}
+                    </span>
                   ) : (
                     <button
                       type="button"
@@ -361,7 +378,8 @@ export default function SessaoParticular() {
                   )}
                 </span>
               </li>
-            ))}
+              )
+            })}
           </ul>
         </div>
       )}
