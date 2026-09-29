@@ -53,7 +53,7 @@ function PainelTiragem({
   )
 }
 
-/** Acervo e padrão visual, dentro de Perfil → Minha tiragem → Temas. */
+/** Acervo e padrão visual, dentro de Perfil → Agenda → Temas. */
 function SecaoTemas() {
   const { usuario } = useAuth()
   const { perfil, salvar } = usePerfil(usuario)

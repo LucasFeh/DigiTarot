@@ -146,7 +146,17 @@ export default function Header({ caminho }: { caminho: string }) {
                     onClick={() => setMenu(false)}
                     className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star"
                   >
-                    Meu perfil
+                    Perfil
+                  </a>
+                  <a
+                    href="#/perfil/conta"
+                    role="menuitem"
+                    onPointerEnter={() => prepararRota(() => import('../pages/PerfilPage'))}
+                    onFocus={() => prepararRota(() => import('../pages/PerfilPage'))}
+                    onClick={() => setMenu(false)}
+                    className="block px-4 py-2.5 text-mist transition hover:bg-white/5 hover:text-star"
+                  >
+                    Conta e acessos
                   </a>
                   <button
                     type="button"

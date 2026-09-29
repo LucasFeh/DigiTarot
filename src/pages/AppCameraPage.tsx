@@ -392,7 +392,7 @@ export default function AppCameraPage() {
   const secoes: { id: SecaoCamera; titulo: string; icone: string }[] = [
     { id: 'camera', titulo: 'Câmera', icone: '◉' },
     { id: 'geral', titulo: 'Geral', icone: '☾' },
-    { id: 'tiragem', titulo: 'Minha tiragem', icone: '☷' },
+    { id: 'tiragem', titulo: 'Agenda', icone: '☷' },
     { id: 'carta', titulo: 'Minha carta', icone: '✦' },
   ]
 

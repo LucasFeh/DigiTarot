@@ -82,6 +82,8 @@ function Rotas() {
       <PreviaTemaPage temaId={partes[2]} />
     ) : partes[0] === 'temas' ? (
       <RedirecionarParaPerfil destino={`#/perfil/tiragem/temas${abaAntigaTemas}`} />
+    ) : partes[0] === 'perfil' && (partes[1] === 'carta' || partes[1] === 'servicos') ? (
+      <RedirecionarParaPerfil destino={`#/perfil/geral/${partes[1]}`} />
     ) : partes[0] === 'perfil' ? (
       <PerfilPage />
     ) : partes[0] === 'tarologos' ? (

@@ -19,12 +19,10 @@ import { useHashRoute } from '../lib/useHashRoute'
 const TiragemPage = lazy(() => import('./TiragemPage'))
 const AdminPage = lazy(() => import('./AdminPage'))
 
-type Secao = 'geral' | 'carta' | 'servicos' | 'mesa' | 'camera' | 'conta' | 'tiragem' | 'gestao'
+type Secao = 'geral' | 'mesa' | 'camera' | 'conta' | 'tiragem' | 'gestao'
+type AbaGeral = 'dados' | 'carta' | 'servicos'
 
-const SECOES: ItemMenu<Secao>[] = [
-  { id: 'geral', rotulo: 'Geral', icone: '☾' },
-  { id: 'conta', rotulo: 'Conta e acessos', icone: '✧' },
-]
+const GERAL: ItemMenu<Secao> = { id: 'geral', rotulo: 'Geral', icone: '☾' }
 
 function Campo({
   rotulo,
@@ -84,18 +82,15 @@ export default function PerfilPage() {
   const idade = calcularIdade(perfil.dataNascimento)
   const hoje = new Date().toLocaleDateString('en-CA')
   const secoes: ItemMenu<Secao>[] = [
-    SECOES[0],
-    ...(usuario.papel === 'tarologo' ? [
-      { id: 'carta' as const, rotulo: 'Minha carta', icone: '✦' },
-      { id: 'servicos' as const, rotulo: 'Atendimentos e Pix', icone: '◇' },
-      { id: 'mesa' as const, rotulo: 'Configurar a mesa', icone: '▣' },
-      { id: 'camera' as const, rotulo: 'Câmera do celular', icone: '◉' },
-    ] : []),
-    { id: 'tiragem', rotulo: 'Minha tiragem', icone: '☷' },
+    GERAL,
+    ...(usuario.papel === 'tarologo' ? [{ id: 'camera' as const, rotulo: 'Câmera do celular', icone: '◉' }] : []),
+    { id: 'tiragem', rotulo: 'Agenda', icone: '☷' },
     ...(usuario.admin ? [{ id: 'gestao' as const, rotulo: 'Gestão DigiTarot', icone: '✧' }] : []),
-    SECOES[1],
+    ...(usuario.papel === 'tarologo' ? [{ id: 'mesa' as const, rotulo: 'Configurar a mesa', icone: '▣' }] : []),
   ]
-  const secao = secoes.find((item) => item.id === partes[1])?.id ?? 'geral'
+  const secao = partes[1] === 'conta' ? 'conta' : secoes.find((item) => item.id === partes[1])?.id ?? 'geral'
+  const abaGeral: AbaGeral = usuario.papel === 'tarologo' && partes[1] === 'geral'
+    && (partes[2] === 'carta' || partes[2] === 'servicos') ? partes[2] : 'dados'
 
   const avatar = foto ? (
     <img src={foto} alt="" className="h-11 w-11 rounded-full object-cover" />
@@ -115,6 +110,27 @@ export default function PerfilPage() {
       aoEscolher={(id) => { window.location.hash = id === 'geral' ? '#/perfil' : `#/perfil/${id}` }}
     >
       {secao === 'geral' && (
+        <div className="max-w-6xl">
+          {usuario.papel === 'tarologo' && (
+            <nav className="mb-7 flex flex-wrap gap-2 border-b border-white/10 pb-5" aria-label="Áreas de Geral">
+              {([
+                ['dados', 'Seus dados'],
+                ['carta', 'Minha carta'],
+                ['servicos', 'Atendimentos e Pix'],
+              ] as const).map(([id, rotulo]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => { window.location.hash = id === 'dados' ? '#/perfil' : `#/perfil/geral/${id}` }}
+                  aria-current={abaGeral === id ? 'page' : undefined}
+                  className={`rounded-full border px-4 py-2 text-[14px] transition ${abaGeral === id ? 'border-gold/60 bg-gold/15 text-star' : 'border-white/15 text-mist hover:border-gold/40 hover:text-star'}`}
+                >
+                  {rotulo}
+                </button>
+              ))}
+            </nav>
+          )}
+          {abaGeral === 'dados' && (
         <div className="grid max-w-6xl items-start gap-8 xl:grid-cols-[minmax(0,1fr)_335px]">
           <div className="glass rounded-2xl p-7">
             <h2 className="mb-1 font-display text-xl text-star">Seus dados</h2>
@@ -229,11 +245,13 @@ export default function PerfilPage() {
             )}
           </aside>
         </div>
+          )}
+          {abaGeral === 'carta' && <EditorCartaTarologo />}
+          {abaGeral === 'servicos' && <EditorServicosTarologo />}
+        </div>
       )}
 
       {secao === 'conta' && <SecaoConta />}
-      {secao === 'carta' && usuario.papel === 'tarologo' && <EditorCartaTarologo />}
-      {secao === 'servicos' && usuario.papel === 'tarologo' && <EditorServicosTarologo />}
       {secao === 'mesa' && usuario.papel === 'tarologo' && <ConfigurarMesa valor={perfil.configuracaoMesa ?? CONFIGURACAO_MESA_PADRAO} salvar={(configuracaoMesa) => salvar({ configuracaoMesa })} />}
       {secao === 'camera' && usuario.papel === 'tarologo' && <VincularCamera />}
       {secao === 'tiragem' && <Suspense fallback={<p className="text-mist/70">Abrindo tiragem…</p>}><TiragemPage /></Suspense>}
